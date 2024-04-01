@@ -457,7 +457,7 @@ if (.not.skipread) then
   call Message%printError('readNameList:',' pattern size numsx is zero '//nmlfile)
  end if
 
- if (numsx.eq.0) then
+ if (numsy.eq.0) then
   call Message%printError('readNameList:',' pattern size numsy is zero '//nmlfile)
  end if
 end if

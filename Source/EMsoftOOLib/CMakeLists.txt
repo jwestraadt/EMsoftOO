@@ -172,6 +172,7 @@ set(EMsoftOOLib_SRCS
   ${EMsoftOOLib_SOURCE_DIR}/program_mods/mod_BFDF.f90 
   ${EMsoftOOLib_SOURCE_DIR}/program_mods/mod_BWshow.f90 
   ${EMsoftOOLib_SOURCE_DIR}/program_mods/mod_SphInx.f90
+  ${EMsoftOOLib_SOURCE_DIR}/program_mods/mod_4DEBSD.f90
 
   ${EMsoftOOLib_Additional_SRCS}
 )

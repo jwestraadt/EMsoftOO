@@ -1,54 +1,68 @@
- &EBSDdefectdata
-! template file for the EMEBSD program
+ &EBSD4Ddata
+! template file for the EM4DEBSD program
+!
+! The values below are the default values for this program
 !
 !=====================================
-! detector and pattern intensity parameters
+! Pattern Data
 !=====================================
-! distance between scintillator and illumination point [microns]
- L = 15000.0,
-! tilt angle of the camera (positive below horizontal, [degrees])
- thetac = 10.0,
-! CCD pixel size on the scintillator surface [microns]
- delta = 50.0,
-! number of CCD pixels along x and y
+! height of inverse pole figure in pixels
+ ipf_ht = 100,
+! width of inverse pole figure in pixels
+ ipf_wd = 100,
+! define the region of interest;  leave all at 0 for full field of view
+ ROI = 0 0 0 0,
+! number of pattern pixels along x and y
  numsx = 0,
  numsy = 0,
-! pattern center coordinates in units of pixels
- xpc = 0.0,
- ypc = 0.0,
-! intensity scaling mode 'not' = no scaling, 'lin' = linear, 'gam' = gamma correction
- scalingmode = 'not',
-! gamma correction factor
- gammavalue = 1.0,
 
 !=====================================
-! diffraction geometry and image parameters
+! Virtual Detector Parameters
 !=====================================
-! this zone axis k will be parallel to the sample normal ND;
-! note that this will be truncated to an integer, so do not use decimal portions
- k = 0.D0, 0.D0, 1.D0,
-! reciprocal vector that describes the lattice plane normal that contains the k vector
-! q must be perpendciular to k
- q = 1.D0, 0.D0, 0.D0, 
-! edge length of a column [nm] in the column approximation context (i.e., pixel size)
-! this is also the EBSD sampling step size !
- DF_L = 1.0,
-! number of x-columns (=number of x-pixels in output image)
- DF_npix = 256,
-! number of y-columns (=number of y-pixels in output image)
- DF_npiy = 256,
+! detector type:  'Rect', 'Gaus', 'Hann'
+ VDtype = 'Rect',
+! detector reference: 'EBSP', 'MPat'
+ VDreference = 'EBSP',
+! center coordinates (in terms of EBSD pattern)
+ VDlocx = 0.0, 
+ VDlocy = 0.0,
+! rectangular virtual detector width and height (should be odd numbers !)
+ VDwidth = 5,
+ VDheight = 5,
+! Gaussian virtual detector standard deviation
+ VDSD = 0.5,
+! Hann window alpha parameter
+ VDHannAlpha = 0.5, 
+
+!###################################################################
+! Input File Parameters
+!###################################################################
+!
+! name of datafile where the patterns are stored; path relative to EMdatapathname
+ exptfile = 'undefined',
+! input file type parameter: Binary, EMEBSD, EMEBSD32i, EMEBSD32f, TSLHDF, TSLup2, 
+!                            OxfordHDF, OxfordBinary, BrukerHDF, NORDIF
+ inputtype = 'Binary',
+! here we enter the HDF group names and data set names as individual strings (up to 10)
+! enter the full path of a data set in individual strings for each group, in the correct order,
+! and with the data set name as the last name; leave the remaining strings empty (they should all
+! be empty for the Binary and TSLup2 formats)
+ HDFstrings = '' '' '' '' '' '' '' '' '' '',
 
 !=====================================
-! input/output files
+! Master pattern file (for a future implementation)
 !=====================================
-! name of EBSD depth master output file; path relative to EMdatapathname
- masterfile = 'master.h5',
-! name of output file; path relative to EMdatapathname
- datafile = 'EBSDdefectout.h5',
-! name of the json file with the defect configuration parameters
- defectfilename = 'EMdefect.json',
+! the following parameter MUST be set if VDreference = 'MPat'
+ masterfile = 'undefined'
+
+!=====================================
+! Output files
+!=====================================
+! name of virtual detector image file
+ virtualimagefile = 'undefined',
 
 !=====================================
 ! number of threads (default = 1)
+!=====================================
  nthreads = 1,
  /

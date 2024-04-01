@@ -37,32 +37,31 @@ program EM4DEBSD
 use mod_kinds
 use mod_global
 use mod_EMsoft
-use mod_EBSDdefect
+use mod_4DEBSD
 use mod_HDFnames
 use stringconstants
 
 IMPLICIT NONE
 
-character(fnlen)                :: progname = 'EM4DEBSD.f90'
-character(fnlen)                :: progdesc = 'Generate EBSD patterns for a scan across an ROI containing defects'
+character(fnlen)     :: progname = 'EM4DEBSD.f90'
+character(fnlen)     :: progdesc = 'Generate EBSD patterns for a scan across an ROI containing defects'
 
-type(EMsoft_T)                  :: EMsoft
-type(EBSDdefect_T)              :: EBSDdef 
-type(HDFnames_T)                :: HDFnames
+type(EMsoft_T)       :: EMsoft
+type(EBSD4D_T)       :: EBSD4D
+type(HDFnames_T)     :: HDFnames
 
 ! print the EMsoft header and handle any command line arguments  
-EMsoft = EMsoft_T( progname, progdesc, tpl = (/ 3, 140, 200 /) )
+EMsoft = EMsoft_T( progname, progdesc, tpl = (/ 140 /) )
 
 ! deal with the namelist stuff
-EBSDdef = EBSDdefect_T(EMsoft%nmldeffile)
+EBSD4D = EBSD4D_T(EMsoft%nmldeffile)
 
 HDFnames = HDFnames_T() 
-call HDFnames%set_ProgramData(SC_EBSDdefect) 
-call HDFnames%set_NMLlist(SC_EBSDdefectNameList) 
-call HDFnames%set_NMLfilename(SC_EBSDdefectNML) 
-call HDFnames%set_Variable(SC_MCOpenCL) 
+call HDFnames%set_ProgramData(SC_EBSD4D) 
+call HDFnames%set_NMLlist(SC_EBSD4DNameList) 
+call HDFnames%set_NMLfilename(SC_EBSD4DNML) 
 
 ! perform the computations
-call EBSDdef%EBSDdefect(EMsoft, progname, HDFnames)
+call EBSD4D%EBSD4D(EMsoft, progname, HDFnames)
 
 end program EM4DEBSD
