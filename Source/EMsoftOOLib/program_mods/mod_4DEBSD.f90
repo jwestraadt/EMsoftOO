@@ -50,6 +50,7 @@ type, public :: EBSD4DNameListType
  integer(kind=irg)  :: VDheight
  character(fnlen)   :: exptfile
  character(fnlen)   :: masterfile
+ character(fnlen)   :: dotproductfile
  character(fnlen)   :: inputtype
  character(fnlen)   :: HDFstrings(10)
  character(fnlen)   :: virtualimagefile
@@ -88,6 +89,8 @@ private
   procedure, pass(self) :: getexptfile_
   procedure, pass(self) :: setmasterfile_
   procedure, pass(self) :: getmasterfile_
+  procedure, pass(self) :: setdotproductfile_
+  procedure, pass(self) :: getdotproductfile_
   procedure, pass(self) :: setinputtype_
   procedure, pass(self) :: getinputtype_
   procedure, pass(self) :: setHDFstrings_
@@ -128,6 +131,8 @@ private
   generic, public :: getnthreads => getnthreads_
   generic, public :: setexptfile => setexptfile_
   generic, public :: getexptfile => getexptfile_
+  generic, public :: setdotproductfile => setdotproductfile_
+  generic, public :: getdotproductfile => getdotproductfile_
   generic, public :: setmasterfile => setmasterfile_
   generic, public :: getmasterfile => getmasterfile_
   generic, public :: setinputtype => setinputtype_
@@ -225,6 +230,7 @@ integer(kind=irg)                   :: numsy
 integer(kind=irg)                   :: nthreads
 character(fnlen)                    :: exptfile
 character(fnlen)                    :: masterfile
+character(fnlen)                    :: dotproductfile
 character(fnlen)                    :: inputtype
 character(fnlen)                    :: HDFstrings(10)
 character(fnlen)                    :: virtualimagefile
@@ -238,7 +244,7 @@ real(kind=sgl)                      :: VDSD
 real(kind=sgl)                      :: VDHannAlpha
 
 namelist / EBSD4Ddata / ipf_ht, ipf_wd, ROI, numsx, numsy, nthreads, exptfile, inputtype, HDFstrings, virtualimagefile, &
-                        VDwidth, VDheight, VDtype, VDlocx, VDlocy, VDSD, VDHannAlpha, VDreference, masterfile
+                        VDwidth, VDheight, VDtype, VDlocx, VDlocy, VDSD, VDHannAlpha, VDreference, masterfile, dotproductfile
 
 ipf_ht = 100
 ipf_wd = 100
@@ -248,6 +254,7 @@ numsy = 0
 nthreads = 1
 exptfile = 'undefined'
 masterfile = 'undefined'
+dotproductfile = 'undefined'
 inputtype = 'Binary'
 HDFstrings = (/ '', '', '', '', '', '', '', '', '', '' /)
 virtualimagefile = 'undefined'
@@ -290,7 +297,10 @@ if (.not.skipread) then
  if (VDreference.eq.'MPat') then 
    if (trim(masterfile).eq.'undefined') then
     call Message%printError('readNameList:',' masterfile file name is undefined in '//nmlfile)
-  end if
+   end if
+   if (trim(dotproductfile).eq.'undefined') then
+    call Message%printError('readNameList:',' dotproductfile file name is undefined in '//nmlfile)
+   end if
  end if
 end if
 
@@ -302,6 +312,7 @@ self%nml%numsy = numsy
 self%nml%nthreads = nthreads
 self%nml%exptfile = exptfile
 self%nml%masterfile = masterfile
+self%nml%dotproductfile = dotproductfile
 self%nml%inputtype = inputtype
 self%nml%HDFstrings = HDFstrings
 self%nml%virtualimagefile = virtualimagefile
@@ -621,6 +632,42 @@ character(fnlen)                   :: out
 out = trim(self%nml%masterfile)
 
 end function getmasterfile_
+
+!--------------------------------------------------------------------------
+subroutine setdotproductfile_(self,inp)
+!DEC$ ATTRIBUTES DLLEXPORT :: setdotproductfile_
+!! author: MDG
+!! version: 1.0
+!! date: 04/01/24
+!!
+!! set dotproductfile in the EBSD4D_T class
+
+IMPLICIT NONE
+
+class(EBSD4D_T), INTENT(INOUT)     :: self
+character(fnlen), INTENT(IN)       :: inp
+
+self%nml%dotproductfile = trim(inp)
+
+end subroutine setdotproductfile_
+
+!--------------------------------------------------------------------------
+function getdotproductfile_(self) result(out)
+!DEC$ ATTRIBUTES DLLEXPORT :: getdotproductfile_
+!! author: MDG
+!! version: 1.0
+!! date: 04/01/24
+!!
+!! get dotproductfile from the EBSD4D_T class
+
+IMPLICIT NONE
+
+class(EBSD4D_T), INTENT(INOUT)     :: self
+character(fnlen)                   :: out
+
+out = trim(self%nml%dotproductfile)
+
+end function getdotproductfile_
 
 !--------------------------------------------------------------------------
 subroutine setinputtype_(self,inp)
@@ -1264,7 +1311,8 @@ write (*,*) ' image intensity range ',mi,ma
 
 do j=1,TIFF_ny
  do i=1,TIFF_nx
-  TIFF_image(i,j) = int(255 * (VDimage(i,TIFF_ny-j+1)-mi)/(ma-mi))
+  ! TIFF_image(i,j) = int(255 * (VDimage(i,TIFF_ny-j+1)-mi)/(ma-mi))
+  TIFF_image(i,j) = int(255 * (VDimage(i,j)-mi)/(ma-mi))
  end do
 end do
 

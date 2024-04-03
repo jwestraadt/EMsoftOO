@@ -48,7 +48,9 @@
 ! and with the data set name as the last name; leave the remaining strings empty (they should all
 ! be empty for the Binary and TSLup2 formats)
  HDFstrings = '' '' '' '' '' '' '' '' '' '',
-
+! name of the dot product file [relative to EMdatapathname]
+ dotproductfile = 'undefined',
+ 
 !=====================================
 ! Master pattern file (for a future implementation)
 !=====================================
