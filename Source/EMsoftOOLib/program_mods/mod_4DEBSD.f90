@@ -1519,7 +1519,7 @@ do iii = iiistart,iiiend
     VDpy = VDposy
   end if
 
-write (*,*) TID, iii, shape(Pat), VDpx, VDpy, VDpositions(3,iii)
+! write (*,*) TID, iii, shape(Pat), VDpx, VDpy, VDpositions(3,iii)
 
 !$OMP DO SCHEDULE(DYNAMIC)
     do jj=jjstart,jjend
