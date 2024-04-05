@@ -1264,7 +1264,7 @@ output = (output - mi)/(ma - mi)
 end subroutine InversionDivision
 
 !--------------------------------------------------------------------------
-recursive subroutine HannWindow(roi_size, window)
+recursive subroutine HannWindow(roi_size, window, alpha)
 !DEC$ ATTRIBUTES DLLEXPORT :: HannWindow
 !
 !> @brief Hann windowing function for pattern region of interest
@@ -1276,17 +1276,33 @@ IMPLICIT NONE
 
 integer(kind=irg),INTENT(IN)           :: roi_size
 real(kind=dbl),INTENT(INOUT)           :: window(roi_size, roi_size)
+real(kind=dbl),INTENT(IN),OPTIONAL     :: alpha
 
-integer(kind=irg)                      :: i, j
-real(kind=dbl)                         :: fr
+integer(kind=irg)                      :: i, j, r
+real(kind=dbl)                         :: fr, hx, x, y, cx, cy
 
-fr = cPi / dble(roi_size)
-
-do i=1,roi_size
-  do j=1,roi_size
-    window(i,j)=cos((dble(i-roi_size/2) * fr))*cos((dble(roi_size/2-j) * fr))      
+if (present(alpha)) then 
+! this version implements the 2D HannWindow function from Mathematica
+! the assumption is that roi_size is an odd number
+  r = (roi_size-1)/2
+  fr = 1.D0/dble(r)
+  window = 0.D0
+  do i=-r/2,r/2
+    cx = cos(2.D0*cPi*dble(i)*fr)
+    hx = alpha*(1.D0-cx) + cx
+    do j=-r/2,r/2
+      cy = cos(2.D0*cPi*dble(j)*fr)
+      window(i+r+1,j+r+1) = hx * ( alpha*(1.D0-cy) + cy )
+    end do
   end do
-end do
+else 
+  fr = cPi / dble(roi_size)
+  do i=1,roi_size
+    do j=1,roi_size
+      window(i,j)=cos((dble(i-roi_size/2) * fr))*cos((dble(roi_size/2-j) * fr))      
+    end do
+  end do
+end if
 
 end subroutine HannWindow
 

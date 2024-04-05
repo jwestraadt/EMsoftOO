@@ -725,7 +725,7 @@ do i=0,15
     end if
 ! create the substring entry
     entry = ''
-    write (entry,"(F14.6)") c 
+    write (entry,"(F18.6)") c 
     entry = sgn//trim(adjustl(entry))//' '//trim(adjustl(basis(i)))
 ! add to the output string
     call Message%printMessage(entry, frm="(A,$)")

@@ -19,14 +19,16 @@
 !=====================================
 ! Virtual Detector Parameters
 !=====================================
-! detector type:  'Rect', 'Gaus', 'Hann'
+! virtual detector type:  'Rect', 'Gaus', 'Hann'
  VDtype = 'Rect',
-! detector reference: 'EBSP', 'MPat'
+! virtual detector reference: 'EBSP', 'MPat'
  VDreference = 'EBSP',
-! center coordinates (in terms of EBSD pattern)
+! center coordinates of virtual detector
+! in terms of EBSD pattern coordinates for VDreference='EBSD'
+! in terms of master pattern coordinates for VDreference='MPat'
  VDlocx = 0.0, 
  VDlocy = 0.0,
-! rectangular virtual detector width and height (should be odd numbers !)
+! rectangular virtual detector width and height (should be odd numbers of the form 4*n+1 !)
  VDwidth = 5,
  VDheight = 5,
 ! Gaussian virtual detector standard deviation

@@ -113,6 +113,7 @@ private
   procedure, pass(self) :: getVDwidth_
   procedure, pass(self) :: setVDheight_
   procedure, pass(self) :: getVDheight_
+  procedure, pass(self) :: drawMPpositions_
 
   generic, public :: getNameList => getNameList_
   generic, public :: readNameList => readNameList_
@@ -1074,6 +1075,80 @@ out = self%nml%VDheight
 end function getVDheight_
 
 !--------------------------------------------------------------------------
+subroutine drawMPpositions_(self, n, ctmp, sz, MP)
+!DEC$ ATTRIBUTES DLLEXPORT :: drawMPpositions_
+!! author: MDG 
+!! version: 1.0 
+!! date: 04/05/24
+!!
+!! superimpose equivalent positions onto a master pattern 
+
+use mod_image
+use mod_io 
+
+use, intrinsic :: iso_fortran_env
+
+class(EBSD4D_T),INTENT(INOUT)     :: self
+integer(kind=irg),INTENT(IN)      :: n 
+real(kind=dbl),INTENT(IN)         :: ctmp(n,3)
+integer(kind=irg),INTENT(IN)      :: sz(3)
+real(kind=sgl),INTENT(IN)         :: MP(sz(1),sz(2),sz(3))
+
+type(IO_T)                        :: Message 
+
+real(kind=sgl)                    :: SP(sz(1),sz(2)), ma, mi
+integer(kind=irg)                 :: i, j, npx, w, x, y
+character(fnlen)                  :: TIFF_filename
+
+! declare variables for use in object oriented image module
+integer                           :: iostat
+character(len=128)                :: iomsg
+logical                           :: isInteger
+type(image_t)                     :: im
+integer(int8)                     :: i8 (3,4)
+integer(int8), allocatable        :: TIFF_image(:,:)
+
+TIFF_filename = 'Debug_MPpositions.tiff'
+npx = (sz(1)-1)/2 
+w = 2
+
+! pick one of the energy levels
+SP = MP(:,:,sz(3)-1)
+ma = maxval(SP)
+
+! loop over all equivalent points in the Northern hemisphere 
+do i=1,n 
+  if (ctmp(i,3).gt.0.0) then 
+! stereographic coordinates
+    x = nint( npx * ctmp(i,1)/(1.0+ctmp(i,3)) ) + npx
+    y = nint( npx * ctmp(i,2)/(1.0+ctmp(i,3)) ) + npx
+    write (*,*) ctmp(i,1), ctmp(i,2), x, y 
+! make a little bright square at this location 
+    SP( x-w:x+w, y-w:y+w ) = ma
+  end if 
+end do 
+
+! and generate the tiff output file 
+ma = maxval(SP)
+mi = minval(SP)
+
+TIFF_image = int( 255 * (SP-mi)/(ma-mi) )
+
+! set up the image_t structure
+im = image_t(TIFF_image)
+if(im%empty()) call Message%printMessage("drawMPpositions_","failed to convert array to image")
+
+! create the file
+call im%write(trim(TIFF_filename), iostat, iomsg) ! format automatically detected from extension
+if(0.ne.iostat) then
+  call Message%printMessage("failed to write image to file : "//iomsg)
+else
+  call Message%printMessage('MPpositions map written to '//trim(TIFF_filename))
+end if
+
+end subroutine drawMPpositions_
+
+!--------------------------------------------------------------------------
 subroutine EBSD4D_(self, EMsoft, progname, HDFnames)
 !DEC$ ATTRIBUTES DLLEXPORT :: EBSD4D_
 !! author: MDG 
@@ -1087,6 +1162,15 @@ use mod_HDFnames
 use mod_patterns
 use mod_vendors
 use mod_filters
+use mod_MCfiles
+use mod_MPfiles
+use mod_DIfiles
+use mod_quaternions
+use mod_rotations
+use mod_crystallography
+use mod_symmetry
+use mod_PGA3D
+use mod_PGA3Dsupport
 use mod_io
 use mod_math
 use mod_timing
@@ -1117,15 +1201,33 @@ type(timing_T)                          :: timer
 type(NLPAR_T)                           :: NLPAR 
 type(memory_T)                          :: mem
 type(Vendor_T)                          :: VT
+type(DIfile_T)                          :: DIFT
+type(MPfile_T)                          :: MPFT
+type(MCfile_T)                          :: MCFT
+type(QuaternionArray_T)                 :: qAR
+type(Quaternion_T)                      :: quat
+type(e_T)                               :: eu
+type(q_T)                               :: qu 
+type(HDFnames_T)                        :: saveHDFnames
+type(EBSDmasterNameListType)            :: mpnl
+type(MCOpenCLNameListType)              :: mcnl
+type(Cell_T)                            :: cell 
+type(SpaceGroup_T)                      :: SG
+type(PGA3D_T)                           :: mv_plane, mv_line, mv
 
-integer(kind=irg)                       :: L,totnumexpt,imght,imgwd, recordsize, hdferr, TID, iii, VDposx, VDposy, &
-                                           TIFF_nx, TIFF_ny, itype, istat, iiistart, iiiend, jjstart, jjend, binx, biny, &
-                                           correctsize, dims(2), i, j, ii, jj, jjj, kk, patsz
+integer(kind=irg)                       :: L,totnumexpt,imght,imgwd, recordsize, hdferr, TID, iii, VDposx, VDposy, VDpx, VDpy,&
+                                           TIFF_nx, TIFF_ny, itype, istat, iiistart, iiiend, jjstart, jjend, binx, biny, sz(3), &
+                                           correctsize, dims(2), i, j, ii, jj, jjj, kk, patsz, Nexp, numhatn, io_int(2)
 logical                                 :: ROIselected
-real(kind=sgl),allocatable              :: VDimage(:,:), exppatarray(:), VDmask(:,:), mask(:,:), Pat(:,:), window(:,:)
+real(kind=sgl),allocatable              :: VDimage(:,:), exppatarray(:), VDmask(:,:), mask(:,:), Pat(:,:), window(:,:), &
+                                           euler(:,:)
+real(kind=dbl),allocatable              :: VDmaskd(:,:), VDpositions(:,:), newctmp(:,:)
 real(kind=sgl)                          :: mi, ma
+real(kind=dbl)                          :: Xs, Ys, theta, phi, hatn(3), px, py, pos(3), xbound, ybound
+real(kind=dbl)                          :: LL, a, b, c, d, alpha, x, y, z, sa, ca
 integer(HSIZE_T)                        :: dims3(3), offset3(3)
-character(fnlen)                        :: fname, TIFF_filename 
+character(fnlen)                        :: fname, TIFF_filename, DIfile 
+real(kind=dbl),allocatable              :: ctmp(:,:)
 
 ! declare variables for use in object oriented image module
 integer                                 :: iostat
@@ -1135,14 +1237,12 @@ type(image_t)                           :: im
 integer(int8)                           :: i8 (3,4)
 integer(int8), allocatable              :: TIFF_image(:,:)
 
-! this program applies a virtual detector (for now a square detector) to 
-! an EBSD data set and returns the virtual image.  The code is somewhat 
-! similar to the mod_ADP module in that it reads blocks of pattern rows
-! to be more memory efficient ... 
-
 call openFortranHDFInterface()
+HDF = HDF_T()
 
-associate( nml=>self%nml )
+call setRotationPrecision('d')
+
+associate( nml=>self%nml, DIDT=>DIFT%DIDT )
 
 ! memory class 
 mem = memory_T()
@@ -1169,6 +1269,60 @@ patsz = correctsize
 
 ROIselected = .FALSE.
 if (sum(nml%ROI).ne.0) ROIselected = .TRUE.
+
+if (nml%VDreference.eq.'MPat') then 
+
+!===================================================================================
+! read info from the dot product file
+  DIfile = trim(EMsoft%generateFilePath('EMdatapathname'))//trim(nml%dotproductfile)
+  saveHDFnames = HDFnames
+  call HDFnames%set_NMLfiles(SC_NMLfiles)
+  call HDFnames%set_NMLfilename(SC_DictionaryIndexingNML)
+  call HDFnames%set_NMLparameters(SC_NMLparameters)
+  call HDFnames%set_NMLlist(SC_DictionaryIndexingNameListType)
+  call DIFT%readDotProductFile(EMsoft, HDF, HDFnames, DIfile, hdferr, &
+                               getRefinedEulerAngles=.TRUE.)
+
+  Nexp = DIDT%Nexp
+  call mem%alloc(euler, (/ 3, Nexp /), 'euler')
+  euler(1:3,1:Nexp) = DIDT%RefinedEulerAngles(1:3,1:Nexp)
+  deallocate(DIDT%RefinedEulerAngles)
+
+  qAR = QuaternionArray_T( n = Nexp, s = 'd' )
+  do ii = 1,Nexp
+    eu = e_T( edinp = dble(euler(1:3,ii)) )
+    qu = eu%eq()
+    quat = Quaternion_T( qd = qu%q_copyd() )
+    call quat%quat_pos()
+    call qAR%insertQuatinArray(ii, quat)
+  end do
+  call mem%dealloc(euler, 'euler')
+  call Message%printMessage(' --> Completed reading orientation data from '//trim(DIfile))
+
+!===================================================================================
+! read namelist info from the master pattern file
+  call HDFnames%set_ProgramData(SC_MCOpenCL)
+  call HDFnames%set_NMLlist(SC_MCCLNameList)
+  call HDFnames%set_NMLfilename(SC_MCOpenCLNML)
+  fname = EMsoft%generateFilePath('EMdatapathname',trim(nml%masterfile))
+  call MCFT%setFileName(fname)
+  call MCFT%readMCfile(HDF, HDFnames)
+  mcnl = MCFT%getnml()
+
+  call HDFnames%set_ProgramData(SC_EBSDmaster)
+  call HDFnames%set_NMLlist(SC_EBSDmasterNameList)
+  call HDFnames%set_NMLfilename(SC_EBSDmasterNML)
+  fname = EMsoft%generateFilePath('EMdatapathname',trim(nml%masterfile))
+  call MPFT%setFileName(fname)
+  call MPFT%setModality('EBSD')
+  call MPFT%readMPfile(HDF, HDFnames, mpnl, getmasterSPNH=.TRUE.)
+  HDFnames = saveHDFnames
+
+!===================================================================================
+! and finally read and initialize the crystallographic information 
+  call cell%getCrystalData(mcnl%xtalname, SG, EMsoft)
+  call Message%printMessage(' --> Completed reading crystal structure data from '//trim(mcnl%xtalname))
+end if
 
 !===================================================================================
 ! set the vendor inputtype for the pattern file
@@ -1215,19 +1369,103 @@ else
   call mem%alloc(VDimage, (/ nml%ipf_wd, nml%ipf_ht /), 'VDimage')
 end if
 call mem%alloc(VDmask, (/ nml%VDwidth, nml%VDheight /), 'VDmask')
+call mem%alloc(VDmaskd, (/ nml%VDwidth, nml%VDheight /), 'VDmaskd')
 call mem%alloc(exppatarray, (/ patsz * nml%ipf_wd /), 'exppatarray')
 call mem%alloc(mask, (/ nml%VDwidth, nml%VDheight /), 'mask', initval=0.0)
 
 ! make the mask according to the virtual detector type 
-if ( nml%VDtype.eq.'Rect' ) then 
-  VDmask = 1.0
-else
-  call Message%printError('EBSD4D','virtual detector type not yet implemented')
-end if 
+select case(nml%VDtype)
+  case('Rect')
+    VDmask = 1.0
+  case('Hann')
+    call HannWindow(nml%VDwidth, VDmaskd, dble(nml%VDHannAlpha))
+    VDmask = sngl(VDmaskd)
+    call mem%dealloc(VDmaskd, 'VDmaskd')
 
+  case default 
+    call Message%printError('EBSD4D','virtual detector type not yet implemented')
+end select
+
+if (nml%VDreference.eq.'MPat') then 
+! convert the coordinates into a unit direction vector, then determine all
+! the equivalent orientations, project them all onto the EBSD detector and
+! pick the one that is closest to the pattern center... this will need to 
+! be done for each pixel separately so we can simply compute all of them 
+! ahead of time and store them
+! 
+! get the normalized coordinates from the stereographic projection of the master pattern
+  Xs = nml%VDlocx/dble(mpnl%npx)
+  Ys = nml%VDlocy/dble(mpnl%npx)
+! convert them into the spherical angles 
+  theta = acos( (1.D0-Xs**2-Ys**2) / (1.D0+Xs**2+Ys**2) )
+  phi = atan2(Ys, Xs)
+! then get the unit vector on the Kikuchi sphere that represents the location of the virtual detector center
+  hatn = (/ sin(theta)*cos(phi), sin(theta)*sin(phi), cos(theta) /)
+! next, we want to get all symmetrically equivalent virtual detector positions on the Kikuchi sphere
+  call SG%CalcStar( hatn, numhatn, ctmp, 'd' )
+  io_int(1) = numhatn
+  call Message%WriteValue(' Number of equivalent virtual detectors on Kikuchi sphere : ', io_int, 1)
+! draw the equivalent point on the master pattern to make sure this step is correct
+  sz = shape(MPFT%MPDT%masterSPNH)
+  call self%drawMPpositions_(numhatn, ctmp, sz, MPFT%MPDT%masterSPNH)
+! convert each of these to detector coordinates for each orientation/sampling pixel
+! and keep the one that is closest to the center of the detector (3-rd component is distance)
+  call mem%alloc( VDpositions, (/ 3, Nexp /), 'VDpositions' )
+!*********
+! we use projective geometric algebra to find the intersection point on the detector
+  call Message%printMessage(' --> initializing Projective Geometric Algebra')
+  call PGA3D_initialize()
+!*********
+! define the detector mv_plane (mv = 16-component multivector)
+  LL = DIFT%nml%L
+  alpha = cPi*0.5D0 - mcnl%sig*dtor + DIFT%nml%thetac * dtor
+  sa = sin(alpha)
+  ca = cos(alpha)
+  a = LL * sa
+  b = 0.D0 
+  c = LL * ca
+  d = LL*LL
+  mv_plane = plane(a,b,c,d)
+  call mv_plane%log(' plane ')
+! for each sampling point, transform all numhatn vectors to the sample frame using the 
+! corresponding orientation quaternion from the qAR list; then determine where those 
+! unit vectors would intersect the detector plane using meet(mv_plane, mv_line) and 
+! check to make sure that the resulting point lies inside the detector; update this point 
+! in the list until we have found the one closest to the center of the detector.
+!
+! we should do this with OpenMP !
+
+  VDpositions(3,:) =  100000000.D0   ! set to a large value
+  call mem%alloc(newctmp, (/ 3, numhatn /), 'newctmp')
+  xbound = (DIFT%nml%delta * DIFT%nml%exptnumsx/2)**2
+  ybound = (DIFT%nml%delta * DIFT%nml%exptnumsy/2)**2
+  do jj = 1, Nexp 
+    quat = qAR%getQuatfromArray(jj)
+    quat = conjg(quat)
+    newctmp = quat%quat_Lp_vecarray(numhatn, transpose(ctmp))
+    do kk=1,numhatn
+      mv_line = line(newctmp(1,kk),newctmp(2,kk),newctmp(3,kk))
+      mv_line = mv_line%normalized()
+      mv = meet(mv_plane, mv_line)
+      mv = mv%normalized()
+      call getpoint(mv,x,y,z)
+      pos(1:3) = (/ y, ca*(x+a)-sa*(z+c), -sa*(x+a)-ca*(z+c) /) 
+      px = pos(1)**2
+      py = pos(2)**2
+      if ( (px.le.xbound) .and. (py.le.ybound) ) then 
+        if ( (px+py) .lt. VDpositions(3,jj) ) then 
+          VDpositions(1:3,jj) = (/ pos(1), pos(2), sqrt(px+py) /)
+        end if
+      end if
+    end do
+  end do
+ call mem%dealloc(newctmp, 'newctmp')
+else 
 ! get the lower left corner of the virtual detector
-VDposx = nint(nml%VDlocx) - (nml%VDwidth-1)/2
-VDposy = nint(nml%VDlocy) - (nml%VDheight-1)/2
+  VDposx = nint(nml%VDlocx) - (nml%VDwidth-1)/2
+  VDposy = nint(nml%VDlocy) - (nml%VDheight-1)/2
+end if
+
 
 ! this next part is done with OpenMP, with only thread 0 doing the reading;
 ! Thread 0 reads one line worth of patterns from the input file, then all threads do
@@ -1235,10 +1473,12 @@ VDposy = nint(nml%VDlocy) - (nml%VDheight-1)/2
 call OMP_setNThreads(nml%nthreads)
 dims3 = (/ binx, biny, nml%ipf_wd /)
 
+write (*,*) 'dims3 : ', dims3, patsz
+
 do iii = iiistart,iiiend
 
 ! start the OpenMP portion
-!$OMP PARALLEL DEFAULT(SHARED) PRIVATE(TID, jj, kk, Pat, window)
+!$OMP PARALLEL DEFAULT(SHARED) PRIVATE(TID, jj, kk, Pat, window, VDpx, VDpy)
 
 ! set the thread ID
    TID = OMP_GET_THREAD_NUM()
@@ -1269,7 +1509,18 @@ do iii = iiistart,iiiend
 ! other threads must wait until T0 is ready
 !$OMP BARRIER    
 
+
 ! then loop in parallel over all patterns to perform the preprocessing steps
+  if (trim(nml%VDreference).eq.'MPat') then 
+    VDpx = nint(VDpositions(1,iii)/DIFT%nml%delta)+DIFT%nml%exptnumsx/2
+    VDpy = nint(VDpositions(2,iii)/DIFT%nml%delta)+DIFT%nml%exptnumsy/2
+  else
+    VDpx = VDposx
+    VDpy = VDposy
+  end if
+
+write (*,*) TID, iii, shape(Pat), VDpx, VDpy, VDpositions(3,iii)
+
 !$OMP DO SCHEDULE(DYNAMIC)
     do jj=jjstart,jjend
 ! convert imageexpt to 2D EBSD Pattern array
@@ -1277,7 +1528,7 @@ do iii = iiistart,iiiend
         do kk=1,biny
           Pat(1:binx,kk) = exppatarray((jjj-1)*patsz+(kk-1)*binx+1:(jjj-1)*patsz+kk*binx)
         end do
-        window = Pat( VDposx:VDposx+nml%VDwidth-1, VDposy:VDposy+nml%VDheight-1 )
+        window = Pat( VDpx:VDpx+nml%VDwidth-1, VDpy:VDpy+nml%VDheight-1 )
         VDimage(jj-jjstart+1,iii-iiistart+1) = sum( window*VDmask )
     end do
 !$OMP END DO
