@@ -1722,11 +1722,10 @@ do iii = iiistart,iiiend
 ! other threads must wait until T0 is ready
 !$OMP BARRIER    
 
-
 ! then loop in parallel over all patterns to perform the preprocessing steps
   if (trim(nml%VDreference).eq.'MPat') then 
-    VDpx = nint(VDpositions(1,iii)/DIFT%nml%delta)+DIFT%nml%exptnumsx/2
-    VDpy = nint(VDpositions(2,iii)/DIFT%nml%delta)+DIFT%nml%exptnumsy/2
+    VDpx = nint(VDpositions(1,iii))
+    VDpy = nint(VDpositions(2,iii))
   else
     VDpx = VDposx
     VDpy = VDposy
@@ -1753,7 +1752,7 @@ do iii = iiistart,iiiend
 !$OMP END DO
 
 !$OMP BARRIER
-deallocate(Pat, window)
+deallocate(Pat, window, rrdata, ffdata, inp, outp)
 !$OMP END PARALLEL
 
 end do
