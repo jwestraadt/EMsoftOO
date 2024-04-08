@@ -23,6 +23,9 @@
  VDtype = 'Rect',
 ! virtual detector reference: 'EBSP', 'MPat'
  VDreference = 'EBSP',
+! coordinates of the sampling point from which the EBSP is used to define the detector position
+ EBSPlocx = 0.0,
+ EBSPlocy = 0.0,
 ! center coordinates of virtual detector
 ! in terms of EBSD pattern coordinates for VDreference='EBSD'
 ! in terms of master pattern coordinates for VDreference='MPat'

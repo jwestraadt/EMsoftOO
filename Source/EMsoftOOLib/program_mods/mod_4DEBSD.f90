@@ -56,6 +56,8 @@ type, public :: EBSD4DNameListType
  character(fnlen)   :: virtualimagefile
  character(4)       :: VDtype
  character(4)       :: VDreference
+ real(kind=sgl)     :: EBSPlocx
+ real(kind=sgl)     :: EBSPlocy
  real(kind=sgl)     :: VDlocx
  real(kind=sgl)     :: VDlocy
  real(kind=sgl)     :: VDSD
@@ -105,6 +107,10 @@ private
   procedure, pass(self) :: getVDlocx_
   procedure, pass(self) :: setVDlocy_
   procedure, pass(self) :: getVDlocy_
+  procedure, pass(self) :: setEBSPlocx_
+  procedure, pass(self) :: getEBSPlocx_
+  procedure, pass(self) :: setEBSPlocy_
+  procedure, pass(self) :: getEBSPlocy_
   procedure, pass(self) :: setVDSD_
   procedure, pass(self) :: getVDSD_
   procedure, pass(self) :: setVDHannAlpha_
@@ -114,6 +120,7 @@ private
   procedure, pass(self) :: setVDheight_
   procedure, pass(self) :: getVDheight_
   procedure, pass(self) :: drawMPpositions_
+  procedure, pass(self) :: drawEBSPpositions_
 
   generic, public :: getNameList => getNameList_
   generic, public :: readNameList => readNameList_
@@ -150,6 +157,10 @@ private
   generic, public :: getVDlocx => getVDlocx_
   generic, public :: setVDlocy => setVDlocy_
   generic, public :: getVDlocy => getVDlocy_
+  generic, public :: setEBSPlocx => setEBSPlocx_
+  generic, public :: getEBSPlocx => getEBSPlocx_
+  generic, public :: setEBSPlocy => setEBSPlocy_
+  generic, public :: getEBSPlocy => getEBSPlocy_
   generic, public :: setVDSD => setVDSD_
   generic, public :: getVDSD => getVDSD_
   generic, public :: setVDHannAlpha => setVDHannAlpha_
@@ -241,11 +252,14 @@ character(4)                        :: VDtype
 character(4)                        :: VDreference
 real(kind=sgl)                      :: VDlocx
 real(kind=sgl)                      :: VDlocy
+real(kind=sgl)                      :: EBSPlocx
+real(kind=sgl)                      :: EBSPlocy
 real(kind=sgl)                      :: VDSD
 real(kind=sgl)                      :: VDHannAlpha
 
 namelist / EBSD4Ddata / ipf_ht, ipf_wd, ROI, numsx, numsy, nthreads, exptfile, inputtype, HDFstrings, virtualimagefile, &
-                        VDwidth, VDheight, VDtype, VDlocx, VDlocy, VDSD, VDHannAlpha, VDreference, masterfile, dotproductfile
+                        VDwidth, VDheight, VDtype, VDlocx, VDlocy, VDSD, VDHannAlpha, VDreference, masterfile, dotproductfile, &
+                        EBSPlocx, EBSPlocy
 
 ipf_ht = 100
 ipf_wd = 100
@@ -263,6 +277,8 @@ VDtype = 'Rect'
 VDreference = 'EBSP'
 VDlocx = 0.0 
 VDlocy = 0.0
+EBSPlocx = 0.0 
+EBSPlocy = 0.0
 VDwidth = 5
 VDheight = 5
 VDSD = 0.5
@@ -323,6 +339,8 @@ self%nml%VDtype = VDtype
 self%nml%VDreference = VDreference
 self%nml%VDlocx = VDlocx
 self%nml%VDlocy = VDlocy
+self%nml%EBSPlocx = EBSPlocx
+self%nml%EBSPlocy = EBSPlocy
 self%nml%VDSD = VDSD 
 self%nml%VDHannAlpha = VDHannAlpha
 
@@ -931,6 +949,78 @@ out = self%nml%VDlocy
 end function getVDlocy_
 
 !--------------------------------------------------------------------------
+subroutine setEBSPlocx_(self,inp)
+!DEC$ ATTRIBUTES DLLEXPORT :: setEBSPlocx_
+!! author: MDG
+!! version: 1.0
+!! date: 04/01/24
+!!
+!! set EBSPlocx in the EBSD4D_T class
+
+IMPLICIT NONE
+
+class(EBSD4D_T), INTENT(INOUT)     :: self
+real(kind=sgl), INTENT(IN)       :: inp
+
+self%nml%EBSPlocx = inp
+
+end subroutine setEBSPlocx_
+
+!--------------------------------------------------------------------------
+function getEBSPlocx_(self) result(out)
+!DEC$ ATTRIBUTES DLLEXPORT :: getEBSPlocx_
+!! author: MDG
+!! version: 1.0
+!! date: 04/01/24
+!!
+!! get EBSPlocx from the EBSD4D_T class
+
+IMPLICIT NONE
+
+class(EBSD4D_T), INTENT(INOUT)     :: self
+real(kind=sgl)                   :: out
+
+out = self%nml%EBSPlocx
+
+end function getEBSPlocx_
+
+!--------------------------------------------------------------------------
+subroutine setEBSPlocy_(self,inp)
+!DEC$ ATTRIBUTES DLLEXPORT :: setEBSPlocy_
+!! author: MDG
+!! version: 1.0
+!! date: 04/01/24
+!!
+!! set EBSPlocy in the EBSD4D_T class
+
+IMPLICIT NONE
+
+class(EBSD4D_T), INTENT(INOUT)     :: self
+real(kind=sgl), INTENT(IN)       :: inp
+
+self%nml%EBSPlocy = inp
+
+end subroutine setEBSPlocy_
+
+!--------------------------------------------------------------------------
+function getEBSPlocy_(self) result(out)
+!DEC$ ATTRIBUTES DLLEXPORT :: getEBSPlocy_
+!! author: MDG
+!! version: 1.0
+!! date: 04/01/24
+!!
+!! get EBSPlocy from the EBSD4D_T class
+
+IMPLICIT NONE
+
+class(EBSD4D_T), INTENT(INOUT)     :: self
+real(kind=sgl)                   :: out
+
+out = self%nml%EBSPlocy
+
+end function getEBSPlocy_
+
+!--------------------------------------------------------------------------
 subroutine setVDSD_(self,inp)
 !DEC$ ATTRIBUTES DLLEXPORT :: setVDSD_
 !! author: MDG
@@ -1109,6 +1199,7 @@ integer(int8)                     :: i8 (3,4)
 integer(int8), allocatable        :: TIFF_image(:,:)
 
 TIFF_filename = 'Debug_MPpositions.tiff'
+allocate(TIFF_image(sz(1),sz(2)))
 npx = (sz(1)-1)/2 
 w = 2
 
@@ -1147,6 +1238,60 @@ else
 end if
 
 end subroutine drawMPpositions_
+
+!--------------------------------------------------------------------------
+subroutine drawEBSPpositions_(self, sz, pat)
+!DEC$ ATTRIBUTES DLLEXPORT :: drawEBSPpositions_
+!! author: MDG 
+!! version: 1.0 
+!! date: 04/05/24
+!!
+!! save an EBSP pattern with a virtual detector superimposed for debugging purposes
+
+use mod_image
+use mod_io 
+
+use, intrinsic :: iso_fortran_env
+
+class(EBSD4D_T),INTENT(INOUT)     :: self
+integer(kind=irg),INTENT(IN)      :: sz(2)
+real(kind=sgl),INTENT(IN)         :: pat(sz(1),sz(2))
+
+type(IO_T)                        :: Message 
+
+real(kind=sgl)                    :: ma, mi
+character(fnlen)                  :: TIFF_filename
+
+! declare variables for use in object oriented image module
+integer                           :: iostat
+character(len=128)                :: iomsg
+logical                           :: isInteger
+type(image_t)                     :: im
+integer(int8)                     :: i8 (3,4)
+integer(int8), allocatable        :: TIFF_image(:,:)
+
+TIFF_filename = 'Debug_EBSPpositions.tiff'
+allocate(TIFF_image(sz(1),sz(2)))
+
+! and generate the tiff output file 
+ma = maxval(pat)
+mi = minval(pat)
+
+TIFF_image = int( 255 * (pat-mi)/(ma-mi) )
+
+! set up the image_t structure
+im = image_t(TIFF_image)
+if(im%empty()) call Message%printMessage("drawEBSPpositions_","failed to convert array to image")
+
+! create the file
+call im%write(trim(TIFF_filename), iostat, iomsg) ! format automatically detected from extension
+if(0.ne.iostat) then
+  call Message%printMessage("failed to write image to file : "//iomsg)
+else
+  call Message%printMessage('EBSPpositions map written to '//trim(TIFF_filename))
+end if
+
+end subroutine drawEBSPpositions_
 
 !--------------------------------------------------------------------------
 subroutine EBSD4D_(self, EMsoft, progname, HDFnames)
@@ -1217,17 +1362,23 @@ type(PGA3D_T)                           :: mv_plane, mv_line, mv
 
 integer(kind=irg)                       :: L,totnumexpt,imght,imgwd, recordsize, hdferr, TID, iii, VDposx, VDposy, VDpx, VDpy,&
                                            TIFF_nx, TIFF_ny, itype, istat, iiistart, iiiend, jjstart, jjend, binx, biny, sz(3), &
-                                           correctsize, dims(2), i, j, ii, jj, jjj, kk, patsz, Nexp, numhatn, io_int(2)
+                                           correctsize, dims(2), i, j, ii, jj, jjj, kk, patsz, Nexp, numhatn, io_int(2), sz2(2)
+integer(kind=ill)                       :: jjpat
 logical                                 :: ROIselected
 real(kind=sgl),allocatable              :: VDimage(:,:), exppatarray(:), VDmask(:,:), mask(:,:), Pat(:,:), window(:,:), &
-                                           euler(:,:)
+                                           euler(:,:), expt(:), EBSP(:,:)
 real(kind=dbl),allocatable              :: VDmaskd(:,:), VDpositions(:,:), newctmp(:,:)
 real(kind=sgl)                          :: mi, ma
-real(kind=dbl)                          :: Xs, Ys, theta, phi, hatn(3), px, py, pos(3), xbound, ybound
-real(kind=dbl)                          :: LL, a, b, c, d, alpha, x, y, z, sa, ca
+real(kind=dbl)                          :: Xs, Ys, theta, phi, hatn(3), px, py, pos(3), xbound, ybound, dl
+real(kind=dbl)                          :: LL, a, b, c, d, alpha, x, y, z, sa, ca, dis
 integer(HSIZE_T)                        :: dims3(3), offset3(3)
 character(fnlen)                        :: fname, TIFF_filename, DIfile 
 real(kind=dbl),allocatable              :: ctmp(:,:)
+real(kind=dbl),allocatable              :: rrdata(:,:), ffdata(:,:), ksqarray(:,:)
+complex(kind=dbl),allocatable           :: hpmask(:,:)
+complex(C_DOUBLE_COMPLEX),allocatable   :: inp(:,:), outp(:,:)
+type(C_PTR)                             :: planf, HPplanf, HPplanb
+
 
 ! declare variables for use in object oriented image module
 integer                                 :: iostat
@@ -1427,18 +1578,65 @@ if (nml%VDreference.eq.'MPat') then
   d = LL*LL
   mv_plane = plane(a,b,c,d)
   call mv_plane%log(' plane ')
+  dl = DIFT%nml%delta
 ! for each sampling point, transform all numhatn vectors to the sample frame using the 
 ! corresponding orientation quaternion from the qAR list; then determine where those 
 ! unit vectors would intersect the detector plane using meet(mv_plane, mv_line) and 
 ! check to make sure that the resulting point lies inside the detector; update this point 
-! in the list until we have found the one closest to the center of the detector.
+! in the list until we have found the one closest to location corresponding to the pattern
+! at (EBSPlocx, EBSPlocy)
 !
+! load this pattern from the pattern file and put the detector(s) on it as a debug step 
+  call mem%alloc(newctmp, (/ 3, numhatn /), 'newctmp')
+  xbound = DIFT%nml%delta * DIFT%nml%exptnumsx/2
+  ybound = DIFT%nml%delta * DIFT%nml%exptnumsy/2
+  jj = (nint(nml%EBSPlocy)-1) * nml%ipf_wd + nint(nml%EBSPlocx) 
+  allocate(expt(patsz), EBSP(binx, biny))
+  dims3 = (/ binx, biny, 1 /)
+  offset3 = (/ 0, 0, jj /)
+  call VT%getSingleExpPattern(nint(nml%EBSPlocy), nml%ipf_wd, patsz, L, dims3, offset3, expt, nml%HDFstrings, HDF)
+  do ii=1,biny 
+    EBSP(1:binx,ii) = expt((ii-1)*binx+1:ii*binx)
+  end do 
+  quat = qAR%getQuatfromArray(jj)
+  quat = conjg(quat)
+  newctmp = quat%quat_Lp_vecarray(numhatn, transpose(ctmp))
+  VDpositions(3,jj) =  100000000.D0   ! set to a large value
+  do kk=1,numhatn
+    mv_line = line(newctmp(1,kk),newctmp(2,kk),newctmp(3,kk))
+    mv_line = mv_line%normalized()
+    mv = meet(mv_plane, mv_line)
+    mv = mv%normalized()
+    call getpoint(mv,x,y,z)
+    pos(1) = y/dl-0.5D0+dble(DIFT%nml%exptnumsx/2)-DIFT%nml%xpc
+    pos(2) = DIFT%nml%L*sa/dl/ca-x/dl/ca-0.5D0+dble(DIFT%nml%exptnumsy/2)+DIFT%nml%ypc
+    px = pos(1)
+    py = pos(2)
+    if (z.gt.0.0) then
+      if ( (px.ge.-xbound) .and. (px.le.xbound) .and. (py.ge.-ybound) .and. (py.le.ybound) ) then 
+        VDpx = nint(pos(1)) 
+        VDpy = DIFT%nml%numsy - nint(pos(2)) 
+        if ( (VDpx.gt.0).and.(VDpx.le.DIFT%nml%exptnumsx).and.(VDpy.gt.0).and.(VDpy.le.DIFT%nml%exptnumsy) ) then 
+          dis =  sqrt( real( (DIFT%nml%exptnumsx-VDpx)**2 + (DIFT%nml%numsy-VDpy)**2 ) )
+          if ( sqrt(dis) .lt. VDpositions(3,jj) ) then 
+            VDpositions(1:3,jj) = (/ pos(1), DIFT%nml%numsy - pos(2), dis /)
+            write (*,*) kk, VDpx, VDpy
+          end if 
+        end if
+      end if
+    end if
+  end do 
+! draw the virtual detector position on the diffraction pattern
+  VDpx = nint(VDpositions(1,jj))
+  VDpy = nint(VDpositions(2,jj))
+  EBSP(VDpx-2:VDpx+2,VDpy-2:VDpy+2) = maxval(EBSP)
+
+  sz2 = shape(EBSP)
+  call self%drawEBSPpositions_(sz2,EBSP)
+ 
 ! we should do this with OpenMP !
 
   VDpositions(3,:) =  100000000.D0   ! set to a large value
-  call mem%alloc(newctmp, (/ 3, numhatn /), 'newctmp')
-  xbound = (DIFT%nml%delta * DIFT%nml%exptnumsx/2)**2
-  ybound = (DIFT%nml%delta * DIFT%nml%exptnumsy/2)**2
   do jj = 1, Nexp 
     quat = qAR%getQuatfromArray(jj)
     quat = conjg(quat)
@@ -1449,12 +1647,20 @@ if (nml%VDreference.eq.'MPat') then
       mv = meet(mv_plane, mv_line)
       mv = mv%normalized()
       call getpoint(mv,x,y,z)
-      pos(1:3) = (/ y, ca*(x+a)-sa*(z+c), -sa*(x+a)-ca*(z+c) /) 
-      px = pos(1)**2
-      py = pos(2)**2
-      if ( (px.le.xbound) .and. (py.le.ybound) ) then 
-        if ( (px+py) .lt. VDpositions(3,jj) ) then 
-          VDpositions(1:3,jj) = (/ pos(1), pos(2), sqrt(px+py) /)
+      pos(1) = y/dl-0.5D0+dble(DIFT%nml%exptnumsx/2)-DIFT%nml%xpc
+      pos(2) = DIFT%nml%L*sa/dl/ca-x/dl/ca-0.5D0+dble(DIFT%nml%exptnumsy/2)+DIFT%nml%ypc
+      px = pos(1)
+      py = pos(2)
+      if (z.gt.0.0) then
+        if ( (px.ge.-xbound) .and. (px.le.xbound) .and. (py.ge.-ybound) .and. (py.le.ybound) ) then 
+          VDpx = nint(pos(1)) 
+          VDpy = DIFT%nml%numsy - nint(pos(2)) 
+          if ( (VDpx.gt.0).and.(VDpx.le.DIFT%nml%exptnumsx).and.(VDpy.gt.0).and.(VDpy.le.DIFT%nml%exptnumsy) ) then 
+            dis =  sqrt( real( (DIFT%nml%exptnumsx-VDpx)**2 + (DIFT%nml%numsy-VDpy)**2 ) )
+            if ( sqrt(dis) .lt. VDpositions(3,jj) ) then 
+              VDpositions(1:3,jj) = (/ pos(1), DIFT%nml%numsy - pos(2), dis /)
+            end if 
+          end if
         end if
       end if
     end do
@@ -1466,6 +1672,11 @@ else
   VDposy = nint(nml%VDlocy) - (nml%VDheight-1)/2
 end if
 
+! initialize the HiPassFilter routine (has its own FFTW plans)
+allocate(hpmask(binx,biny),inp(binx,biny),outp(binx,biny),stat=istat)
+if (istat .ne. 0) stop 'could not allocate hpmask array'
+call init_HiPassFilter(dble(DIFT%nml%hipassw), (/ binx, biny /), hpmask, inp, outp, HPplanf, HPplanb)
+deallocate(inp, outp)
 
 ! this next part is done with OpenMP, with only thread 0 doing the reading;
 ! Thread 0 reads one line worth of patterns from the input file, then all threads do
@@ -1478,12 +1689,14 @@ write (*,*) 'dims3 : ', dims3, patsz
 do iii = iiistart,iiiend
 
 ! start the OpenMP portion
-!$OMP PARALLEL DEFAULT(SHARED) PRIVATE(TID, jj, kk, Pat, window, VDpx, VDpy)
+!$OMP PARALLEL DEFAULT(SHARED) PRIVATE(TID, jj, kk, Pat, window, VDpx, VDpy, rrdata, ffdata, inp, outp)
 
 ! set the thread ID
    TID = OMP_GET_THREAD_NUM()
 
    allocate(Pat(binx,biny), window(nml%VDwidth, nml%VDheight))
+   allocate(rrdata(binx,biny),ffdata(binx,biny))
+   allocate(inp(binx,biny),outp(binx,biny))
 
 ! thread 0 reads the next row of patterns from the input file
 ! we have to allow for all the different types of input files here...
@@ -1528,6 +1741,12 @@ do iii = iiistart,iiiend
         do kk=1,biny
           Pat(1:binx,kk) = exppatarray((jjj-1)*patsz+(kk-1)*binx+1:(jjj-1)*patsz+kk*binx)
         end do
+
+! Hi-Pass filter
+        rrdata = dble(Pat)
+        ffdata = applyHiPassFilter(rrdata, (/ binx, biny /), dble(DIFT%nml%hipassw), hpmask, inp, outp, HPplanf, HPplanb)
+        Pat = sngl(ffdata)
+
         window = Pat( VDpx:VDpx+nml%VDwidth-1, VDpy:VDpy+nml%VDheight-1 )
         VDimage(jj-jjstart+1,iii-iiistart+1) = sum( window*VDmask )
     end do
