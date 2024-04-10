@@ -2631,7 +2631,10 @@ if (present(useXtalName)) then
 else
   xtalname = trim(EMsoft%generateFilePath('EMXtalFolderpathname',self%xtalname))
 end if
-hdferr =  me%openFile(xtalname)
+! we use the readonly optional parameter to make sure that HDF does not lock
+! the file; this could cause conflicts if multiple program simultaneously try to 
+! acces the same crystal structure file  [MDG, 4/10/24]
+hdferr =  me%openFile(xtalname, readonly=.TRUE.)
 
 groupname = SC_CrystalData
 hdferr = me%openGroup(groupname)
@@ -2752,8 +2755,6 @@ end if
 ! we have not yet implemented the rhombohedral setting of the trigonal
 ! space groups, so this needs to remain at .FALSE. always.
 call SG%setSpaceGroupsecond(.FALSE.)
-
-! if (openHDFfile) call me%closer()
 
 end subroutine readDataHDF_
 
