@@ -568,7 +568,7 @@ end if
 
 ! open the Monte Carlo file
 readonly = .TRUE.
-hdferr =  HDF%openFile(self%MCfile) !, readonly)
+hdferr =  HDF%openFile(self%MCfile, readonly)
 
 ! check whether or not the MC file was generated using DREAM.3D
 ! this is necessary so that the proper reading of fixed length vs. variable length strings will occur.

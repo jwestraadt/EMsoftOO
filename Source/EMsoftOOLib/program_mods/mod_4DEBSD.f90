@@ -1213,7 +1213,7 @@ do i=1,n
 ! stereographic coordinates
     x = nint( npx * ctmp(i,1)/(1.0+ctmp(i,3)) ) + npx
     y = nint( npx * ctmp(i,2)/(1.0+ctmp(i,3)) ) + npx
-    write (*,*) ctmp(i,1), ctmp(i,2), x, y 
+    ! write (*,*) ctmp(i,1), ctmp(i,2), x, y 
 ! make a little bright square at this location 
     SP( x-w:x+w, y-w:y+w ) = ma
   end if 
@@ -1362,7 +1362,8 @@ type(PGA3D_T)                           :: mv_plane, mv_line, mv
 
 integer(kind=irg)                       :: L,totnumexpt,imght,imgwd, recordsize, hdferr, TID, iii, VDposx, VDposy, VDpx, VDpy,&
                                            TIFF_nx, TIFF_ny, itype, istat, iiistart, iiiend, jjstart, jjend, binx, biny, sz(3), &
-                                           correctsize, dims(2), i, j, ii, jj, jjj, kk, patsz, Nexp, numhatn, io_int(2), sz2(2)
+                                           correctsize, dims(2), i, j, ii, jj, jjj, kk, patsz, Nexp, numhatn, io_int(3), sz2(2), &
+                                           VDpxref, VDpyref, VDkk, ival
 integer(kind=ill)                       :: jjpat
 logical                                 :: ROIselected
 real(kind=sgl),allocatable              :: VDimage(:,:), exppatarray(:), VDmask(:,:), mask(:,:), Pat(:,:), window(:,:), &
@@ -1577,7 +1578,7 @@ if (nml%VDreference.eq.'MPat') then
   c = LL * ca
   d = LL*LL
   mv_plane = plane(a,b,c,d)
-  call mv_plane%log(' plane ')
+  call mv_plane%log(' Detector plane ')
   dl = DIFT%nml%delta
 ! for each sampling point, transform all numhatn vectors to the sample frame using the 
 ! corresponding orientation quaternion from the qAR list; then determine where those 
@@ -1588,8 +1589,8 @@ if (nml%VDreference.eq.'MPat') then
 !
 ! load this pattern from the pattern file and put the detector(s) on it as a debug step 
   call mem%alloc(newctmp, (/ 3, numhatn /), 'newctmp')
-  xbound = DIFT%nml%delta * DIFT%nml%exptnumsx/2
-  ybound = DIFT%nml%delta * DIFT%nml%exptnumsy/2
+  xbound = dl * DIFT%nml%exptnumsx/2
+  ybound = dl * DIFT%nml%exptnumsy/2
   jj = (nint(nml%EBSPlocy)-1) * nml%ipf_wd + nint(nml%EBSPlocx) 
   allocate(expt(patsz), EBSP(binx, biny))
   dims3 = (/ binx, biny, 1 /)
@@ -1602,34 +1603,40 @@ if (nml%VDreference.eq.'MPat') then
   quat = conjg(quat)
   newctmp = quat%quat_Lp_vecarray(numhatn, transpose(ctmp))
   VDpositions(3,jj) =  100000000.D0   ! set to a large value
+  call Message%printMessage(' Equivalent diffraction conditions that fall on the EBSP for (EBSDlocx, EBSPlocy) : ')
   do kk=1,numhatn
     mv_line = line(newctmp(1,kk),newctmp(2,kk),newctmp(3,kk))
     mv_line = mv_line%normalized()
     mv = meet(mv_plane, mv_line)
     mv = mv%normalized()
     call getpoint(mv,x,y,z)
-    pos(1) = y/dl-0.5D0+dble(DIFT%nml%exptnumsx/2)-DIFT%nml%xpc
-    pos(2) = DIFT%nml%L*sa/dl/ca-x/dl/ca-0.5D0+dble(DIFT%nml%exptnumsy/2)+DIFT%nml%ypc
-    px = pos(1)
-    py = pos(2)
     if (z.gt.0.0) then
+    ! these are also in units of pixels ... 
+      pos(1) = y/dl-0.5D0+dble(DIFT%nml%exptnumsx/2)-DIFT%nml%xpc
+      pos(2) = DIFT%nml%L*sa/dl/ca-x/dl/ca-0.5D0+dble(DIFT%nml%exptnumsy/2)+DIFT%nml%ypc
+      px = pos(1)
+      py = pos(2)
       if ( (px.ge.-xbound) .and. (px.le.xbound) .and. (py.ge.-ybound) .and. (py.le.ybound) ) then 
         VDpx = nint(pos(1)) 
-        VDpy = DIFT%nml%numsy - nint(pos(2)) 
+        VDpy = DIFT%nml%exptnumsy - nint(pos(2)) 
         if ( (VDpx.gt.0).and.(VDpx.le.DIFT%nml%exptnumsx).and.(VDpy.gt.0).and.(VDpy.le.DIFT%nml%exptnumsy) ) then 
-          dis =  sqrt( real( (DIFT%nml%exptnumsx-VDpx)**2 + (DIFT%nml%numsy-VDpy)**2 ) )
-          if ( sqrt(dis) .lt. VDpositions(3,jj) ) then 
-            VDpositions(1:3,jj) = (/ pos(1), DIFT%nml%numsy - pos(2), dis /)
-            write (*,*) kk, VDpx, VDpy
+          dis = sqrt( real( (DIFT%nml%exptnumsx/2-VDpx)**2 + (DIFT%nml%exptnumsy/2-VDpy)**2 ) )
+          EBSP(VDpx-2:VDpx+2,VDpy-2:VDpy+2) = maxval(EBSP)
+          if ( dis .lt. VDpositions(3,jj) ) then 
+            VDpositions(1:3,jj) = (/ pos(1), DIFT%nml%exptnumsy - pos(2), dis /)
+            VDkk = kk
+            io_int = (/ kk, VDpx, VDpy /)
+            call Message%WriteValue('  ---> ', io_int, 3)
           end if 
         end if
       end if
     end if
   end do 
 ! draw the virtual detector position on the diffraction pattern
-  VDpx = nint(VDpositions(1,jj))
-  VDpy = nint(VDpositions(2,jj))
-  EBSP(VDpx-2:VDpx+2,VDpy-2:VDpy+2) = maxval(EBSP)
+  VDpxref = nint(VDpositions(1,jj))
+  VDpyref = nint(VDpositions(2,jj))
+  EBSP(VDpxref-3:VDpxref+3,VDpyref-3:VDpyref+3) = maxval(EBSP)
+  call Message%printMessage(' ---> the larger square indicates the position closest to the detector center.')
 
   sz2 = shape(EBSP)
   call self%drawEBSPpositions_(sz2,EBSP)
@@ -1641,31 +1648,36 @@ if (nml%VDreference.eq.'MPat') then
     quat = qAR%getQuatfromArray(jj)
     quat = conjg(quat)
     newctmp = quat%quat_Lp_vecarray(numhatn, transpose(ctmp))
-    do kk=1,numhatn
-      mv_line = line(newctmp(1,kk),newctmp(2,kk),newctmp(3,kk))
+    ! do kk=1,numhatn
+      mv_line = line(newctmp(1,VDkk),newctmp(2,VDkk),newctmp(3,VDkk))
       mv_line = mv_line%normalized()
       mv = meet(mv_plane, mv_line)
       mv = mv%normalized()
       call getpoint(mv,x,y,z)
-      pos(1) = y/dl-0.5D0+dble(DIFT%nml%exptnumsx/2)-DIFT%nml%xpc
-      pos(2) = DIFT%nml%L*sa/dl/ca-x/dl/ca-0.5D0+dble(DIFT%nml%exptnumsy/2)+DIFT%nml%ypc
-      px = pos(1)
-      py = pos(2)
       if (z.gt.0.0) then
+        pos(1) = y/dl-0.5D0+dble(DIFT%nml%exptnumsx/2)-DIFT%nml%xpc
+        pos(2) = DIFT%nml%L*sa/dl/ca-x/dl/ca-0.5D0+dble(DIFT%nml%exptnumsy/2)+DIFT%nml%ypc
+        px = pos(1)
+        py = pos(2)
         if ( (px.ge.-xbound) .and. (px.le.xbound) .and. (py.ge.-ybound) .and. (py.le.ybound) ) then 
           VDpx = nint(pos(1)) 
           VDpy = DIFT%nml%numsy - nint(pos(2)) 
           if ( (VDpx.gt.0).and.(VDpx.le.DIFT%nml%exptnumsx).and.(VDpy.gt.0).and.(VDpy.le.DIFT%nml%exptnumsy) ) then 
-            dis =  sqrt( real( (DIFT%nml%exptnumsx-VDpx)**2 + (DIFT%nml%numsy-VDpy)**2 ) )
-            if ( sqrt(dis) .lt. VDpositions(3,jj) ) then 
+            dis = sqrt( real( (VDpxref-VDpx)**2 + (VDpyref-VDpy)**2 ) )
+            ! if ( dis .lt. VDpositions(3,jj) ) then 
               VDpositions(1:3,jj) = (/ pos(1), DIFT%nml%numsy - pos(2), dis /)
-            end if 
+            ! end if 
           end if
         end if
       end if
-    end do
+    ! end do
   end do
- call mem%dealloc(newctmp, 'newctmp')
+  call mem%dealloc(newctmp, 'newctmp')
+ ! output the VDpositions array for debugging purposes
+ ! open(unit=20,file='VDpositions.txt',status='unknown',form='unformatted')
+ ! write (20) shape(VDpositions)
+ ! write (20) sngl(VDpositions)
+ ! close(unit=20,status='keep')
 else 
 ! get the lower left corner of the virtual detector
   VDposx = nint(nml%VDlocx) - (nml%VDwidth-1)/2
@@ -1684,12 +1696,10 @@ deallocate(inp, outp)
 call OMP_setNThreads(nml%nthreads)
 dims3 = (/ binx, biny, nml%ipf_wd /)
 
-write (*,*) 'dims3 : ', dims3, patsz
-
 do iii = iiistart,iiiend
 
 ! start the OpenMP portion
-!$OMP PARALLEL DEFAULT(SHARED) PRIVATE(TID, jj, kk, Pat, window, VDpx, VDpy, rrdata, ffdata, inp, outp)
+!$OMP PARALLEL DEFAULT(SHARED) PRIVATE(TID, ival, jj, jjj, kk, Pat, window, VDpx, VDpy, rrdata, ffdata, inp, outp, offset3)
 
 ! set the thread ID
    TID = OMP_GET_THREAD_NUM()
@@ -1723,16 +1733,6 @@ do iii = iiistart,iiiend
 !$OMP BARRIER    
 
 ! then loop in parallel over all patterns to perform the preprocessing steps
-  if (trim(nml%VDreference).eq.'MPat') then 
-    VDpx = nint(VDpositions(1,iii))
-    VDpy = nint(VDpositions(2,iii))
-  else
-    VDpx = VDposx
-    VDpy = VDposy
-  end if
-
-! write (*,*) TID, iii, shape(Pat), VDpx, VDpy, VDpositions(3,iii)
-
 !$OMP DO SCHEDULE(DYNAMIC)
     do jj=jjstart,jjend
 ! convert imageexpt to 2D EBSD Pattern array
@@ -1746,6 +1746,16 @@ do iii = iiistart,iiiend
         ffdata = applyHiPassFilter(rrdata, (/ binx, biny /), dble(DIFT%nml%hipassw), hpmask, inp, outp, HPplanf, HPplanb)
         Pat = sngl(ffdata)
 
+! get the virtual detector coordinates
+        if (trim(nml%VDreference).eq.'MPat') then 
+          ival = iii*nml%ipf_wd + jj-1
+          VDpx = nint(VDpositions(1,ival))
+          VDpy = nint(VDpositions(2,ival))
+        else
+          VDpx = VDposx
+          VDpy = VDposy
+        end if
+
         window = Pat( VDpx:VDpx+nml%VDwidth-1, VDpy:VDpy+nml%VDheight-1 )
         VDimage(jj-jjstart+1,iii-iiistart+1) = sum( window*VDmask )
     end do
@@ -1758,7 +1768,7 @@ deallocate(Pat, window, rrdata, ffdata, inp, outp)
 end do
 
 
-! output the ADP map as a tiff file
+! output the virtual detector image as a tiff file
 fname = trim(EMsoft%generateFilePath('EMdatapathname'))//trim(nml%virtualimagefile)
 TIFF_filename = trim(fname)
 if (ROIselected.eqv..TRUE.) then
@@ -1780,7 +1790,6 @@ write (*,*) ' image intensity range ',mi,ma
 
 do j=1,TIFF_ny
  do i=1,TIFF_nx
-  ! TIFF_image(i,j) = int(255 * (VDimage(i,TIFF_ny-j+1)-mi)/(ma-mi))
   TIFF_image(i,j) = int(255 * (VDimage(i,j)-mi)/(ma-mi))
  end do
 end do
