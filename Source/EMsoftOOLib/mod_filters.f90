@@ -1285,12 +1285,12 @@ if (present(alpha)) then
 ! this version implements the 2D HannWindow function from Mathematica
 ! the assumption is that roi_size is an odd number
   r = (roi_size-1)/2
-  fr = 1.D0/dble(r)
+  fr = 1.D0/dble(2*r)
   window = 0.D0
-  do i=-r/2,r/2
+  do i=-r,r
     cx = cos(2.D0*cPi*dble(i)*fr)
     hx = alpha*(1.D0-cx) + cx
-    do j=-r/2,r/2
+    do j=-r,r
       cy = cos(2.D0*cPi*dble(j)*fr)
       window(i+r+1,j+r+1) = hx * ( alpha*(1.D0-cy) + cy )
     end do

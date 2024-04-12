@@ -1748,7 +1748,7 @@ do iii = iiistart,iiiend
 
 ! get the virtual detector coordinates
         if (trim(nml%VDreference).eq.'MPat') then 
-          ival = iii*nml%ipf_wd + jj-1
+          ival = (iii-1)*nml%ipf_wd + jj
           VDpx = nint(VDpositions(1,ival))
           VDpy = nint(VDpositions(2,ival))
         else
