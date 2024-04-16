@@ -50,6 +50,8 @@ type(EMsoft_T)       :: EMsoft
 type(EBSD4D_T)       :: EBSD4D
 type(HDFnames_T)     :: HDFnames
 
+logical              :: doconvolution
+
 ! print the EMsoft header and handle any command line arguments  
 EMsoft = EMsoft_T( progname, progdesc, tpl = (/ 140 /) )
 
@@ -62,6 +64,11 @@ call HDFnames%set_NMLlist(SC_EBSD4DNameList)
 call HDFnames%set_NMLfilename(SC_EBSD4DNML) 
 
 ! perform the computations
-call EBSD4D%EBSD4D(EMsoft, progname, HDFnames)
+doconvolution = EBSD4D%getdoconvolution()
+if (doconvolution.eqv..TRUE.) then 
+  call EBSD4D%EBSD4Dconvol(EMsoft, progname, HDFnames)
+else
+  call EBSD4D%EBSD4D(EMsoft, progname, HDFnames)
+end if
 
 end program EM4DEBSD

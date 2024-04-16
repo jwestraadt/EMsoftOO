@@ -17,6 +17,14 @@
  numsy = 0,
 
 !=====================================
+! if doconvolution = .TRUE., then perform a full data set convolution and store the 
+! results in the HDF5 file convolvedpatternfile [relative to EMdatapthname]
+! else we do one mask at a time 
+!=====================================
+ doconvolution = .FALSE.,
+ convolvedpatternfile = 'undefined', 
+
+!=====================================
 ! Virtual Detector Parameters
 !=====================================
 ! virtual detector type:  'Rect', 'Gaus', 'Hann'

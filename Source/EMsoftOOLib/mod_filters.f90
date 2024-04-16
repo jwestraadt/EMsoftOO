@@ -1032,8 +1032,9 @@ end subroutine init_HiPassFilter
 !> @date 02/02/16 MDG 1.0 original
 !> @date 06/03/16 MDG 1.1 modified mask to inverted Gaussian profile
 !> @date 01/11/18 MDG 1.2 split routine from original to allow for OpenMP access
+!> @date 04/15/24 MDG 1.3 add optional convolution multiplication
 !--------------------------------------------------------------------------
-recursive function applyHiPassFilter(rdata, dims, w, hpmask, inp, outp, planf, planb) result(fdata)
+recursive function applyHiPassFilter(rdata, dims, w, hpmask, inp, outp, planf, planb, convol) result(fdata)
 !DEC$ ATTRIBUTES DLLEXPORT :: applyHiPassFilter
 
 use mod_FFTW3
@@ -1047,6 +1048,7 @@ complex(kind=dbl),INTENT(IN)            :: hpmask(dims(1),dims(2))
 complex(C_DOUBLE_COMPLEX),INTENT(INOUT) :: inp(dims(1),dims(2)), outp(dims(1),dims(2))
 !f2py intent(in,out) ::  inp
 type(C_PTR),INTENT(IN)                  :: planf, planb
+complex(C_DOUBLE_COMPLEX), OPTIONAL, INTENT(INOUT)  :: convol(dims(1),dims(2))
 real(kind=dbl)                          :: fdata(dims(1),dims(2))
 
 complex(kind=dbl)                       :: cone = cmplx(1.D0,0.D0), czero = cmplx(0.D0,0.D0)
@@ -1061,6 +1063,9 @@ do j=1,dims(1)
 end do
 call fftw_execute_dft(planf, inp, outp)
 inp = outp * hpmask
+if (present(convol)) then 
+  inp = inp * convol 
+end if
 call fftw_execute_dft(planb, inp, outp)
 fdata(1:dims(1),1:dims(2)) = real(outp)
 

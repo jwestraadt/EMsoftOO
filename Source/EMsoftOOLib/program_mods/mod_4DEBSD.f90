@@ -51,11 +51,13 @@ type, public :: EBSD4DNameListType
  character(fnlen)   :: exptfile
  character(fnlen)   :: masterfile
  character(fnlen)   :: dotproductfile
+ character(fnlen)   :: convolvedpatternfile
  character(fnlen)   :: inputtype
  character(fnlen)   :: HDFstrings(10)
  character(fnlen)   :: virtualimagefile
  character(4)       :: VDtype
  character(4)       :: VDreference
+ logical            :: doconvolution
  real(kind=sgl)     :: EBSPlocx
  real(kind=sgl)     :: EBSPlocy
  real(kind=sgl)     :: VDlocx
@@ -74,7 +76,9 @@ contains
 private 
   procedure, pass(self) :: readNameList_
   procedure, pass(self) :: getNameList_
+  procedure, pass(self) :: writeHDFNameList_
   procedure, pass(self) :: EBSD4D_
+  procedure, pass(self) :: EBSD4Dconvol_
   procedure, pass(self) :: setipf_ht_
   procedure, pass(self) :: getipf_ht_
   procedure, pass(self) :: setipf_wd_
@@ -91,6 +95,8 @@ private
   procedure, pass(self) :: getexptfile_
   procedure, pass(self) :: setmasterfile_
   procedure, pass(self) :: getmasterfile_
+  procedure, pass(self) :: setconvolvedpatternfile_
+  procedure, pass(self) :: getconvolvedpatternfile_
   procedure, pass(self) :: setdotproductfile_
   procedure, pass(self) :: getdotproductfile_
   procedure, pass(self) :: setinputtype_
@@ -119,12 +125,15 @@ private
   procedure, pass(self) :: getVDwidth_
   procedure, pass(self) :: setVDheight_
   procedure, pass(self) :: getVDheight_
+  procedure, pass(self) :: setdoconvolution_
+  procedure, pass(self) :: getdoconvolution_
   procedure, pass(self) :: drawMPpositions_
   procedure, pass(self) :: drawEBSPpositions_
 
   generic, public :: getNameList => getNameList_
   generic, public :: readNameList => readNameList_
   generic, public :: EBSD4D => EBSD4D_
+  generic, public :: EBSD4Dconvol => EBSD4Dconvol_
   generic, public :: setipf_ht => setipf_ht_
   generic, public :: getipf_ht => getipf_ht_
   generic, public :: setipf_wd => setipf_wd_
@@ -143,6 +152,8 @@ private
   generic, public :: getdotproductfile => getdotproductfile_
   generic, public :: setmasterfile => setmasterfile_
   generic, public :: getmasterfile => getmasterfile_
+  generic, public :: setconvolvedpatternfile => setconvolvedpatternfile_
+  generic, public :: getconvolvedpatternfile => getconvolvedpatternfile_
   generic, public :: setinputtype => setinputtype_
   generic, public :: getinputtype => getinputtype_
   generic, public :: setHDFstrings => setHDFstrings_
@@ -169,6 +180,8 @@ private
   generic, public :: getVDwidth => getVDwidth_
   generic, public :: setVDheight => setVDheight_
   generic, public :: getVDheight => getVDheight_
+  generic, public :: setdoconvolution => setdoconvolution_
+  generic, public :: getdoconvolution => getdoconvolution_
 end type EBSD4D_T
 
 ! the constructor routine for this class 
@@ -242,6 +255,7 @@ integer(kind=irg)                   :: numsy
 integer(kind=irg)                   :: nthreads
 character(fnlen)                    :: exptfile
 character(fnlen)                    :: masterfile
+character(fnlen)                    :: convolvedpatternfile
 character(fnlen)                    :: dotproductfile
 character(fnlen)                    :: inputtype
 character(fnlen)                    :: HDFstrings(10)
@@ -250,6 +264,7 @@ integer(kind=irg)                   :: VDwidth
 integer(kind=irg)                   :: VDheight
 character(4)                        :: VDtype
 character(4)                        :: VDreference
+logical                             :: doconvolution
 real(kind=sgl)                      :: VDlocx
 real(kind=sgl)                      :: VDlocy
 real(kind=sgl)                      :: EBSPlocx
@@ -259,7 +274,7 @@ real(kind=sgl)                      :: VDHannAlpha
 
 namelist / EBSD4Ddata / ipf_ht, ipf_wd, ROI, numsx, numsy, nthreads, exptfile, inputtype, HDFstrings, virtualimagefile, &
                         VDwidth, VDheight, VDtype, VDlocx, VDlocy, VDSD, VDHannAlpha, VDreference, masterfile, dotproductfile, &
-                        EBSPlocx, EBSPlocy
+                        EBSPlocx, EBSPlocy, doconvolution, convolvedpatternfile
 
 ipf_ht = 100
 ipf_wd = 100
@@ -269,6 +284,7 @@ numsy = 0
 nthreads = 1
 exptfile = 'undefined'
 masterfile = 'undefined'
+convolvedpatternfile = 'undefined'
 dotproductfile = 'undefined'
 inputtype = 'Binary'
 HDFstrings = (/ '', '', '', '', '', '', '', '', '', '' /)
@@ -283,6 +299,7 @@ VDwidth = 5
 VDheight = 5
 VDSD = 0.5
 VDHannAlpha = 0.5 
+doconvolution = .FALSE.
 
 if (present(initonly)) then
   if (initonly) skipread = .TRUE.
@@ -329,6 +346,7 @@ self%nml%numsy = numsy
 self%nml%nthreads = nthreads
 self%nml%exptfile = exptfile
 self%nml%masterfile = masterfile
+self%nml%convolvedpatternfile = convolvedpatternfile
 self%nml%dotproductfile = dotproductfile
 self%nml%inputtype = inputtype
 self%nml%HDFstrings = HDFstrings
@@ -343,8 +361,125 @@ self%nml%EBSPlocx = EBSPlocx
 self%nml%EBSPlocy = EBSPlocy
 self%nml%VDSD = VDSD 
 self%nml%VDHannAlpha = VDHannAlpha
+self%nml%doconvolution = doconvolution
 
 end subroutine readNameList_
+
+!--------------------------------------------------------------------------
+recursive subroutine writeHDFNameList_(self, HDF, HDFnames)
+!DEC$ ATTRIBUTES DLLEXPORT :: writeHDFNameList_
+!! author: MDG
+!! version: 1.0
+!! date: 02/17/20
+!!
+!! write namelist to HDF file
+
+use mod_HDFsupport
+use mod_HDFnames
+use stringconstants
+
+use ISO_C_BINDING
+
+IMPLICIT NONE
+
+class(EBSD4D_T), INTENT(INOUT)          :: self
+type(HDF_T), INTENT(INOUT)              :: HDF
+type(HDFnames_T), INTENT(INOUT)         :: HDFnames
+
+integer(kind=irg),parameter             :: n_int = 8, n_real = 6
+integer(kind=irg)                       :: hdferr,  io_int(n_int), docv
+real(kind=sgl)                          :: io_real(n_real)
+character(20)                           :: reallist(n_real)
+character(20)                           :: intlist(n_int)
+character(fnlen)                        :: dataset, sval(1),groupname
+character(fnlen,kind=c_char)            :: line2(1), line10(10)
+
+associate( enl => self%nml )
+
+! create the group for this namelist
+hdferr = HDF%createGroup(HDFnames%get_NMLlist())
+
+docv = 0 
+if (enl%doconvolution.eqv..TRUE.) docv = 1
+! write all the single integers
+io_int = (/ enl%ipf_wd, enl%ipf_ht, enl%numsx, enl%numsy, enl%nthreads, enl%VDwidth, enl%VDheight, docv/)
+intlist(1) = 'ipf_wd'
+intlist(2) = 'ipf_ht'
+intlist(3) = 'numsx'
+intlist(4) = 'numsy'
+intlist(5) = 'nthreads'
+intlist(6) = 'VDwidth'
+intlist(7) = 'VDheight'
+intlist(8) = 'doconvolution'
+call HDF%writeNMLintegers(io_int, intlist, n_int)
+
+! write all the single reals
+io_real = (/ enl%VDlocx, enl%VDlocy, enl%EBSPlocx, enl%EBSPlocy, enl%VDSD, enl%VDHannAlpha /)
+reallist(1) = 'VDlocx'
+reallist(2) = 'VDlocy'
+reallist(3) = 'EBSPlocx'
+reallist(4) = 'EBSPlocy'
+reallist(5) = 'VDSD'
+reallist(6) = 'VDHannAlpha'
+call HDF%writeNMLreals(io_real, reallist, n_real)
+
+! a 4-vector
+dataset = SC_ROI
+hdferr = HDF%writeDatasetIntegerArray(dataset, enl%ROI, 4)
+if (hdferr.ne.0) call HDF%error_check('writeHDFNameList: unable to create ROI dataset', hdferr)
+
+! write all the strings
+dataset = SC_exptfile
+line2(1) = trim(enl%exptfile)
+hdferr = HDF%writeDatasetStringArray(dataset, line2, 1)
+if (hdferr.ne.0) call HDF%error_check('writeHDFNameList: unable to create exptfile dataset', hdferr)
+
+dataset = SC_masterfile
+line2(1) = trim(enl%masterfile)
+hdferr = HDF%writeDatasetStringArray(dataset, line2, 1)
+if (hdferr.ne.0) call HDF%error_check('writeHDFNameList: unable to create masterfile dataset', hdferr)
+
+dataset = 'convolvedpatternfile' 
+line2(1) = trim(enl%convolvedpatternfile)
+hdferr = HDF%writeDatasetStringArray(dataset, line2, 1)
+if (hdferr.ne.0) call HDF%error_check('writeHDFNameList: unable to create poissconvolvedpatternfileon dataset', hdferr)
+
+dataset = 'dotproductfile'
+line2(1) = trim(enl%dotproductfile)
+hdferr = HDF%writeDatasetStringArray(dataset, line2, 1)
+if (hdferr.ne.0) call HDF%error_check('writeHDFNameList: unable to create dotproductfile dataset', hdferr)
+
+dataset = SC_inputtype
+line2(1) = trim(enl%inputtype)
+hdferr = HDF%writeDatasetStringArray(dataset, line2, 1)
+if (hdferr.ne.0) call HDF%error_check('writeHDFNameList: unable to create inputtype dataset', hdferr)
+
+dataset = 'virtualimagefile'
+line2(1) = trim(enl%virtualimagefile)
+hdferr = HDF%writeDatasetStringArray(dataset, line2, 1)
+if (hdferr.ne.0) call HDF%error_check('writeHDFNameList: unable to create virtualimagefile dataset', hdferr)
+
+dataset = 'VDtype'
+line2(1) = trim(enl%VDtype)
+hdferr = HDF%writeDatasetStringArray(dataset, line2, 1)
+if (hdferr.ne.0) call HDF%error_check('writeHDFNameList: unable to create VDtype dataset', hdferr)
+
+dataset = 'VDreference' 
+line2(1) = trim(enl%VDreference)
+hdferr = HDF%writeDatasetStringArray(dataset, line2, 1)
+if (hdferr.ne.0) call HDF%error_check('writeHDFNameList: unable to create VDreference dataset', hdferr)
+
+dataset = SC_HDFstrings
+line10 = enl%HDFstrings
+hdferr = HDF%writeDatasetStringArray(dataset, line10, 10)
+if (hdferr.ne.0) call HDF%error_check('writeHDFNameList: unable to create HDFstrings dataset', hdferr)
+
+! and pop this group off the stack
+call HDF%pop()
+
+end associate
+
+end subroutine writeHDFNameList_
 
 !--------------------------------------------------------------------------
 function getNameList_(self) result(nml)
@@ -651,6 +786,42 @@ character(fnlen)                   :: out
 out = trim(self%nml%masterfile)
 
 end function getmasterfile_
+
+!--------------------------------------------------------------------------
+subroutine setconvolvedpatternfile_(self,inp)
+!DEC$ ATTRIBUTES DLLEXPORT :: setconvolvedpatternfile_
+!! author: MDG
+!! version: 1.0
+!! date: 04/01/24
+!!
+!! set convolvedpatternfile in the EBSD4D_T class
+
+IMPLICIT NONE
+
+class(EBSD4D_T), INTENT(INOUT)     :: self
+character(fnlen), INTENT(IN)       :: inp
+
+self%nml%convolvedpatternfile = trim(inp)
+
+end subroutine setconvolvedpatternfile_
+
+!--------------------------------------------------------------------------
+function getconvolvedpatternfile_(self) result(out)
+!DEC$ ATTRIBUTES DLLEXPORT :: getconvolvedpatternfile_
+!! author: MDG
+!! version: 1.0
+!! date: 04/01/24
+!!
+!! get convolvedpatternfile from the EBSD4D_T class
+
+IMPLICIT NONE
+
+class(EBSD4D_T), INTENT(INOUT)     :: self
+character(fnlen)                   :: out
+
+out = trim(self%nml%convolvedpatternfile)
+
+end function getconvolvedpatternfile_
 
 !--------------------------------------------------------------------------
 subroutine setdotproductfile_(self,inp)
@@ -1165,6 +1336,42 @@ out = self%nml%VDheight
 end function getVDheight_
 
 !--------------------------------------------------------------------------
+subroutine setdoconvolution_(self,inp)
+!DEC$ ATTRIBUTES DLLEXPORT :: setdoconvolution_
+!! author: MDG
+!! version: 1.0
+!! date: 04/15/24
+!!
+!! set doconvolution in the EBSD4D_T class
+
+IMPLICIT NONE
+
+class(EBSD4D_T), INTENT(INOUT)     :: self
+logical, INTENT(IN)                :: inp
+
+self%nml%doconvolution = inp
+
+end subroutine setdoconvolution_
+
+!--------------------------------------------------------------------------
+function getdoconvolution_(self) result(out)
+!DEC$ ATTRIBUTES DLLEXPORT :: getdoconvolution_
+!! author: MDG
+!! version: 1.0
+!! date: 04/15/24
+!!
+!! get doconvolution from the EBSD4D_T class
+
+IMPLICIT NONE
+
+class(EBSD4D_T), INTENT(INOUT)     :: self
+logical                            :: out
+
+out = self%nml%doconvolution
+
+end function getdoconvolution_
+
+!--------------------------------------------------------------------------
 subroutine drawMPpositions_(self, n, ctmp, sz, MP)
 !DEC$ ATTRIBUTES DLLEXPORT :: drawMPpositions_
 !! author: MDG 
@@ -1234,7 +1441,7 @@ call im%write(trim(TIFF_filename), iostat, iomsg) ! format automatically detecte
 if(0.ne.iostat) then
   call Message%printMessage("failed to write image to file : "//iomsg)
 else
-  call Message%printMessage('MPpositions map written to '//trim(TIFF_filename))
+  call Message%printMessage(' MPpositions map written to '//trim(TIFF_filename))
 end if
 
 end subroutine drawMPpositions_
@@ -1288,7 +1495,7 @@ call im%write(trim(TIFF_filename), iostat, iomsg) ! format automatically detecte
 if(0.ne.iostat) then
   call Message%printMessage("failed to write image to file : "//iomsg)
 else
-  call Message%printMessage('EBSPpositions map written to '//trim(TIFF_filename))
+  call Message%printMessage(' EBSPpositions map written to '//trim(TIFF_filename))
 end if
 
 end subroutine drawEBSPpositions_
@@ -1477,7 +1684,7 @@ if (nml%VDreference.eq.'MPat') then
 end if
 
 !===================================================================================
-! set the vendor inputtype for the pattern file
+! set the vendor inputtype and file name for the pattern file
 VT = Vendor_T( nml%inputtype )
 itype = VT%get_itype()
 call VT%set_filename( nml%exptfile )
@@ -1497,7 +1704,7 @@ else
 end if
 
 if (istat.ne.0) then
-    call Message%printError("PreProcessPatterns:", "Fatal error handling experimental pattern file")
+    call Message%printError("EBSD4D:", "Fatal error handling experimental pattern file")
 end if
 
 if (sum(nml%ROI).ne.0) then
@@ -1727,6 +1934,7 @@ do iii = iiistart,iiiend
             call VT%getExpPatternRow(iii, nml%ipf_wd, patsz, L, dims3, offset3, exppatarray)
           end if
         end if
+        write (*,*) ' exppatarray : ', iii, maxval(exppatarray)
     end if
 
 ! other threads must wait until T0 is ready
@@ -1786,8 +1994,6 @@ allocate(TIFF_image(TIFF_nx,TIFF_ny))
 ma = maxval(VDimage)
 mi = minval(VDimage)
 
-write (*,*) ' image intensity range ',mi,ma 
-
 do j=1,TIFF_ny
  do i=1,TIFF_nx
   TIFF_image(i,j) = int(255 * (VDimage(i,j)-mi)/(ma-mi))
@@ -1803,7 +2009,7 @@ call im%write(trim(TIFF_filename), iostat, iomsg) ! format automatically detecte
 if(0.ne.iostat) then
   call Message%printMessage("failed to write image to file : "//iomsg)
 else
-  call Message%printMessage('Virtual detector map written to '//trim(TIFF_filename))
+  call Message%printMessage(' Virtual detector map written to '//trim(TIFF_filename))
 end if
 
 call closeFortranHDFInterface()
@@ -1811,6 +2017,392 @@ call closeFortranHDFInterface()
 end associate
 
 end subroutine EBSD4D_
+
+
+!--------------------------------------------------------------------------
+subroutine EBSD4Dconvol_(self, EMsoft, progname, HDFnames)
+!DEC$ ATTRIBUTES DLLEXPORT :: EBSD4Dconvol_
+!! author: MDG 
+!! version: 1.0 
+!! date: 04/15/24
+!!
+!! perform the computations
+!! 
+!! This routine performs a convolution of a mask with an EBSD data set and stores
+!! the result in an HDF5 file
+
+use mod_EMsoft
+use mod_HDFnames
+use mod_patterns
+use mod_vendors
+use mod_filters
+use mod_DIfiles
+use mod_io
+use mod_math
+use mod_timing
+use mod_FFTW3
+use omp_lib
+use mod_OMPsupport
+use HDF5
+use h5im
+use h5lt
+use mod_HDFsupport
+use ISO_C_BINDING
+use mod_memory
+
+use, intrinsic :: iso_fortran_env
+
+IMPLICIT NONE 
+
+class(EBSD4D_T), INTENT(INOUT)          :: self
+type(EMsoft_T), INTENT(INOUT)           :: EMsoft
+character(fnlen), INTENT(INOUT)         :: progname 
+type(HDFnames_T), INTENT(INOUT)         :: HDFnames
+
+type(IO_T)                              :: Message
+type(HDF_T)                             :: HDF
+type(DIfile_T)                          :: DIFT
+type(timing_T)                          :: timer
+type(memory_T)                          :: mem
+type(Vendor_T)                          :: VT
+type(HDFnames_T)                        :: saveHDFnames
+
+integer(kind=irg)                       :: L,totnumexpt,imght,imgwd, recordsize, hdferr, TID, iii, &
+                                           itype, istat, iiistart, iiiend, jjstart, jjend, binx, biny, sz(3), &
+                                           correctsize, dims(2), i, j, k, ii, jj, jjj, kk, patsz, Nexp, numhatn, io_int(3), &
+                                           sz2(2), ival
+real(kind=sgl)                          :: tstop
+integer(kind=ill)                       :: jjpat
+logical                                 :: ROIselected
+real(kind=sgl),allocatable              :: exppatarray(:), convolpatarray(:,:,:), mask(:,:), Pat(:,:)
+integer(HSIZE_T)                        :: dims3(3), offset3(3), hdims(3)
+character(fnlen)                        :: fname, datafile, datagroupname, dataset, attributename, DIfile, HDF_FileVersion
+real(kind=dbl),allocatable              :: rrdata(:,:), ffdata(:,:), ksqarray(:,:), VDmaskd(:,:)
+complex(kind=dbl),allocatable           :: hpmask(:,:)
+complex(C_DOUBLE_COMPLEX),allocatable   :: inp(:,:), outp(:,:), convolmask(:,:)
+type(C_PTR)                             :: planf, HPplanf, HPplanb
+character(11)                           :: dstr
+character(15)                           :: tstrb
+character(15)                           :: tstre
+logical                                 :: insert = .TRUE., overwrite = .TRUE.
+character(fnlen,kind=c_char)            :: line2(1)
+
+call openFortranHDFInterface()
+HDF = HDF_T()
+
+associate( nml=>self%nml )
+
+! memory class 
+mem = memory_T()
+
+! read info from the dot product file
+DIfile = trim(EMsoft%generateFilePath('EMdatapathname'))//trim(nml%dotproductfile)
+saveHDFnames = HDFnames
+call HDFnames%set_NMLfiles(SC_NMLfiles)
+call HDFnames%set_NMLfilename(SC_DictionaryIndexingNML)
+call HDFnames%set_NMLparameters(SC_NMLparameters)
+call HDFnames%set_NMLlist(SC_DictionaryIndexingNameListType)
+call DIFT%readDotProductFile(EMsoft, HDF, HDFnames, DIfile, hdferr) 
+HDFnames = saveHDFnames 
+
+! copy various constants from the namelist
+L = nml%numsx*nml%numsy
+totnumexpt = nml%ipf_wd*nml%ipf_ht
+imght = nml%numsx
+imgwd = nml%numsy
+recordsize = L*4
+dims = (/ imght, imgwd /)
+binx = nml%numsx
+biny = nml%numsy
+
+! make sure that correctsize is a multiple of 16; if not, make it so
+! this is not really relevant for this program, but several routines 
+! rely on this being the case so we impose it here
+if (mod(L,16) .ne. 0) then
+    correctsize = 16*ceiling(float(L)/16.0)
+else
+    correctsize = L
+end if
+patsz = correctsize
+
+ROIselected = .FALSE.
+if (sum(nml%ROI).ne.0) ROIselected = .TRUE.
+
+timer = Timing_T()
+tstrb = timer%getTimeString()
+dstr = timer%getDateString()
+
+
+if (sum(nml%ROI).ne.0) then
+  ROIselected = .TRUE.
+  iiistart = nml%ROI(2)
+  iiiend = nml%ROI(2)+nml%ROI(4)-1
+  jjstart = nml%ROI(1)
+  jjend = nml%ROI(1)+nml%ROI(3)-1
+else
+  ROIselected = .FALSE.
+  iiistart = 1
+  iiiend = nml%ipf_ht
+  jjstart = 1
+  jjend = nml%ipf_wd
+end if
+
+! allocate the output image array
+call mem%alloc(VDmaskd, (/ nml%VDwidth, nml%VDheight /), 'VDmaskd')
+call mem%alloc(exppatarray, (/ patsz * nml%ipf_wd /), 'exppatarray')
+call mem%alloc(convolpatarray, (/ binx, biny, nml%ipf_wd /), 'convolpatarray')
+call mem%alloc(mask, (/ nml%VDwidth, nml%VDheight /), 'mask', initval=0.0)
+
+! make the mask according to the virtual detector type 
+select case(nml%VDtype)
+  case('Rect')
+    VDmaskD = 1.D0
+  case('Hann')
+    call HannWindow(nml%VDwidth, VDmaskd, dble(nml%VDHannAlpha))
+
+  case default 
+    call Message%printError('EBSD4D','virtual detector type not yet implemented')
+end select
+
+! initialize the HiPassFilter routine (has its own FFTW plans)
+allocate(hpmask(binx,biny),inp(binx,biny),outp(binx,biny),convolmask(binx,biny),stat=istat)
+if (istat .ne. 0) stop 'could not allocate hpmask array'
+call init_HiPassFilter(dble(DIFT%nml%hipassw), (/ binx, biny /), hpmask, inp, outp, HPplanf, HPplanb)
+
+! get the Fourier transform of the mask (first embed in a full size array padded with 0s)
+inp = cmplx(0.D0,0.D0)
+! put the mask in the middle and then shift the array
+do j=-nml%VDwidth/2,nml%VDwidth/2
+ do k=-nml%VDheight/2,nml%VDheight/2
+  inp(binx/2+j,biny/2+k) = cmplx(VDmaskd(nml%VDwidth/2+j+1,nml%VDheight/2+k+1),0.D0)
+ end do
+end do
+inp = cshift(inp,binx/2,1)
+inp = cshift(inp,biny/2,2)
+call fftw_execute_dft(HPplanf, inp, outp)
+convolmask = outp
+deallocate(inp, outp)
+
+! open the output HDF5 file that will have the convolved patterns in it
+! Create a new file using the default properties.
+datafile = EMsoft%generateFilePath('EMdatapathname', nml%convolvedpatternfile)
+
+hdferr =  HDF%createFile(datafile)
+if (hdferr.ne.0) call HDF%error_check('HDF_createFile ', hdferr)
+
+!====================================
+! new in Release 4.3: add a Manufacturer string (null terminated)
+dataset = SC_Manufacturer
+line2(1) = 'EMsoft'
+line2(1) = cstringify(line2(1))
+hdferr = HDF%writeDatasetStringArray(dataset, line2, 1)
+!====================================
+
+! write the EMheader to the file
+datagroupname = trim(HDFnames%get_ProgramData()) ! 'EBSD' or 'TKD'
+call HDF%writeEMheader(EMsoft,dstr, tstrb, tstre, progname, datagroupname)
+
+! create a namelist group to write all the namelist files into
+hdferr = HDF%createGroup(HDFnames%get_NMLfiles())
+if (hdferr.ne.0) call HDF%error_check('HDF_createGroup NMLfiles', hdferr)
+
+! read the text file and write the array to the file
+dataset = '4DEBSDNML'
+hdferr = HDF%writeDatasetTextFile(dataset, EMsoft%nmldeffile )
+if (hdferr.ne.0) call HDF%error_check('HDF_writeDatasetTextFile 4DEBSDNML', hdferr)
+
+call HDF%pop()
+
+! create a NMLparameters group to write all the namelist entries into
+hdferr = HDF%createGroup(HDFnames%get_NMLparameters())
+if (hdferr.ne.0) call HDF%error_check('HDF_createGroup NMLparameters', hdferr)
+
+call self%writeHDFNameList_(HDF, HDFnames)
+
+! and leave this group
+call HDF%pop()
+
+! then the remainder of the data in a EMData group
+hdferr = HDF%createGroup(HDFnames%get_EMData())
+if (hdferr.ne.0) call HDF%error_check('HDF_createGroup EMData', hdferr)
+
+! create the EBSD group and add a HDF_FileVersion attribute to it
+hdferr = HDF%createGroup(datagroupname)
+if (hdferr.ne.0) call HDF%error_check('HDF_createGroup 4DEBSD', hdferr)
+! before Feb. 19, 2019, an undetected error caused all patterns to be upside down in the Kikuchi bands only,
+! not in the background intensity profile.  This was compensated by a pattern flip of all experimental
+! patterns in the dictionary indexing program, but when taking individual patterns from this program, they
+! are actually upside down in all versions through HDF_FileVersion 4.0.  As of 4.1, the patterns are in the
+! correct orientation.  This was detected by manually indexing a simulated pattern.
+HDF_FileVersion = '4.1'
+attributename = SC_HDFFileVersion
+hdferr = HDF%addStringAttributeToGroup(attributename, HDF_FileVersion)
+
+dataset = 'binx'
+hdferr = HDF%writeDatasetInteger(dataset, binx)
+if (hdferr.ne.0) call HDF%error_check('HDF_writeDatasetInteger binx', hdferr)
+
+dataset = 'biny'
+hdferr = HDF%writeDatasetInteger(dataset, biny)
+if (hdferr.ne.0) call HDF%error_check('HDF_writeDatasetInteger biny', hdferr)
+
+dataset = 'numpatterns'
+hdferr = HDF%writeDatasetInteger(dataset, nml%ipf_wd*nml%ipf_ht)
+if (hdferr.ne.0) call HDF%error_check('HDF_writeDatasetInteger numpatterns', hdferr)
+
+offset3 = (/ 0, 0, 0 /)
+hdims = (/ binx, biny, nml%ipf_wd*nml%ipf_ht/)
+dims3 = (/ binx, biny, nml%ipf_wd /)
+
+dataset = 'ConvolvedPatterns'
+hdferr = HDF%writeHyperslabFloatArray(dataset, convolpatarray, hdims, offset3, dims3)
+if (hdferr.ne.0) call HDF%error_check('HDF_writeHyperslabFloatArray ConvolvedPatterns', hdferr)
+
+! leave this group and the file open so thread 0 can write to it after each row of patterns
+
+!===================================================================================
+! set the vendor inputtype and file name for the pattern file
+VT = Vendor_T( nml%inputtype )
+itype = VT%get_itype()
+call VT%set_filename( nml%exptfile )
+
+!===================================================================================
+! open the file with experimental patterns; depending on the inputtype parameter, this
+! can be a regular binary file, as produced by a MatLab or IDL script (default); a
+! pattern file produced by EMEBSD.f90 etc.; or a vendor binary or HDF5 file... in each case we need to
+! open the file and leave it open, then use the getExpPatternRow() routine to read a row
+! of patterns into the exppatarray variable ...  at the end, we use closeExpPatternFile() to
+! properly close the experimental pattern file
+if ( (itype.eq.4) .or. (itype.eq.6) .or. (itype.eq.7) .or. (itype.eq.8) ) then
+  HDF = HDF_T()
+  istat = VT%openExpPatternFile(EMsoft, nml%ipf_wd, L, recordsize, nml%HDFstrings, HDF)
+else
+  istat = VT%openExpPatternFile(EMsoft, nml%ipf_wd, L, recordsize)
+end if
+
+if (istat.ne.0) then
+    call Message%printError("EBSD4D:", "Fatal error handling experimental pattern file")
+end if
+
+!==============================
+! this next part is done with OpenMP, with only thread 0 doing the reading and writing;
+! Thread 0 reads one line worth of patterns from the input file, then all threads do
+! the work; repeat until all patterns have been processed.
+call OMP_setNThreads(nml%nthreads)
+call timer%Time_tick()
+
+do iii = iiistart,iiiend
+
+! start the OpenMP portion
+!$OMP PARALLEL DEFAULT(SHARED) PRIVATE(TID, ival, jj, jjj, kk, Pat, rrdata, ffdata, inp, outp, offset3)
+
+! set the thread ID
+   TID = OMP_GET_THREAD_NUM()
+
+   allocate(Pat(binx,biny))
+   allocate(rrdata(binx,biny),ffdata(binx,biny))
+   allocate(inp(binx,biny),outp(binx,biny))
+
+! thread 0 reads the next row of patterns from the input file
+! we have to allow for all the different types of input files here...
+    if (TID.eq.0) then
+        offset3 = (/ 0, 0, (iii-1)*nml%ipf_wd /)
+        if (ROIselected.eqv..TRUE.) then
+          if ( (itype.eq.4) .or. (itype.eq.6) .or. (itype.eq.7) .or. (itype.eq.8) ) then
+            call VT%getExpPatternRow(iii, nml%ipf_wd, patsz, L, dims3, offset3, exppatarray, nml%ROI, &
+                                     HDFstrings=nml%HDFstrings, HDF=HDF)
+          else
+            call VT%getExpPatternRow(iii, nml%ipf_wd, patsz, L, dims3, offset3, exppatarray, nml%ROI)
+          end if
+        else
+         if ( (itype.eq.4) .or. (itype.eq.6) .or. (itype.eq.7) .or. (itype.eq.8) ) then
+            call VT%getExpPatternRow(iii, nml%ipf_wd, patsz, L, dims3, offset3, exppatarray, &
+                                     HDFstrings=nml%HDFstrings, HDF=HDF)
+          else
+            call VT%getExpPatternRow(iii, nml%ipf_wd, patsz, L, dims3, offset3, exppatarray)
+          end if
+        end if
+    end if
+
+! other threads must wait until T0 is ready
+!$OMP BARRIER    
+
+! then loop in parallel over all patterns to perform the preprocessing steps
+!$OMP DO SCHEDULE(DYNAMIC)
+    do jj=jjstart,jjend
+! convert imageexpt to 2D EBSD Pattern array
+      jjj = jj-jjstart+1
+      do kk=1,biny
+        Pat(1:binx,kk) = exppatarray((jjj-1)*patsz+(kk-1)*binx+1:(jjj-1)*patsz+kk*binx)
+      end do
+
+! Hi-Pass filter and convolution with virtual detector
+      rrdata = dble(Pat)
+      ffdata = applyHiPassFilter(rrdata, (/ binx, biny /), dble(DIFT%nml%hipassw), hpmask, inp, outp, HPplanf, HPplanb, convolmask)
+      Pat = sngl(ffdata)
+
+! and put the convolved pattern in the output array so it can be written to the HDF5 file
+      convolpatarray(1:binx, 1:biny, jj) = Pat(1:binx, 1:biny)
+    end do
+!$OMP END DO
+
+!$OMP BARRIER
+
+! thread 0 writes the convolved patterns to the output HDF5 file 
+    if (TID.eq.0) then
+      offset3 = (/ 0, 0, (iii-1) * nml%ipf_wd /)
+      dataset = 'ConvolvedPatterns'
+      hdferr = HDF%writeHyperslabFloatArray(dataset, convolpatarray, hdims, offset3, dims3, insert)
+      if (hdferr.ne.0) call HDF%error_check('HDF_writeHyperslabFloatArray ConvolvedPatterns', hdferr)
+      if (mod(iii,10).eq.0) then 
+        io_int(1:2) = (/ iii, iiiend /)
+        call Message%WriteValue(' Completed pattern row ', io_int, 2, "(I4,' out of ', I6)")
+      end if 
+    end if
+
+!$OMP BARRIER
+deallocate(Pat, rrdata, ffdata, inp, outp)
+!$OMP END PARALLEL
+
+end do
+
+call timer%Time_tock()
+tstop = timer%getInterval()
+
+io_int(1) = tstop
+call Message%WriteValue('Execution time [system_clock()] = ',io_int,1,"(I8,' [s]')")
+
+call HDF%pop()
+call HDF%pop()
+
+! and update the end time
+timer = timing_T()
+tstre = timer%getTimeString()
+
+hdferr = HDF%openGroup(HDFnames%get_EMheader())
+if (hdferr.ne.0) call HDF%error_check('HDF_openGroup EMheader', hdferr)
+
+hdferr = HDF%openGroup(HDFnames%get_ProgramData())
+if (hdferr.ne.0) call HDF%error_check('HDF_openGroup 4DEBSD', hdferr)
+
+! stop time /EMheader/StopTime 'character'
+dataset = SC_StopTime
+line2(1) = dstr//', '//tstre
+hdferr = HDF%writeDatasetStringArray(dataset, line2, 1, overwrite)
+if (hdferr.ne.0) call HDF%error_check('HDF_writeDatasetStringArray StopTime', hdferr)
+
+dataset = SC_Duration
+hdferr = HDF%writeDatasetFloat(dataset, tstop)
+if (hdferr.ne.0) call HDF%error_check('HDF_writeDatasetFloat Duration', hdferr)
+
+! close the datafile
+call HDF%popall()
+
+call closeFortranHDFInterface()
+
+end associate
+
+end subroutine EBSD4Dconvol_
 
 
 
