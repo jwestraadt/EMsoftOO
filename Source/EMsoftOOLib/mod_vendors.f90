@@ -436,7 +436,7 @@ IMPLICIT NONE
 class(Vendor_T), INTENT(INOUT)     :: self
 character(fnlen), INTENT(IN)       :: inp
 
-self%filename = inp
+self%filename = trim(inp)
 
 end subroutine set_filename_
 

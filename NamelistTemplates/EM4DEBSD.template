@@ -18,7 +18,7 @@
 
 !=====================================
 ! if doconvolution = .TRUE., then perform a full data set convolution and store the 
-! results in the HDF5 file convolvedpatternfile [relative to EMdatapthname]
+! results in the HDF5 file convolvedpatternfile [relative to EMdatapathname]
 ! else we do one mask at a time 
 !=====================================
  doconvolution = .FALSE.,
@@ -27,7 +27,7 @@
 !=====================================
 ! Virtual Detector Parameters
 !=====================================
-! virtual detector type:  'Rect', 'Gaus', 'Hann'
+! virtual detector type:  'Rect', 'Gaus', 'Hann', 'Array'
  VDtype = 'Rect',
 ! virtual detector reference: 'EBSP', 'MPat'
  VDreference = 'EBSP',
@@ -39,13 +39,15 @@
 ! in terms of master pattern coordinates for VDreference='MPat'
  VDlocx = 0.0, 
  VDlocy = 0.0,
-! rectangular virtual detector width and height (should be odd numbers of the form 4*n+1 !)
+! rectangular virtual detector width and height (should be odd numbers of the form 2*n+1 !)
  VDwidth = 5,
  VDheight = 5,
 ! Gaussian virtual detector standard deviation
  VDSD = 0.5,
 ! Hann window alpha parameter
  VDHannAlpha = 0.5, 
+! stepsize in pixels for VDtype='Array' mode
+ VDstep = 8,
 
 !###################################################################
 ! Input File Parameters
