@@ -27,8 +27,10 @@
 !=====================================
 ! Virtual Detector Parameters
 !=====================================
-! virtual detector type:  'Rect', 'Gaus', 'Hann', 'Array'
- VDtype = 'Rect',
+! virtual detector type:  'Flat', 'Gaus', 'Hann', 'Array'
+ VDtype = 'Flat',
+ ! this parameter is only used for the Array representation
+ normalize = 'all',  ! or 'pat' for individual pattern-by-pattern normalization
 ! virtual detector reference: 'EBSP', 'MPat'
  VDreference = 'EBSP',
 ! coordinates of the sampling point from which the EBSP is used to define the detector position
@@ -39,9 +41,8 @@
 ! in terms of master pattern coordinates for VDreference='MPat'
  VDlocx = 0.0, 
  VDlocy = 0.0,
-! rectangular virtual detector width and height (should be odd numbers of the form 2*n+1 !)
- VDwidth = 5,
- VDheight = 5,
+! square virtual detector size (should be odd numbers of the form 2*n+1 !)
+ VDsize = 5,
 ! Gaussian virtual detector standard deviation
  VDSD = 0.5,
 ! Hann window alpha parameter

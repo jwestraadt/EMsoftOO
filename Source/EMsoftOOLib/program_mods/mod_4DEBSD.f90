@@ -46,8 +46,7 @@ type, public :: EBSD4DNameListType
  integer(kind=irg)  :: numsx
  integer(kind=irg)  :: numsy
  integer(kind=irg)  :: nthreads
- integer(kind=irg)  :: VDwidth
- integer(kind=irg)  :: VDheight
+ integer(kind=irg)  :: VDsize
  integer(kind=irg)  :: VDstep
  character(fnlen)   :: exptfile
  character(fnlen)   :: masterfile
@@ -58,6 +57,7 @@ type, public :: EBSD4DNameListType
  character(fnlen)   :: virtualimagefile
  character(5)       :: VDtype
  character(4)       :: VDreference
+ character(3)       :: normalize
  logical            :: doconvolution
  real(kind=sgl)     :: EBSPlocx
  real(kind=sgl)     :: EBSPlocy
@@ -110,6 +110,8 @@ private
   procedure, pass(self) :: getVDtype_
   procedure, pass(self) :: setVDreference_
   procedure, pass(self) :: getVDreference_
+  procedure, pass(self) :: setnormalize_
+  procedure, pass(self) :: getnormalize_
   procedure, pass(self) :: setVDlocx_
   procedure, pass(self) :: getVDlocx_
   procedure, pass(self) :: setVDlocy_
@@ -122,10 +124,8 @@ private
   procedure, pass(self) :: getVDSD_
   procedure, pass(self) :: setVDHannAlpha_
   procedure, pass(self) :: getVDHannAlpha_
-  procedure, pass(self) :: setVDwidth_
-  procedure, pass(self) :: getVDwidth_
-  procedure, pass(self) :: setVDheight_
-  procedure, pass(self) :: getVDheight_
+  procedure, pass(self) :: setVDsize_
+  procedure, pass(self) :: getVDsize_
   procedure, pass(self) :: setVDstep_
   procedure, pass(self) :: getVDstep_
   procedure, pass(self) :: setdoconvolution_
@@ -167,6 +167,8 @@ private
   generic, public :: getVDtype => getVDtype_
   generic, public :: setVDreference => setVDreference_
   generic, public :: getVDreference => getVDreference_
+  generic, public :: setnormalize => setnormalize_
+  generic, public :: getnormalize => getnormalize_
   generic, public :: setVDlocx => setVDlocx_
   generic, public :: getVDlocx => getVDlocx_
   generic, public :: setVDlocy => setVDlocy_
@@ -179,10 +181,8 @@ private
   generic, public :: getVDSD => getVDSD_
   generic, public :: setVDHannAlpha => setVDHannAlpha_
   generic, public :: getVDHannAlpha => getVDHannAlpha_
-  generic, public :: setVDwidth => setVDwidth_
-  generic, public :: getVDwidth => getVDwidth_
-  generic, public :: setVDheight => setVDheight_
-  generic, public :: getVDheight => getVDheight_
+  generic, public :: setVDsize => setVDsize_
+  generic, public :: getVDsize => getVDsize_
   generic, public :: setVDstep => setVDstep_
   generic, public :: getVDstep => getVDstep_
   generic, public :: setdoconvolution => setdoconvolution_
@@ -265,11 +265,11 @@ character(fnlen)                    :: dotproductfile
 character(fnlen)                    :: inputtype
 character(fnlen)                    :: HDFstrings(10)
 character(fnlen)                    :: virtualimagefile
-integer(kind=irg)                   :: VDwidth
-integer(kind=irg)                   :: VDheight
+integer(kind=irg)                   :: VDsize
 integer(kind=irg)                   :: VDstep
 character(5)                        :: VDtype
 character(4)                        :: VDreference
+character(3)                        :: normalize
 logical                             :: doconvolution
 real(kind=sgl)                      :: VDlocx
 real(kind=sgl)                      :: VDlocy
@@ -279,8 +279,8 @@ real(kind=sgl)                      :: VDSD
 real(kind=sgl)                      :: VDHannAlpha
 
 namelist / EBSD4Ddata / ipf_ht, ipf_wd, ROI, numsx, numsy, nthreads, exptfile, inputtype, HDFstrings, virtualimagefile, &
-                        VDwidth, VDheight, VDtype, VDlocx, VDlocy, VDSD, VDHannAlpha, VDreference, masterfile, dotproductfile, &
-                        EBSPlocx, EBSPlocy, doconvolution, convolvedpatternfile, VDstep
+                        VDsize, VDtype, VDlocx, VDlocy, VDSD, VDHannAlpha, VDreference, masterfile, dotproductfile, &
+                        EBSPlocx, EBSPlocy, doconvolution, convolvedpatternfile, VDstep, normalize
 
 ipf_ht = 100
 ipf_wd = 100
@@ -295,14 +295,14 @@ dotproductfile = 'undefined'
 inputtype = 'Binary'
 HDFstrings = (/ '', '', '', '', '', '', '', '', '', '' /)
 virtualimagefile = 'undefined'
-VDtype = 'Rect'
+VDtype = 'Flat'
 VDreference = 'EBSP'
+normalize = 'all'
 VDlocx = 0.0 
 VDlocy = 0.0
 EBSPlocx = 0.0 
 EBSPlocy = 0.0
-VDwidth = 5
-VDheight = 5
+VDsize = 5
 VDstep = 8
 VDSD = 0.5
 VDHannAlpha = 0.5 
@@ -364,11 +364,11 @@ self%nml%dotproductfile = dotproductfile
 self%nml%inputtype = inputtype
 self%nml%HDFstrings = HDFstrings
 self%nml%virtualimagefile = virtualimagefile
-self%nml%VDwidth = VDwidth
-self%nml%VDheight = VDheight
+self%nml%VDsize = VDsize
 self%nml%VDstep = VDstep
 self%nml%VDtype = trim(VDtype)
 self%nml%VDreference = VDreference
+self%nml%normalize = normalize
 self%nml%VDlocx = VDlocx
 self%nml%VDlocy = VDlocy
 self%nml%EBSPlocx = EBSPlocx
@@ -400,7 +400,7 @@ class(EBSD4D_T), INTENT(INOUT)          :: self
 type(HDF_T), INTENT(INOUT)              :: HDF
 type(HDFnames_T), INTENT(INOUT)         :: HDFnames
 
-integer(kind=irg),parameter             :: n_int = 9, n_real = 6
+integer(kind=irg),parameter             :: n_int = 8, n_real = 6
 integer(kind=irg)                       :: hdferr,  io_int(n_int), docv
 real(kind=sgl)                          :: io_real(n_real)
 character(20)                           :: reallist(n_real)
@@ -416,16 +416,15 @@ hdferr = HDF%createGroup(HDFnames%get_NMLlist())
 docv = 0 
 if (enl%doconvolution.eqv..TRUE.) docv = 1
 ! write all the single integers
-io_int = (/ enl%ipf_wd, enl%ipf_ht, enl%numsx, enl%numsy, enl%nthreads, enl%VDwidth, enl%VDheight, enl%VDstep, docv/)
+io_int = (/ enl%ipf_wd, enl%ipf_ht, enl%numsx, enl%numsy, enl%nthreads, enl%VDsize, enl%VDstep, docv/)
 intlist(1) = 'ipf_wd'
 intlist(2) = 'ipf_ht'
 intlist(3) = 'numsx'
 intlist(4) = 'numsy'
 intlist(5) = 'nthreads'
-intlist(6) = 'VDwidth'
-intlist(7) = 'VDheight'
-intlist(8) = 'VDstep'
-intlist(9) = 'doconvolution'
+intlist(6) = 'VDsize'
+intlist(7) = 'VDstep'
+intlist(8) = 'doconvolution'
 call HDF%writeNMLintegers(io_int, intlist, n_int)
 
 ! write all the single reals
@@ -483,6 +482,11 @@ dataset = 'VDreference'
 line2(1) = trim(enl%VDreference)
 hdferr = HDF%writeDatasetStringArray(dataset, line2, 1)
 if (hdferr.ne.0) call HDF%error_check('writeHDFNameList: unable to create VDreference dataset', hdferr)
+
+dataset = 'normalize' 
+line2(1) = trim(enl%normalize)
+hdferr = HDF%writeDatasetStringArray(dataset, line2, 1)
+if (hdferr.ne.0) call HDF%error_check('writeHDFNameList: unable to create normalize dataset', hdferr)
 
 dataset = SC_HDFstrings
 line10 = enl%HDFstrings
@@ -1063,6 +1067,42 @@ out = trim(self%nml%VDreference)
 end function getVDreference_
 
 !--------------------------------------------------------------------------
+subroutine setnormalize_(self,inp)
+!DEC$ ATTRIBUTES DLLEXPORT :: setnormalize_
+!! author: MDG
+!! version: 1.0
+!! date: 04/01/24
+!!
+!! set normalize in the EBSD4D_T class
+
+IMPLICIT NONE
+
+class(EBSD4D_T), INTENT(INOUT)    :: self
+character(3), INTENT(IN)          :: inp
+
+self%nml%normalize = trim(inp)
+
+end subroutine setnormalize_
+
+!--------------------------------------------------------------------------
+function getnormalize_(self) result(out)
+!DEC$ ATTRIBUTES DLLEXPORT :: getnormalize_
+!! author: MDG
+!! version: 1.0
+!! date: 04/01/24
+!!
+!! get normalize from the EBSD4D_T class
+
+IMPLICIT NONE
+
+class(EBSD4D_T), INTENT(INOUT)    :: self
+character(3)                      :: out
+
+out = trim(self%nml%normalize)
+
+end function getnormalize_
+
+!--------------------------------------------------------------------------
 subroutine setVDlocx_(self,inp)
 !DEC$ ATTRIBUTES DLLEXPORT :: setVDlocx_
 !! author: MDG
@@ -1279,76 +1319,40 @@ out = self%nml%VDHannAlpha
 end function getVDHannAlpha_
 
 !--------------------------------------------------------------------------
-subroutine setVDwidth_(self,inp)
-!DEC$ ATTRIBUTES DLLEXPORT :: setVDwidth_
+subroutine setVDsize_(self,inp)
+!DEC$ ATTRIBUTES DLLEXPORT :: setVDsize_
 !! author: MDG
 !! version: 1.0
 !! date: 04/01/24
 !!
-!! set VDwidth in the EBSD4D_T class
+!! set VDsize in the EBSD4D_T class
 
 IMPLICIT NONE
 
 class(EBSD4D_T), INTENT(INOUT)     :: self
 integer(kind=irg), INTENT(IN)       :: inp
 
-self%nml%VDwidth = inp
+self%nml%VDsize = inp
 
-end subroutine setVDwidth_
+end subroutine setVDsize_
 
 !--------------------------------------------------------------------------
-function getVDwidth_(self) result(out)
-!DEC$ ATTRIBUTES DLLEXPORT :: getVDwidth_
+function getVDsize_(self) result(out)
+!DEC$ ATTRIBUTES DLLEXPORT :: getVDsize_
 !! author: MDG
 !! version: 1.0
 !! date: 04/01/24
 !!
-!! get VDwidth from the EBSD4D_T class
+!! get VDsize from the EBSD4D_T class
 
 IMPLICIT NONE
 
 class(EBSD4D_T), INTENT(INOUT)     :: self
 integer(kind=irg)                   :: out
 
-out = self%nml%VDwidth
+out = self%nml%VDsize
 
-end function getVDwidth_
-
-!--------------------------------------------------------------------------
-subroutine setVDheight_(self,inp)
-!DEC$ ATTRIBUTES DLLEXPORT :: setVDheight_
-!! author: MDG
-!! version: 1.0
-!! date: 04/01/24
-!!
-!! set VDheight in the EBSD4D_T class
-
-IMPLICIT NONE
-
-class(EBSD4D_T), INTENT(INOUT)     :: self
-integer(kind=irg), INTENT(IN)       :: inp
-
-self%nml%VDheight = inp
-
-end subroutine setVDheight_
-
-!--------------------------------------------------------------------------
-function getVDheight_(self) result(out)
-!DEC$ ATTRIBUTES DLLEXPORT :: getVDheight_
-!! author: MDG
-!! version: 1.0
-!! date: 04/01/24
-!!
-!! get VDheight from the EBSD4D_T class
-
-IMPLICIT NONE
-
-class(EBSD4D_T), INTENT(INOUT)     :: self
-integer(kind=irg)                   :: out
-
-out = self%nml%VDheight
-
-end function getVDheight_
+end function getVDsize_
 
 !--------------------------------------------------------------------------
 subroutine setVDstep_(self,inp)
@@ -1627,7 +1631,7 @@ logical                                 :: ROIselected
 real(kind=sgl),allocatable              :: VDimage(:,:), exppatarray(:), VDmask(:,:), mask(:,:), Pat(:,:), window(:,:), &
                                            euler(:,:), expt(:), EBSP(:,:), montage(:,:)
 real(kind=dbl),allocatable              :: VDmaskd(:,:), VDpositions(:,:), newctmp(:,:)
-integer(kind=irg),allocatable           :: VDpos(:)
+integer(kind=irg),allocatable           :: VDpos(:,:,:)
 real(kind=sgl)                          :: mi, ma
 real(kind=dbl)                          :: Xs, Ys, theta, phi, hatn(3), px, py, pos(3), xbound, ybound, dl
 real(kind=dbl)                          :: LL, a, b, c, d, alpha, x, y, z, sa, ca, dis
@@ -1794,17 +1798,17 @@ if (ROIselected.eqv..TRUE.) then
 else
   call mem%alloc(VDimage, (/ nml%ipf_wd, nml%ipf_ht /), 'VDimage')
 end if
-call mem%alloc(VDmask, (/ nml%VDwidth, nml%VDheight /), 'VDmask')
-call mem%alloc(VDmaskd, (/ nml%VDwidth, nml%VDheight /), 'VDmaskd')
+call mem%alloc(VDmask, (/ nml%VDsize, nml%VDsize /), 'VDmask')
+call mem%alloc(VDmaskd, (/ nml%VDsize, nml%VDsize /), 'VDmaskd')
 call mem%alloc(exppatarray, (/ patsz * nml%ipf_wd /), 'exppatarray')
-call mem%alloc(mask, (/ nml%VDwidth, nml%VDheight /), 'mask', initval=0.0)
+call mem%alloc(mask, (/ nml%VDsize, nml%VDsize /), 'mask', initval=0.0)
 
 ! make the mask according to the virtual detector type 
 select case(nml%VDtype)
-  case('Rect')
+  case('Flat')
     VDmask = 1.0
   case('Hann')
-    call HannWindow(nml%VDwidth, VDmaskd, dble(nml%VDHannAlpha))
+    call HannWindow(nml%VDsize, VDmaskd, dble(nml%VDHannAlpha))
     VDmask = sngl(VDmaskd)
     call mem%dealloc(VDmaskd, 'VDmaskd')
   case('Array')
@@ -1813,6 +1817,9 @@ select case(nml%VDtype)
   case default 
     call Message%printError('EBSD4D','virtual detector type not yet implemented')
 end select
+
+! normalize the virtual detector
+VDmask = VDmask / sum(VDmask)
 
 if (nml%VDreference.eq.'MPat') then 
 ! convert the coordinates into a unit direction vector, then determine all
@@ -1956,18 +1963,12 @@ if (nml%VDreference.eq.'MPat') then
  ! close(unit=20,status='keep')
 else
 ! get the lower left corner of the virtual detector
-  VDposx = nint(nml%VDlocx) - (nml%VDwidth-1)/2
-  VDposy = nint(nml%VDlocy) - (nml%VDheight-1)/2
+  VDposx = nint(nml%VDlocx) - (nml%VDsize-1)/2
+  VDposy = nint(nml%VDlocy) - (nml%VDsize-1)/2
 end if
 
 
 if (trim(nml%VDtype).ne.'Array') then
-! initialize the HiPassFilter routine (has its own FFTW plans)
-  allocate(hpmask(binx,biny),inp(binx,biny),outp(binx,biny),stat=istat)
-  if (istat .ne. 0) stop 'could not allocate hpmask array'
-  call init_HiPassFilter(dble(DIFT%nml%hipassw), (/ binx, biny /), hpmask, inp, outp, HPplanf, HPplanb)
-  deallocate(inp, outp)
-
 ! this next part is done with OpenMP, with only thread 0 doing the reading;
 ! Thread 0 reads one line worth of patterns from the input file, then all threads do
 ! the work; repeat until all patterns have been processed.
@@ -1982,9 +1983,7 @@ if (trim(nml%VDtype).ne.'Array') then
 ! set the thread ID
    TID = OMP_GET_THREAD_NUM()
 
-   allocate(Pat(binx,biny), window(nml%VDwidth, nml%VDheight))
-   allocate(rrdata(binx,biny),ffdata(binx,biny))
-   allocate(inp(binx,biny),outp(binx,biny))
+   allocate(Pat(binx,biny))
 
 ! thread 0 reads the next row of patterns from the input file
 ! we have to allow for all the different types of input files here...
@@ -2019,11 +2018,6 @@ if (trim(nml%VDtype).ne.'Array') then
           Pat(1:binx,kk) = exppatarray((jjj-1)*patsz+(kk-1)*binx+1:(jjj-1)*patsz+kk*binx)
         end do
 
-! Hi-Pass filter
-        rrdata = dble(Pat)
-        ffdata = applyHiPassFilter(rrdata, (/ binx, biny /), dble(DIFT%nml%hipassw), hpmask, inp, outp, HPplanf, HPplanb)
-        Pat = sngl(ffdata)
-
 ! get the virtual detector coordinates
         if (trim(nml%VDreference).eq.'MPat') then 
           ival = (iii-1)*nml%ipf_wd + jj
@@ -2034,13 +2028,12 @@ if (trim(nml%VDtype).ne.'Array') then
           VDpy = VDposy
         end if
 
-        window = Pat( VDpx:VDpx+nml%VDwidth-1, VDpy:VDpy+nml%VDheight-1 )
-        VDimage(jj-jjstart+1,iii-iiistart+1) = sum( window*VDmask )
+         VDimage(jj-jjstart+1,iii-iiistart+1) = Pat(VDpx,VDpy)
     end do
 !$OMP END DO
 
 !$OMP BARRIER
-  deallocate(Pat, window, rrdata, ffdata, inp, outp)
+  deallocate(Pat)
 !$OMP END PARALLEL
 
   end do
@@ -2073,14 +2066,13 @@ else ! we're doing a regular array of virtual detectors in a single large output
   TIFF_ny = nml%ipf_ht * numpaty
   io_int(1:4) = (/ numpatx, numpaty, TIFF_nx, TIFF_ny /)
   call Message%WriteValue(' preparing to generate ', io_int, 4, '(I3," by ",I3," patterns in image of size ",I6," x ",I6)')
-  allocate( TIFF_image(TIFF_nx, TIFF_ny), montage(TIFF_nx, TIFF_ny) ) 
+  allocate( TIFF_image(TIFF_nx, TIFF_ny), montage(TIFF_nx, TIFF_ny), Pat(binx,biny) ) 
 
 ! define the pixel coordinates that need to be used as offsets into the diffraction patterns
-  call mem%alloc( VDpos, (/ numpatx * numpaty /), 'VDpositions' )
+  call mem%alloc( VDpos, (/ 2, numpatx , numpaty /), 'VDpositions' )
   do j=1,numpaty
     do i=1,numpatx
-      VDpos( (j-1)*numpatx+i ) = nml%ipf_wd*( j*nml%VDstep-1-nml%VDstep/2 ) + &
-                                 nml%VDstep * i - nml%VDstep/2 
+      VDpos( 1:2, i, j ) = nml%VDstep/2 + (/ (i-1)*nml%VDstep, (j-1)*nml%VDstep /) 
     end do 
   end do
 
@@ -2109,13 +2101,17 @@ else ! we're doing a regular array of virtual detectors in a single large output
 ! and can be used directly as an index into the exppatarray, accounting for the patsz
 ! offset for each individual pattern    
     do j= jjstart, jjend  ! loop over the patterns in this row
-      lll = (j-jjstart) * patsz ! offset of the j-th pattern in the exppatarray
+      ! convert imageexpt to 2D EBSD Pattern array
+      jjj = j-jjstart+1
+      do kk=1,biny
+        Pat(1:binx,kk) = exppatarray((jjj-1)*patsz+(kk-1)*binx+1:(jjj-1)*patsz+kk*binx)
+      end do
+
       do jj= 1, numpaty   ! double loop to determine the offset of this virtual detector
         do ii= 1, numpatx ! in the VDpositions array
-          kkk = (jj-1) * numpatx + ii
           VDpx = nml%ipf_wd * (ii-1) + j-jjstart+1
           VDpy = nml%ipf_ht * (jj-1) + iii
-          montage(VDpx, VDpy) = exppatarray(lll + VDpos(kkk))
+          montage(VDpx, VDpy) = Pat(VDpos(1,ii,jj),VDpos(2,ii,jj))
         end do
       end do
     end do
@@ -2123,14 +2119,31 @@ else ! we're doing a regular array of virtual detectors in a single large output
   end do
 
 ! fill the image with whatever data you have (between 0 and 255)
-  ma = maxval(montage)
-  mi = minval(montage)
-
-  do j=1,TIFF_ny
-    do i=1,TIFF_nx
-      TIFF_image(i,j) = int(255 * (montage(i,j)-mi)/(ma-mi))
+  if (nml%normalize.eq.'all') then 
+    ma = maxval(montage)
+    mi = minval(montage)
+    do j=1,TIFF_ny
+      do i=1,TIFF_nx
+        TIFF_image(i,j) = int(255 * (montage(i,j)-mi)/(ma-mi))
+      end do
     end do
-  end do
+  else ! normalize individual tiles
+    deallocate(Pat)
+    allocate(Pat(nml%ipf_wd,nml%ipf_ht))
+    do ii= 1, numpatx
+      do jj= 1, numpaty
+        Pat = montage((ii-1)*nml%ipf_wd+1:ii*nml%ipf_wd,(jj-1)*nml%ipf_ht+1:jj*nml%ipf_ht)
+        ma = maxval(Pat)
+        mi = minval(Pat)
+        do i=(ii-1)*nml%ipf_wd+1,ii*nml%ipf_wd
+          do j=(jj-1)*nml%ipf_ht+1,jj*nml%ipf_ht
+            TIFF_image(i,j) = int(255 * (Pat(i-(ii-1)*nml%ipf_wd,j-(jj-1)*nml%ipf_ht)-mi)/(ma-mi))
+          end do 
+        end do 
+      end do
+    end do 
+    deallocate(Pat)
+  end if
 
 end if 
 
@@ -2286,17 +2299,17 @@ else
 end if
 
 ! allocate the output image array
-call mem%alloc(VDmaskd, (/ nml%VDwidth, nml%VDheight /), 'VDmaskd')
+call mem%alloc(VDmaskd, (/ nml%VDsize, nml%VDsize /), 'VDmaskd')
 call mem%alloc(exppatarray, (/ patsz * nml%ipf_wd /), 'exppatarray')
 call mem%alloc(convolpatarray, (/ binx, biny, nml%ipf_wd /), 'convolpatarray')
-call mem%alloc(mask, (/ nml%VDwidth, nml%VDheight /), 'mask', initval=0.0)
+call mem%alloc(mask, (/ nml%VDsize, nml%VDsize /), 'mask', initval=0.0)
 
 ! make the mask according to the virtual detector type 
 select case(nml%VDtype)
   case('Rect')
     VDmaskD = 1.D0
   case('Hann')
-    call HannWindow(nml%VDwidth, VDmaskd, dble(nml%VDHannAlpha))
+    call HannWindow(nml%VDsize, VDmaskd, dble(nml%VDHannAlpha))
 
   case default 
     call Message%printError('EBSD4D','virtual detector type not yet implemented')
@@ -2310,9 +2323,9 @@ call init_HiPassFilter(dble(DIFT%nml%hipassw), (/ binx, biny /), hpmask, inp, ou
 ! get the Fourier transform of the mask (first embed in a full size array padded with 0s)
 inp = cmplx(0.D0,0.D0)
 ! put the mask in the middle and then shift the array
-do j=-nml%VDwidth/2,nml%VDwidth/2
- do k=-nml%VDheight/2,nml%VDheight/2
-  inp(binx/2+j,biny/2+k) = cmplx(VDmaskd(nml%VDwidth/2+j+1,nml%VDheight/2+k+1),0.D0)
+do j=-nml%VDsize/2,nml%VDsize/2
+ do k=-nml%VDsize/2,nml%VDsize/2
+  inp(binx/2+j,biny/2+k) = cmplx(VDmaskd(nml%VDsize/2+j+1,nml%VDsize/2+k+1),0.D0)
  end do
 end do
 inp = cshift(inp,binx/2,1)
@@ -2481,6 +2494,7 @@ do iii = iiistart,iiiend
 
 ! and put the convolved pattern in the output array so it can be written to the HDF5 file
       convolpatarray(1:binx, 1:biny, jj) = Pat(1:binx, 1:biny)
+      ! convolpatarray(1:binx, biny:1:-1, jj) = Pat(1:binx, 1:biny)
     end do
 !$OMP END DO
 
