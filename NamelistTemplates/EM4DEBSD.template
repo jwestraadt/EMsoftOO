@@ -19,7 +19,7 @@
 !=====================================
 ! if doconvolution = .TRUE., then perform a full data set convolution and store the 
 ! results in the HDF5 file convolvedpatternfile [relative to EMdatapathname]
-! else we do one mask at a time 
+! else we interrogate the convolvedpatternfile
 !=====================================
  doconvolution = .FALSE.,
  convolvedpatternfile = 'undefined', 
@@ -44,7 +44,7 @@
 ! square virtual detector size (should be odd numbers of the form 2*n+1 !)
  VDsize = 5,
 ! Gaussian virtual detector standard deviation
- VDSD = 0.5,
+ VDSD = 2.5,
 ! Hann window alpha parameter
  VDHannAlpha = 0.5, 
 ! stepsize in pixels for VDtype='Array' mode

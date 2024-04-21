@@ -344,11 +344,10 @@ if (.not.skipread) then
    end if
  end if
 
- if (trim(VDtype).eq.'Array') then 
-   if (trim(convolvedpatternfile).eq.'undefined') then 
-    call Message%printError('readNameList:',' convolvedpatternfile file name is undefined in '//nmlfile)
-   end if 
+ if (trim(convolvedpatternfile).eq.'undefined') then 
+   call Message%printError('readNameList:',' convolvedpatternfile file name is undefined in '//nmlfile)
  end if 
+
 end if
 
 self%nml%ipf_ht = ipf_ht
@@ -1460,7 +1459,7 @@ type(image_t)                     :: im
 integer(int8)                     :: i8 (3,4)
 integer(int8), allocatable        :: TIFF_image(:,:)
 
-TIFF_filename = 'Debug_MPpositions.tiff'
+TIFF_filename = 'MPpositions.tiff'
 allocate(TIFF_image(sz(1),sz(2)))
 npx = (sz(1)-1)/2 
 w = 2
@@ -1532,7 +1531,7 @@ type(image_t)                     :: im
 integer(int8)                     :: i8 (3,4)
 integer(int8), allocatable        :: TIFF_image(:,:)
 
-TIFF_filename = 'Debug_EBSPpositions.tiff'
+TIFF_filename = 'EBSPpositions.tiff'
 allocate(TIFF_image(sz(1),sz(2)))
 
 ! and generate the tiff output file 
@@ -1807,11 +1806,15 @@ call mem%alloc(mask, (/ nml%VDsize, nml%VDsize /), 'mask', initval=0.0)
 select case(nml%VDtype)
   case('Flat')
     VDmask = 1.0
+  case('Gaus')
+    call GaussianWindow(nml%VDsize, VDmaskd, dble(nml%VDSD))
+    VDmask = sngl(VDmaskd)
+    call mem%dealloc(VDmaskd, 'VDmaskd')
   case('Hann')
     call HannWindow(nml%VDsize, VDmaskd, dble(nml%VDHannAlpha))
     VDmask = sngl(VDmaskd)
     call mem%dealloc(VDmaskd, 'VDmaskd')
-  case('Array')
+  case('Array') ! we don't need this option, but it should be here so we don't default out
     VDmask = 1.0
 
   case default 
@@ -1861,7 +1864,7 @@ if (nml%VDreference.eq.'MPat') then
   c = LL * ca
   d = LL*LL
   mv_plane = plane(a,b,c,d)
-  call mv_plane%log(' Detector plane ')
+  call mv_plane%log(' Detector plane multivector ')
   dl = DIFT%nml%delta
 ! for each sampling point, transform all numhatn vectors to the sample frame using the 
 ! corresponding orientation quaternion from the qAR list; then determine where those 
@@ -1932,6 +1935,7 @@ if (nml%VDreference.eq.'MPat') then
     quat = conjg(quat)
     newctmp = quat%quat_Lp_vecarray(numhatn, transpose(ctmp))
     ! do kk=1,numhatn
+! we will take the same symmetrically equivalent representative as selected above
       mv_line = line(newctmp(1,VDkk),newctmp(2,VDkk),newctmp(3,VDkk))
       mv_line = mv_line%normalized()
       mv = meet(mv_plane, mv_line)

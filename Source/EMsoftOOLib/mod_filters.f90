@@ -1312,6 +1312,38 @@ end if
 end subroutine HannWindow
 
 !--------------------------------------------------------------------------
+recursive subroutine GaussianWindow(roi_size, window, SD)
+!DEC$ ATTRIBUTES DLLEXPORT :: GaussianWindow
+!
+!> @brief Gaussian windowing function for pattern region of interest
+!
+!> @date 04/21/24 MDG 1.0 original
+!--------------------------------------------------------------------------
+
+IMPLICIT NONE
+
+integer(kind=irg),INTENT(IN)           :: roi_size
+real(kind=dbl),INTENT(INOUT)           :: window(roi_size, roi_size)
+real(kind=dbl),INTENT(IN)              :: SD
+
+integer(kind=irg)                      :: i, j, r
+real(kind=dbl)                         :: h, k, x, y
+
+r = (roi_size-1)/2
+window = 0.D0
+h = 1.D0/(2.D0*cPi*SD)
+k = 1.D0/(2.D0*SD)
+do i=-r,r
+  x = dble(i)**2
+  do j=-r,r
+    y = dble(j)**2
+    window(i+r+1,j+r+1) = h * exp( -k*(x+y))
+  end do
+end do
+
+end subroutine GaussianWindow
+
+!--------------------------------------------------------------------------
 recursive subroutine init_BandPassFilter(dims, high_pass, low_pass, hpmask_shifted, &
                                          lpmask_shifted, inp, outp, planf, planb) 
 !DEC$ ATTRIBUTES DLLEXPORT :: init_BandPassFilter
