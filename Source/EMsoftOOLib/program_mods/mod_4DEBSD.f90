@@ -65,6 +65,7 @@ type, public :: EBSD4DNameListType
  real(kind=sgl)     :: VDlocy
  real(kind=sgl)     :: VDSD
  real(kind=sgl)     :: VDHannAlpha
+ real(kind=sgl)     :: radiuscutoff
 end type EBSD4DNameListType
 
 ! class definition
@@ -128,6 +129,8 @@ private
   procedure, pass(self) :: getVDsize_
   procedure, pass(self) :: setVDstep_
   procedure, pass(self) :: getVDstep_
+  procedure, pass(self) :: setradiuscutoff_
+  procedure, pass(self) :: getradiuscutoff_
   procedure, pass(self) :: setdoconvolution_
   procedure, pass(self) :: getdoconvolution_
   procedure, pass(self) :: drawMPpositions_
@@ -185,6 +188,8 @@ private
   generic, public :: getVDsize => getVDsize_
   generic, public :: setVDstep => setVDstep_
   generic, public :: getVDstep => getVDstep_
+  generic, public :: setradiuscutoff => setradiuscutoff_
+  generic, public :: getradiuscutoff => getradiuscutoff_
   generic, public :: setdoconvolution => setdoconvolution_
   generic, public :: getdoconvolution => getdoconvolution_
 end type EBSD4D_T
@@ -275,12 +280,13 @@ real(kind=sgl)                      :: VDlocx
 real(kind=sgl)                      :: VDlocy
 real(kind=sgl)                      :: EBSPlocx
 real(kind=sgl)                      :: EBSPlocy
+real(kind=sgl)                      :: radiuscutoff
 real(kind=sgl)                      :: VDSD
 real(kind=sgl)                      :: VDHannAlpha
 
 namelist / EBSD4Ddata / ipf_ht, ipf_wd, ROI, numsx, numsy, nthreads, exptfile, inputtype, HDFstrings, virtualimagefile, &
                         VDsize, VDtype, VDlocx, VDlocy, VDSD, VDHannAlpha, VDreference, masterfile, dotproductfile, &
-                        EBSPlocx, EBSPlocy, doconvolution, convolvedpatternfile, VDstep, normalize
+                        EBSPlocx, EBSPlocy, doconvolution, convolvedpatternfile, VDstep, normalize, radiuscutoff
 
 ipf_ht = 100
 ipf_wd = 100
@@ -306,6 +312,7 @@ VDsize = 5
 VDstep = 8
 VDSD = 0.5
 VDHannAlpha = 0.5 
+radiuscutoff = 0.0
 doconvolution = .FALSE.
 
 if (present(initonly)) then
@@ -374,6 +381,7 @@ self%nml%EBSPlocx = EBSPlocx
 self%nml%EBSPlocy = EBSPlocy
 self%nml%VDSD = VDSD 
 self%nml%VDHannAlpha = VDHannAlpha
+self%nml%radiuscutoff = radiuscutoff
 self%nml%doconvolution = doconvolution
 
 end subroutine readNameList_
@@ -399,7 +407,7 @@ class(EBSD4D_T), INTENT(INOUT)          :: self
 type(HDF_T), INTENT(INOUT)              :: HDF
 type(HDFnames_T), INTENT(INOUT)         :: HDFnames
 
-integer(kind=irg),parameter             :: n_int = 8, n_real = 6
+integer(kind=irg),parameter             :: n_int = 8, n_real = 7
 integer(kind=irg)                       :: hdferr,  io_int(n_int), docv
 real(kind=sgl)                          :: io_real(n_real)
 character(20)                           :: reallist(n_real)
@@ -427,13 +435,14 @@ intlist(8) = 'doconvolution'
 call HDF%writeNMLintegers(io_int, intlist, n_int)
 
 ! write all the single reals
-io_real = (/ enl%VDlocx, enl%VDlocy, enl%EBSPlocx, enl%EBSPlocy, enl%VDSD, enl%VDHannAlpha /)
+io_real = (/ enl%VDlocx, enl%VDlocy, enl%EBSPlocx, enl%EBSPlocy, enl%VDSD, enl%VDHannAlpha, enl%radiuscutoff /)
 reallist(1) = 'VDlocx'
 reallist(2) = 'VDlocy'
 reallist(3) = 'EBSPlocx'
 reallist(4) = 'EBSPlocy'
 reallist(5) = 'VDSD'
 reallist(6) = 'VDHannAlpha'
+reallist(7) = 'radiuscutoff'
 call HDF%writeNMLreals(io_real, reallist, n_real)
 
 ! a 4-vector
@@ -1390,6 +1399,42 @@ out = self%nml%VDstep
 end function getVDstep_
 
 !--------------------------------------------------------------------------
+subroutine setradiuscutoff_(self,inp)
+!DEC$ ATTRIBUTES DLLEXPORT :: setradiuscutoff_
+!! author: MDG
+!! version: 1.0
+!! date: 04/01/24
+!!
+!! set radiuscutoff in the EBSD4D_T class
+
+IMPLICIT NONE
+
+class(EBSD4D_T), INTENT(INOUT)     :: self
+real(kind=sgl), INTENT(IN)       :: inp
+
+self%nml%radiuscutoff = inp
+
+end subroutine setradiuscutoff_
+
+!--------------------------------------------------------------------------
+function getradiuscutoff_(self) result(out)
+!DEC$ ATTRIBUTES DLLEXPORT :: getradiuscutoff_
+!! author: MDG
+!! version: 1.0
+!! date: 04/01/24
+!!
+!! get radiuscutoff from the EBSD4D_T class
+
+IMPLICIT NONE
+
+class(EBSD4D_T), INTENT(INOUT)     :: self
+real(kind=sgl)                   :: out
+
+out = self%nml%radiuscutoff
+
+end function getradiuscutoff_
+
+!--------------------------------------------------------------------------
 subroutine setdoconvolution_(self,inp)
 !DEC$ ATTRIBUTES DLLEXPORT :: setdoconvolution_
 !! author: MDG
@@ -1602,7 +1647,7 @@ character(fnlen), INTENT(INOUT)         :: progname
 type(HDFnames_T), INTENT(INOUT)         :: HDFnames
 
 type(IO_T)                              :: Message
-type(HDF_T)                             :: HDF
+type(HDF_T)                             :: HDF, HDF2
 type(timing_T)                          :: timer
 type(NLPAR_T)                           :: NLPAR 
 type(memory_T)                          :: mem
@@ -1628,7 +1673,7 @@ integer(kind=irg)                       :: L,totnumexpt,imght,imgwd, recordsize,
 integer(kind=ill)                       :: jjpat
 logical                                 :: ROIselected
 real(kind=sgl),allocatable              :: VDimage(:,:), exppatarray(:), VDmask(:,:), mask(:,:), Pat(:,:), window(:,:), &
-                                           euler(:,:), expt(:), EBSP(:,:), montage(:,:)
+                                           euler(:,:), expt(:), EBSP(:,:), montage(:,:), patternmask(:,:)
 real(kind=dbl),allocatable              :: VDmaskd(:,:), VDpositions(:,:), newctmp(:,:)
 integer(kind=irg),allocatable           :: VDpos(:,:,:)
 real(kind=sgl)                          :: mi, ma
@@ -1652,6 +1697,7 @@ integer(int8), allocatable              :: TIFF_image(:,:)
 
 call openFortranHDFInterface()
 HDF = HDF_T()
+HDF2 = HDF_T()
 
 call setRotationPrecision('d')
 
@@ -1767,8 +1813,7 @@ end if
 ! of patterns into the exppatarray variable ...  at the end, we use closeExpPatternFile() to
 ! properly close the experimental pattern file
 if ( (itype.eq.4) .or. (itype.eq.6) .or. (itype.eq.7) .or. (itype.eq.8) .or. (itype.eq.11) ) then
-  HDF = HDF_T()
-  istat = VT%openExpPatternFile(EMsoft, nml%ipf_wd, L, recordsize, nml%HDFstrings, HDF)
+  istat = VT%openExpPatternFile(EMsoft, nml%ipf_wd, L, recordsize, nml%HDFstrings, HDF2)
 else
   istat = VT%openExpPatternFile(EMsoft, nml%ipf_wd, L, recordsize)
 end if
@@ -1877,11 +1922,14 @@ if (nml%VDreference.eq.'MPat') then
   call mem%alloc(newctmp, (/ 3, numhatn /), 'newctmp')
   xbound = dl * DIFT%nml%exptnumsx/2
   ybound = dl * DIFT%nml%exptnumsy/2
+  write (*,*) 'bounds : ', xbound, ybound, dl, DIFT%nml%exptnumsx, DIFT%nml%exptnumsy
   jj = (nint(nml%EBSPlocy)-1) * nml%ipf_wd + nint(nml%EBSPlocx) 
   allocate(expt(patsz), EBSP(binx, biny))
   dims3 = (/ binx, biny, 1 /)
   offset3 = (/ 0, 0, jj /)
-  call VT%getSingleExpPattern(nint(nml%EBSPlocy), nml%ipf_wd, patsz, L, dims3, offset3, expt, nml%HDFstrings, HDF)
+  io_int(1) = jj
+  call Message%WriteValue(' Extracting pattern ', io_int, 1)
+  call VT%getSingleExpPattern(nint(nml%EBSPlocy), nml%ipf_wd, patsz, L, dims3, offset3, expt, nml%HDFstrings, HDF2)
   do ii=1,biny 
     EBSP(1:binx,ii) = expt((ii-1)*binx+1:ii*binx)
   end do 
@@ -1890,6 +1938,7 @@ if (nml%VDreference.eq.'MPat') then
   newctmp = quat%quat_Lp_vecarray(numhatn, transpose(ctmp))
   VDpositions(3,jj) =  100000000.D0   ! set to a large value
   call Message%printMessage(' Equivalent diffraction conditions that fall on the EBSP for (EBSDlocx, EBSPlocy) : ')
+  VDkk = -10
   do kk=1,numhatn
     mv_line = line(newctmp(1,kk),newctmp(2,kk),newctmp(3,kk))
     mv_line = mv_line%normalized()
@@ -1907,7 +1956,8 @@ if (nml%VDreference.eq.'MPat') then
         VDpy = DIFT%nml%exptnumsy - nint(pos(2)) 
         if ( (VDpx.gt.0).and.(VDpx.le.DIFT%nml%exptnumsx).and.(VDpy.gt.0).and.(VDpy.le.DIFT%nml%exptnumsy) ) then 
           dis = sqrt( real( (DIFT%nml%exptnumsx/2-VDpx)**2 + (DIFT%nml%exptnumsy/2-VDpy)**2 ) )
-          EBSP(VDpx-2:VDpx+2,VDpy-2:VDpy+2) = maxval(EBSP)
+          EBSP(maxval((/1,VDpx-2/)):minval((/nml%ipf_wd,VDpx+2/)), &
+               maxval((/1,VDpy-2/)):minval((/nml%ipf_ht,VDpy+2/))) = maxval(EBSP)
           if ( dis .lt. VDpositions(3,jj) ) then 
             VDpositions(1:3,jj) = (/ pos(1), DIFT%nml%exptnumsy - pos(2), dis /)
             VDkk = kk
@@ -1921,11 +1971,16 @@ if (nml%VDreference.eq.'MPat') then
 ! draw the virtual detector position on the diffraction pattern
   VDpxref = nint(VDpositions(1,jj))
   VDpyref = nint(VDpositions(2,jj))
-  EBSP(VDpxref-3:VDpxref+3,VDpyref-3:VDpyref+3) = maxval(EBSP)
+  EBSP(maxval((/1,VDpxref-3/)):minval((/nml%ipf_wd,VDpxref+3/)), &
+       maxval((/1,VDpyref-3/)):minval((/nml%ipf_ht,VDpyref+3/))) = maxval(EBSP)
   call Message%printMessage(' ---> the larger square indicates the position closest to the detector center.')
 
   sz2 = shape(EBSP)
   call self%drawEBSPpositions_(sz2,EBSP)
+
+  if (VDkk.eq.-10) then 
+    call Message%printError('EBSD4D',' no solution found on detector for this pattern')
+  end if 
  
 ! we should do this with OpenMP !
 
@@ -1934,9 +1989,10 @@ if (nml%VDreference.eq.'MPat') then
     quat = qAR%getQuatfromArray(jj)
     quat = conjg(quat)
     newctmp = quat%quat_Lp_vecarray(numhatn, transpose(ctmp))
-    ! do kk=1,numhatn
+    do kk=1,numhatn
 ! we will take the same symmetrically equivalent representative as selected above
-      mv_line = line(newctmp(1,VDkk),newctmp(2,VDkk),newctmp(3,VDkk))
+      ! mv_line = line(newctmp(1,VDkk),newctmp(2,VDkk),newctmp(3,VDkk))
+      mv_line = line(newctmp(1,kk),newctmp(2,kk),newctmp(3,kk))
       mv_line = mv_line%normalized()
       mv = meet(mv_plane, mv_line)
       mv = mv%normalized()
@@ -1951,13 +2007,13 @@ if (nml%VDreference.eq.'MPat') then
           VDpy = DIFT%nml%numsy - nint(pos(2)) 
           if ( (VDpx.gt.0).and.(VDpx.le.DIFT%nml%exptnumsx).and.(VDpy.gt.0).and.(VDpy.le.DIFT%nml%exptnumsy) ) then 
             dis = sqrt( real( (VDpxref-VDpx)**2 + (VDpyref-VDpy)**2 ) )
-            ! if ( dis .lt. VDpositions(3,jj) ) then 
+            if ( ( dis .lt. VDpositions(3,jj) ) .and. ( dis .lt. nml%radiuscutoff ) ) then 
               VDpositions(1:3,jj) = (/ pos(1), DIFT%nml%numsy - pos(2), dis /)
-            ! end if 
+            end if 
           end if
         end if
       end if
-    ! end do
+    end do
   end do
   call mem%dealloc(newctmp, 'newctmp')
  ! output the VDpositions array for debugging purposes
@@ -1996,14 +2052,14 @@ if (trim(nml%VDtype).ne.'Array') then
         if (ROIselected.eqv..TRUE.) then
           if ( (itype.eq.4) .or. (itype.eq.6) .or. (itype.eq.7) .or. (itype.eq.8) .or. (itype.eq.11) ) then
             call VT%getExpPatternRow(iii, nml%ipf_wd, patsz, L, dims3, offset3, exppatarray, nml%ROI, &
-                                     HDFstrings=nml%HDFstrings, HDF=HDF)
+                                     HDFstrings=nml%HDFstrings, HDF=HDF2)
           else
             call VT%getExpPatternRow(iii, nml%ipf_wd, patsz, L, dims3, offset3, exppatarray, nml%ROI)
           end if
         else
          if ( (itype.eq.4) .or. (itype.eq.6) .or. (itype.eq.7) .or. (itype.eq.8) .or. (itype.eq.11) ) then
             call VT%getExpPatternRow(iii, nml%ipf_wd, patsz, L, dims3, offset3, exppatarray, &
-                                     HDFstrings=nml%HDFstrings, HDF=HDF)
+                                     HDFstrings=nml%HDFstrings, HDF=HDF2)
           else
             call VT%getExpPatternRow(iii, nml%ipf_wd, patsz, L, dims3, offset3, exppatarray)
           end if
@@ -2025,14 +2081,22 @@ if (trim(nml%VDtype).ne.'Array') then
 ! get the virtual detector coordinates
         if (trim(nml%VDreference).eq.'MPat') then 
           ival = (iii-1)*nml%ipf_wd + jj
-          VDpx = nint(VDpositions(1,ival))
-          VDpy = nint(VDpositions(2,ival))
+          if (VDpositions(3,ival).lt.100000.0) then 
+            VDpx = nint(VDpositions(1,ival))
+            VDpy = nint(VDpositions(2,ival))
+          else
+            VDpx = -10
+          end if
         else
           VDpx = VDposx
           VDpy = VDposy
         end if
 
-         VDimage(jj-jjstart+1,iii-iiistart+1) = Pat(VDpx,VDpy)
+        if (VDpx.lt.0) then 
+          VDimage(jj-jjstart+1,iii-iiistart+1) = 0.0
+        else
+          VDimage(jj-jjstart+1,iii-iiistart+1) = Pat(VDpx,VDpy)
+        end if 
     end do
 !$OMP END DO
 
@@ -2088,14 +2152,14 @@ else ! we're doing a regular array of virtual detectors in a single large output
     if (ROIselected.eqv..TRUE.) then
       if ( (itype.eq.4) .or. (itype.eq.6) .or. (itype.eq.7) .or. (itype.eq.8) .or. (itype.eq.11) ) then
         call VT%getExpPatternRow(iii, nml%ipf_wd, patsz, L, dims3, offset3, exppatarray, nml%ROI, &
-                                 HDFstrings=nml%HDFstrings, HDF=HDF)
+                                 HDFstrings=nml%HDFstrings, HDF=HDF2)
       else
         call VT%getExpPatternRow(iii, nml%ipf_wd, patsz, L, dims3, offset3, exppatarray, nml%ROI)
       end if
     else
       if ( (itype.eq.4) .or. (itype.eq.6) .or. (itype.eq.7) .or. (itype.eq.8) .or. (itype.eq.11) ) then
         call VT%getExpPatternRow(iii, nml%ipf_wd, patsz, L, dims3, offset3, exppatarray, &
-                                 HDFstrings=nml%HDFstrings, HDF=HDF)
+                                 HDFstrings=nml%HDFstrings, HDF=HDF2)
       else
         call VT%getExpPatternRow(iii, nml%ipf_wd, patsz, L, dims3, offset3, exppatarray)
       end if
@@ -2215,7 +2279,7 @@ character(fnlen), INTENT(INOUT)         :: progname
 type(HDFnames_T), INTENT(INOUT)         :: HDFnames
 
 type(IO_T)                              :: Message
-type(HDF_T)                             :: HDF
+type(HDF_T)                             :: HDF, HDF2
 type(DIfile_T)                          :: DIFT
 type(timing_T)                          :: timer
 type(memory_T)                          :: mem
@@ -2226,10 +2290,10 @@ integer(kind=irg)                       :: L,totnumexpt,imght,imgwd, recordsize,
                                            itype, istat, iiistart, iiiend, jjstart, jjend, binx, biny, sz(3), &
                                            correctsize, dims(2), i, j, k, ii, jj, jjj, kk, patsz, Nexp, numhatn, io_int(3), &
                                            sz2(2), ival
-real(kind=sgl)                          :: tstop
+real(kind=sgl)                          :: tstop, x, y
 integer(kind=ill)                       :: jjpat
 logical                                 :: ROIselected
-real(kind=sgl),allocatable              :: exppatarray(:), convolpatarray(:,:,:), mask(:,:), Pat(:,:)
+real(kind=sgl),allocatable              :: exppatarray(:), convolpatarray(:,:,:), mask(:,:), Pat(:,:), patternmask(:,:)
 integer(HSIZE_T)                        :: dims3(3), offset3(3), hdims(3)
 character(fnlen)                        :: fname, datafile, datagroupname, dataset, attributename, DIfile, HDF_FileVersion
 real(kind=dbl),allocatable              :: rrdata(:,:), ffdata(:,:), ksqarray(:,:), VDmaskd(:,:)
@@ -2302,6 +2366,18 @@ else
   jjend = nml%ipf_wd
 end if
 
+! we'll use a pattern mask at all times, but set the outer region to zero if needed...
+call mem%alloc(patternmask, (/ binx,biny /), 'patternmask', initval=1.0)
+if (DIFT%nml%maskpattern.eq.'y') then 
+  do i=1,binx
+    x = float(i-binx/2)**2
+    do j=1,biny
+      y = float(j-biny/2)**2
+      if ((x+y).gt.DIFT%nml%maskradius**2) patternmask(i,j) = 0.0
+    end do 
+  end do
+end if 
+
 ! allocate the output image array
 call mem%alloc(VDmaskd, (/ nml%VDsize, nml%VDsize /), 'VDmaskd')
 call mem%alloc(exppatarray, (/ patsz * nml%ipf_wd /), 'exppatarray')
@@ -2342,48 +2418,50 @@ deallocate(inp, outp)
 ! Create a new file using the default properties.
 datafile = EMsoft%generateFilePath('EMdatapathname', nml%convolvedpatternfile)
 
-hdferr =  HDF%createFile(datafile)
-if (hdferr.ne.0) call HDF%error_check('HDF_createFile ', hdferr)
+HDF2 = HDF_T() 
+
+hdferr =  HDF2%createFile(datafile)
+if (hdferr.ne.0) call HDF2%error_check('HDF_createFile ', hdferr)
 
 !====================================
 ! new in Release 4.3: add a Manufacturer string (null terminated)
 dataset = SC_Manufacturer
 line2(1) = 'EMsoft'
 line2(1) = cstringify(line2(1))
-hdferr = HDF%writeDatasetStringArray(dataset, line2, 1)
+hdferr = HDF2%writeDatasetStringArray(dataset, line2, 1)
 !====================================
 
 ! write the EMheader to the file
 datagroupname = trim(HDFnames%get_ProgramData()) ! 'EBSD' or 'TKD'
-call HDF%writeEMheader(EMsoft,dstr, tstrb, tstre, progname, datagroupname)
+call HDF2%writeEMheader(EMsoft,dstr, tstrb, tstre, progname, datagroupname)
 
 ! create a namelist group to write all the namelist files into
-hdferr = HDF%createGroup(HDFnames%get_NMLfiles())
-if (hdferr.ne.0) call HDF%error_check('HDF_createGroup NMLfiles', hdferr)
+hdferr = HDF2%createGroup(HDFnames%get_NMLfiles())
+if (hdferr.ne.0) call HDF2%error_check('HDF_createGroup NMLfiles', hdferr)
 
 ! read the text file and write the array to the file
 dataset = '4DEBSDNML'
-hdferr = HDF%writeDatasetTextFile(dataset, EMsoft%nmldeffile )
-if (hdferr.ne.0) call HDF%error_check('HDF_writeDatasetTextFile 4DEBSDNML', hdferr)
+hdferr = HDF2%writeDatasetTextFile(dataset, EMsoft%nmldeffile )
+if (hdferr.ne.0) call HDF2%error_check('HDF_writeDatasetTextFile 4DEBSDNML', hdferr)
 
-call HDF%pop()
+call HDF2%pop()
 
 ! create a NMLparameters group to write all the namelist entries into
-hdferr = HDF%createGroup(HDFnames%get_NMLparameters())
-if (hdferr.ne.0) call HDF%error_check('HDF_createGroup NMLparameters', hdferr)
+hdferr = HDF2%createGroup(HDFnames%get_NMLparameters())
+if (hdferr.ne.0) call HDF2%error_check('HDF_createGroup NMLparameters', hdferr)
 
-call self%writeHDFNameList_(HDF, HDFnames)
+call self%writeHDFNameList_(HDF2, HDFnames)
 
 ! and leave this group
-call HDF%pop()
+call HDF2%pop()
 
 ! then the remainder of the data in a EMData group
-hdferr = HDF%createGroup(HDFnames%get_EMData())
-if (hdferr.ne.0) call HDF%error_check('HDF_createGroup EMData', hdferr)
+hdferr = HDF2%createGroup(HDFnames%get_EMData())
+if (hdferr.ne.0) call HDF2%error_check('HDF_createGroup EMData', hdferr)
 
 ! create the EBSD group and add a HDF_FileVersion attribute to it
-hdferr = HDF%createGroup(datagroupname)
-if (hdferr.ne.0) call HDF%error_check('HDF_createGroup 4DEBSD', hdferr)
+hdferr = HDF2%createGroup(datagroupname)
+if (hdferr.ne.0) call HDF2%error_check('HDF_createGroup 4DEBSD', hdferr)
 ! before Feb. 19, 2019, an undetected error caused all patterns to be upside down in the Kikuchi bands only,
 ! not in the background intensity profile.  This was compensated by a pattern flip of all experimental
 ! patterns in the dictionary indexing program, but when taking individual patterns from this program, they
@@ -2391,27 +2469,28 @@ if (hdferr.ne.0) call HDF%error_check('HDF_createGroup 4DEBSD', hdferr)
 ! correct orientation.  This was detected by manually indexing a simulated pattern.
 HDF_FileVersion = '4.1'
 attributename = SC_HDFFileVersion
-hdferr = HDF%addStringAttributeToGroup(attributename, HDF_FileVersion)
+hdferr = HDF2%addStringAttributeToGroup(attributename, HDF_FileVersion)
 
 dataset = 'binx'
-hdferr = HDF%writeDatasetInteger(dataset, binx)
-if (hdferr.ne.0) call HDF%error_check('HDF_writeDatasetInteger binx', hdferr)
+hdferr = HDF2%writeDatasetInteger(dataset, binx)
+if (hdferr.ne.0) call HDF2%error_check('HDF_writeDatasetInteger binx', hdferr)
 
 dataset = 'biny'
-hdferr = HDF%writeDatasetInteger(dataset, biny)
-if (hdferr.ne.0) call HDF%error_check('HDF_writeDatasetInteger biny', hdferr)
+hdferr = HDF2%writeDatasetInteger(dataset, biny)
+if (hdferr.ne.0) call HDF2%error_check('HDF_writeDatasetInteger biny', hdferr)
 
 dataset = 'numpatterns'
-hdferr = HDF%writeDatasetInteger(dataset, nml%ipf_wd*nml%ipf_ht)
-if (hdferr.ne.0) call HDF%error_check('HDF_writeDatasetInteger numpatterns', hdferr)
+hdferr = HDF2%writeDatasetInteger(dataset, nml%ipf_wd*nml%ipf_ht)
+if (hdferr.ne.0) call HDF2%error_check('HDF_writeDatasetInteger numpatterns', hdferr)
 
 offset3 = (/ 0, 0, 0 /)
 hdims = (/ binx, biny, nml%ipf_wd*nml%ipf_ht/)
 dims3 = (/ binx, biny, nml%ipf_wd /)
 
+write (*,*) ' We are trying to create the ConvolvedPatterns dataset ... '
 dataset = 'ConvolvedPatterns'
-hdferr = HDF%writeHyperslabFloatArray(dataset, convolpatarray, hdims, offset3, dims3)
-if (hdferr.ne.0) call HDF%error_check('HDF_writeHyperslabFloatArray ConvolvedPatterns', hdferr)
+hdferr = HDF2%writeHyperslabFloatArray(dataset, convolpatarray, hdims, offset3, dims3)
+if (hdferr.ne.0) call HDF2%error_check('HDF_writeHyperslabFloatArray ConvolvedPatterns', hdferr)
 
 ! leave this group and the file open so thread 0 can write to it after each row of patterns
 
@@ -2428,7 +2507,7 @@ call VT%set_filename( nml%exptfile )
 ! open the file and leave it open, then use the getExpPatternRow() routine to read a row
 ! of patterns into the exppatarray variable ...  at the end, we use closeExpPatternFile() to
 ! properly close the experimental pattern file
-if ( (itype.eq.4) .or. (itype.eq.6) .or. (itype.eq.7) .or. (itype.eq.8) ) then
+if ( (itype.eq.4) .or. (itype.eq.6) .or. (itype.eq.7) .or. (itype.eq.8) .or. (itype.eq.11) ) then
   HDF = HDF_T()
   istat = VT%openExpPatternFile(EMsoft, nml%ipf_wd, L, recordsize, nml%HDFstrings, HDF)
 else
@@ -2463,14 +2542,14 @@ do iii = iiistart,iiiend
     if (TID.eq.0) then
         offset3 = (/ 0, 0, (iii-1)*nml%ipf_wd /)
         if (ROIselected.eqv..TRUE.) then
-          if ( (itype.eq.4) .or. (itype.eq.6) .or. (itype.eq.7) .or. (itype.eq.8) ) then
+          if ( (itype.eq.4) .or. (itype.eq.6) .or. (itype.eq.7) .or. (itype.eq.8) .or. (itype.eq.11) ) then
             call VT%getExpPatternRow(iii, nml%ipf_wd, patsz, L, dims3, offset3, exppatarray, nml%ROI, &
                                      HDFstrings=nml%HDFstrings, HDF=HDF)
           else
             call VT%getExpPatternRow(iii, nml%ipf_wd, patsz, L, dims3, offset3, exppatarray, nml%ROI)
           end if
         else
-         if ( (itype.eq.4) .or. (itype.eq.6) .or. (itype.eq.7) .or. (itype.eq.8) ) then
+         if ( (itype.eq.4) .or. (itype.eq.6) .or. (itype.eq.7) .or. (itype.eq.8) .or. (itype.eq.11) ) then
             call VT%getExpPatternRow(iii, nml%ipf_wd, patsz, L, dims3, offset3, exppatarray, &
                                      HDFstrings=nml%HDFstrings, HDF=HDF)
           else
@@ -2491,8 +2570,8 @@ do iii = iiistart,iiiend
         Pat(1:binx,kk) = exppatarray((jjj-1)*patsz+(kk-1)*binx+1:(jjj-1)*patsz+kk*binx)
       end do
 
-! Hi-Pass filter and convolution with virtual detector
-      rrdata = dble(Pat)
+! Hi-Pass filter and convolution with virtual detector; also multiply by patternmask
+      rrdata = dble(Pat * patternmask)
       ffdata = applyHiPassFilter(rrdata, (/ binx, biny /), dble(DIFT%nml%hipassw), hpmask, inp, outp, HPplanf, HPplanb, convolmask)
       Pat = sngl(ffdata)
 
@@ -2508,8 +2587,8 @@ do iii = iiistart,iiiend
     if (TID.eq.0) then
       offset3 = (/ 0, 0, (iii-1) * nml%ipf_wd /)
       dataset = 'ConvolvedPatterns'
-      hdferr = HDF%writeHyperslabFloatArray(dataset, convolpatarray, hdims, offset3, dims3, insert)
-      if (hdferr.ne.0) call HDF%error_check('HDF_writeHyperslabFloatArray ConvolvedPatterns', hdferr)
+      hdferr = HDF2%writeHyperslabFloatArray(dataset, convolpatarray, hdims, offset3, dims3, insert)
+      if (hdferr.ne.0) call HDF2%error_check('HDF_writeHyperslabFloatArray ConvolvedPatterns', hdferr)
       if (mod(iii,10).eq.0) then 
         io_int(1:2) = (/ iii, iiiend /)
         call Message%WriteValue(' Completed pattern row ', io_int, 2, "(I4,' out of ', I6)")
@@ -2528,31 +2607,31 @@ tstop = timer%getInterval()
 io_int(1) = tstop
 call Message%WriteValue('Execution time [system_clock()] = ',io_int,1,"(I8,' [s]')")
 
-call HDF%pop()
-call HDF%pop()
+call HDF2%pop()
+call HDF2%pop()
 
 ! and update the end time
 timer = timing_T()
 tstre = timer%getTimeString()
 
-hdferr = HDF%openGroup(HDFnames%get_EMheader())
-if (hdferr.ne.0) call HDF%error_check('HDF_openGroup EMheader', hdferr)
+hdferr = HDF2%openGroup(HDFnames%get_EMheader())
+if (hdferr.ne.0) call HDF2%error_check('HDF_openGroup EMheader', hdferr)
 
-hdferr = HDF%openGroup(HDFnames%get_ProgramData())
-if (hdferr.ne.0) call HDF%error_check('HDF_openGroup 4DEBSD', hdferr)
+hdferr = HDF2%openGroup(HDFnames%get_ProgramData())
+if (hdferr.ne.0) call HDF2%error_check('HDF_openGroup 4DEBSD', hdferr)
 
 ! stop time /EMheader/StopTime 'character'
 dataset = SC_StopTime
 line2(1) = dstr//', '//tstre
-hdferr = HDF%writeDatasetStringArray(dataset, line2, 1, overwrite)
-if (hdferr.ne.0) call HDF%error_check('HDF_writeDatasetStringArray StopTime', hdferr)
+hdferr = HDF2%writeDatasetStringArray(dataset, line2, 1, overwrite)
+if (hdferr.ne.0) call HDF2%error_check('HDF_writeDatasetStringArray StopTime', hdferr)
 
 dataset = SC_Duration
-hdferr = HDF%writeDatasetFloat(dataset, tstop)
-if (hdferr.ne.0) call HDF%error_check('HDF_writeDatasetFloat Duration', hdferr)
+hdferr = HDF2%writeDatasetFloat(dataset, tstop)
+if (hdferr.ne.0) call HDF2%error_check('HDF_writeDatasetFloat Duration', hdferr)
 
 ! close the datafile
-call HDF%popall()
+call HDF2%popall()
 
 call closeFortranHDFInterface()
 

@@ -15,6 +15,9 @@
 ! number of pattern pixels along x and y
  numsx = 0,
  numsy = 0,
+! minimum distance from center of pattern at which to start ignoring virtual detector positions [pixels]
+! leave at zero if no cutoff is to be used
+ radiuscutoff = 0.0,
 
 !=====================================
 ! if doconvolution = .TRUE., then perform a full data set convolution and store the 
