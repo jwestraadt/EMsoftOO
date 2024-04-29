@@ -1884,8 +1884,32 @@ if (nml%VDreference.eq.'MPat') then
   phi = atan2(Ys, Xs)
 ! then get the unit vector on the Kikuchi sphere that represents the location of the virtual detector center
   hatn = (/ sin(theta)*cos(phi), sin(theta)*sin(phi), cos(theta) /)
+! transform this vector to crystal space
+  call cell%TransSpace(hatn, pos, 'c', 'd')
 ! next, we want to get all symmetrically equivalent virtual detector positions on the Kikuchi sphere
-  call SG%CalcStar( hatn, numhatn, ctmp, 'd' )
+  call SG%CalcStar( pos, numhatn, ctmp, 'd' )
+! if the structure is non-centrosymmetric then we need to add all the opposite directions
+! as well, since it is unlikely that EBSD can readily distinguish between the two options
+  if (SG%getSpaceGroupCentro().eqv..FALSE.) then 
+    allocate(newctmp(2*numhatn,3))
+    do i=1,numhatn 
+      newctmp(i,1:3) = ctmp(i,1:3)
+      newctmp(i+numhatn,1:3) = -ctmp(i,1:3)
+    end do 
+    numhatn = 2*numhatn
+    deallocate(ctmp)
+    allocate(ctmp(numhatn,3))
+    ctmp = newctmp 
+    deallocate(newctmp)
+    call Message%printMessage(' ---> Imposing inversion symmetry ')
+  end if 
+! and transform them back 
+  do i=1,numhatn 
+    hatn = ctmp(i,1:3)
+    call cell%TransSpace(hatn, pos, 'd', 'c')
+    pos(3) = pos(3)
+    ctmp(i,1:3) = pos
+  end do
   io_int(1) = numhatn
   call Message%WriteValue(' Number of equivalent virtual detectors on Kikuchi sphere : ', io_int, 1)
 ! draw the equivalent point on the master pattern to make sure this step is correct
@@ -1956,8 +1980,8 @@ if (nml%VDreference.eq.'MPat') then
         VDpy = DIFT%nml%exptnumsy - nint(pos(2)) 
         if ( (VDpx.gt.0).and.(VDpx.le.DIFT%nml%exptnumsx).and.(VDpy.gt.0).and.(VDpy.le.DIFT%nml%exptnumsy) ) then 
           dis = sqrt( real( (DIFT%nml%exptnumsx/2-VDpx)**2 + (DIFT%nml%exptnumsy/2-VDpy)**2 ) )
-          EBSP(maxval((/1,VDpx-2/)):minval((/nml%ipf_wd,VDpx+2/)), &
-               maxval((/1,VDpy-2/)):minval((/nml%ipf_ht,VDpy+2/))) = maxval(EBSP)
+          EBSP(maxval((/1,VDpx-1/)):minval((/nml%ipf_wd,VDpx+1/)), &
+               maxval((/1,VDpy-1/)):minval((/nml%ipf_ht,VDpy+1/))) = maxval(EBSP)
           if ( dis .lt. VDpositions(3,jj) ) then 
             VDpositions(1:3,jj) = (/ pos(1), DIFT%nml%exptnumsy - pos(2), dis /)
             VDkk = kk
@@ -1971,8 +1995,8 @@ if (nml%VDreference.eq.'MPat') then
 ! draw the virtual detector position on the diffraction pattern
   VDpxref = nint(VDpositions(1,jj))
   VDpyref = nint(VDpositions(2,jj))
-  EBSP(maxval((/1,VDpxref-3/)):minval((/nml%ipf_wd,VDpxref+3/)), &
-       maxval((/1,VDpyref-3/)):minval((/nml%ipf_ht,VDpyref+3/))) = maxval(EBSP)
+  EBSP(maxval((/1,VDpxref-2/)):minval((/nml%ipf_wd,VDpxref+2/)), &
+       maxval((/1,VDpyref-2/)):minval((/nml%ipf_ht,VDpyref+2/))) = maxval(EBSP)
   call Message%printMessage(' ---> the larger square indicates the position closest to the detector center.')
 
   sz2 = shape(EBSP)
