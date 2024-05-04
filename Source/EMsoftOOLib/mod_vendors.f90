@@ -661,10 +661,10 @@ select case (self%itype)
           groupname = trim(HDFstrings(2))
           hdferr = HDF%openGroup(groupname)
           datasetx = 'IX'
-          datasety= 'IY'
+          datasety = 'IY'
         else
           datasetx = 'SEM IX'
-          datasety= 'SEM IY'
+          datasety = 'SEM IY'
         end if
         if (hdferr.ne.0) call HDF%error_check('openExpPatternFile:HDF%openGroup: groupname issue, check for typos.', hdferr)
         !  this part is different from the other vendors: the patterns are not necessarily in the correct order

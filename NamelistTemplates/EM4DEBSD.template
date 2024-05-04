@@ -16,8 +16,8 @@
  numsx = 0,
  numsy = 0,
 ! minimum distance from center of pattern at which to start ignoring virtual detector positions [pixels]
-! leave at zero if no cutoff is to be used
- radiuscutoff = 0.0,
+! set to a number larger than the pattern size if no cutoff is to be used
+ radiuscutoff = 256.0,
 
 !=====================================
 ! if doconvolution = .TRUE., then perform a full data set convolution and store the 
@@ -25,15 +25,26 @@
 ! else we interrogate the convolvedpatternfile
 !=====================================
  doconvolution = .FALSE.,
+! filename for convolved patterns (will be an EMEBSD32f HDF5 file)
  convolvedpatternfile = 'undefined', 
-
-!=====================================
-! Virtual Detector Parameters
-!=====================================
 ! virtual detector type:  'Flat', 'Gaus', 'Hann', 'Array'
  VDtype = 'Flat',
+! specify how many patterns should be in the output grid (2*NGrid+1)
+ NGrid = 0,
+! square virtual detector size (should be odd numbers of the form 2*n+1 !)
+ VDsize = 5,
+! Gaussian virtual detector standard deviation
+ VDSD = 2.5,
+! Hann window alpha parameter
+ VDHannAlpha = 0.5, 
+
+!=====================================
+! Additional Virtual Detector Parameters
+!=====================================
  ! this parameter is only used for the Array representation
  normalize = 'all',  ! or 'pat' for individual pattern-by-pattern normalization
+! stepsize in pixels for VDtype='Array' mode
+ VDstep = 8,
 ! virtual detector reference: 'EBSP', 'MPat'
  VDreference = 'EBSP',
 ! coordinates of the sampling point from which the EBSP is used to define the detector position
@@ -44,17 +55,15 @@
 ! in terms of master pattern coordinates for VDreference='MPat'
  VDlocx = 0.0, 
  VDlocy = 0.0,
-! square virtual detector size (should be odd numbers of the form 2*n+1 !)
- VDsize = 5,
-! Gaussian virtual detector standard deviation
- VDSD = 2.5,
-! Hann window alpha parameter
- VDHannAlpha = 0.5, 
-! stepsize in pixels for VDtype='Array' mode
- VDstep = 8,
+! EBSD is not very sensitive to the small intensity differences that occur for 
+! non-centrosymmetric crystals; if a structure is not centro-symmetric, then the 
+! following parameter can be used to impose inversion symmetry... if a selected location
+! on the master pattern always results in the message 'no solution found on detector 
+! for this pattern' then setting this parameter to .TRUE. might solve the problem.
+ applyinversion = .FALSE.,
 
 !###################################################################
-! Input File Parameters
+! Input Files
 !###################################################################
 !
 ! name of datafile where the patterns are stored; path relative to EMdatapathname
@@ -69,15 +78,11 @@
  HDFstrings = '' '' '' '' '' '' '' '' '' '',
 ! name of the dot product file [relative to EMdatapathname]
  dotproductfile = 'undefined',
- 
-!=====================================
-! Master pattern file (for a future implementation)
-!=====================================
 ! the following parameter MUST be set if VDreference = 'MPat'
  masterfile = 'undefined'
 
 !=====================================
-! Output files
+! Output file
 !=====================================
 ! name of virtual detector image file
  virtualimagefile = 'undefined',

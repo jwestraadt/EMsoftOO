@@ -48,6 +48,7 @@ type, public :: EBSD4DNameListType
  integer(kind=irg)  :: nthreads
  integer(kind=irg)  :: VDsize
  integer(kind=irg)  :: VDstep
+ integer(kind=irg)  :: NGrid
  character(fnlen)   :: exptfile
  character(fnlen)   :: masterfile
  character(fnlen)   :: dotproductfile
@@ -59,6 +60,7 @@ type, public :: EBSD4DNameListType
  character(4)       :: VDreference
  character(3)       :: normalize
  logical            :: doconvolution
+ logical            :: applyinversion
  real(kind=sgl)     :: EBSPlocx
  real(kind=sgl)     :: EBSPlocy
  real(kind=sgl)     :: VDlocx
@@ -91,6 +93,8 @@ private
   procedure, pass(self) :: getnumsx_
   procedure, pass(self) :: setnumsy_
   procedure, pass(self) :: getnumsy_
+  procedure, pass(self) :: setNGrid_
+  procedure, pass(self) :: getNGrid_
   procedure, pass(self) :: setnthreads_
   procedure, pass(self) :: getnthreads_
   procedure, pass(self) :: setexptfile_
@@ -133,6 +137,8 @@ private
   procedure, pass(self) :: getradiuscutoff_
   procedure, pass(self) :: setdoconvolution_
   procedure, pass(self) :: getdoconvolution_
+  procedure, pass(self) :: setapplyinversion_
+  procedure, pass(self) :: getapplyinversion_
   procedure, pass(self) :: drawMPpositions_
   procedure, pass(self) :: drawEBSPpositions_
 
@@ -150,6 +156,8 @@ private
   generic, public :: getnumsx => getnumsx_
   generic, public :: setnumsy => setnumsy_
   generic, public :: getnumsy => getnumsy_
+  generic, public :: setNGrid => setNGrid_
+  generic, public :: getNGrid => getNGrid_
   generic, public :: setnthreads => setnthreads_
   generic, public :: getnthreads => getnthreads_
   generic, public :: setexptfile => setexptfile_
@@ -192,6 +200,8 @@ private
   generic, public :: getradiuscutoff => getradiuscutoff_
   generic, public :: setdoconvolution => setdoconvolution_
   generic, public :: getdoconvolution => getdoconvolution_
+  generic, public :: setapplyinversion => setapplyinversion_
+  generic, public :: getapplyinversion => getapplyinversion_
 end type EBSD4D_T
 
 ! the constructor routine for this class 
@@ -262,6 +272,7 @@ integer(kind=irg)                   :: ipf_wd
 integer(kind=irg)                   :: ROI(4)
 integer(kind=irg)                   :: numsx
 integer(kind=irg)                   :: numsy
+integer(kind=irg)                   :: NGrid
 integer(kind=irg)                   :: nthreads
 character(fnlen)                    :: exptfile
 character(fnlen)                    :: masterfile
@@ -276,6 +287,7 @@ character(5)                        :: VDtype
 character(4)                        :: VDreference
 character(3)                        :: normalize
 logical                             :: doconvolution
+logical                             :: applyinversion
 real(kind=sgl)                      :: VDlocx
 real(kind=sgl)                      :: VDlocy
 real(kind=sgl)                      :: EBSPlocx
@@ -285,14 +297,15 @@ real(kind=sgl)                      :: VDSD
 real(kind=sgl)                      :: VDHannAlpha
 
 namelist / EBSD4Ddata / ipf_ht, ipf_wd, ROI, numsx, numsy, nthreads, exptfile, inputtype, HDFstrings, virtualimagefile, &
-                        VDsize, VDtype, VDlocx, VDlocy, VDSD, VDHannAlpha, VDreference, masterfile, dotproductfile, &
-                        EBSPlocx, EBSPlocy, doconvolution, convolvedpatternfile, VDstep, normalize, radiuscutoff
+                        VDsize, VDtype, VDlocx, VDlocy, VDSD, VDHannAlpha, VDreference, masterfile, dotproductfile, NGrid, &
+                        EBSPlocx, EBSPlocy, doconvolution, convolvedpatternfile, VDstep, normalize, radiuscutoff, applyinversion
 
 ipf_ht = 100
 ipf_wd = 100
 ROI = (/ 0, 0, 0, 0 /)
 numsx = 0
 numsy = 0
+NGrid = 0
 nthreads = 1
 exptfile = 'undefined'
 masterfile = 'undefined'
@@ -314,6 +327,7 @@ VDSD = 0.5
 VDHannAlpha = 0.5 
 radiuscutoff = 0.0
 doconvolution = .FALSE.
+applyinversion = .FALSE.
 
 if (present(initonly)) then
   if (initonly) skipread = .TRUE.
@@ -362,6 +376,7 @@ self%nml%ipf_wd = ipf_wd
 self%nml%ROI = ROI
 self%nml%numsx = numsx
 self%nml%numsy = numsy
+self%nml%NGrid = NGrid
 self%nml%nthreads = nthreads
 self%nml%exptfile = exptfile
 self%nml%masterfile = masterfile
@@ -383,6 +398,7 @@ self%nml%VDSD = VDSD
 self%nml%VDHannAlpha = VDHannAlpha
 self%nml%radiuscutoff = radiuscutoff
 self%nml%doconvolution = doconvolution
+self%nml%applyinversion = applyinversion
 
 end subroutine readNameList_
 
@@ -407,8 +423,8 @@ class(EBSD4D_T), INTENT(INOUT)          :: self
 type(HDF_T), INTENT(INOUT)              :: HDF
 type(HDFnames_T), INTENT(INOUT)         :: HDFnames
 
-integer(kind=irg),parameter             :: n_int = 8, n_real = 7
-integer(kind=irg)                       :: hdferr,  io_int(n_int), docv
+integer(kind=irg),parameter             :: n_int = 10, n_real = 7
+integer(kind=irg)                       :: hdferr, io_int(n_int), docv, doinv
 real(kind=sgl)                          :: io_real(n_real)
 character(20)                           :: reallist(n_real)
 character(20)                           :: intlist(n_int)
@@ -422,8 +438,10 @@ hdferr = HDF%createGroup(HDFnames%get_NMLlist())
 
 docv = 0 
 if (enl%doconvolution.eqv..TRUE.) docv = 1
+doinv = 0
+if (enl%applyinversion.eqv..TRUE.) doinv = 1
 ! write all the single integers
-io_int = (/ enl%ipf_wd, enl%ipf_ht, enl%numsx, enl%numsy, enl%nthreads, enl%VDsize, enl%VDstep, docv/)
+io_int = (/ enl%ipf_wd, enl%ipf_ht, enl%numsx, enl%numsy, enl%nthreads, enl%VDsize, enl%VDstep, enl%NGrid, docv, doinv/)
 intlist(1) = 'ipf_wd'
 intlist(2) = 'ipf_ht'
 intlist(3) = 'numsx'
@@ -431,7 +449,9 @@ intlist(4) = 'numsy'
 intlist(5) = 'nthreads'
 intlist(6) = 'VDsize'
 intlist(7) = 'VDstep'
-intlist(8) = 'doconvolution'
+intlist(8) = 'NGrid'
+intlist(9) = 'doconvolution'
+intlist(10) = 'applyinversion'
 call HDF%writeNMLintegers(io_int, intlist, n_int)
 
 ! write all the single reals
@@ -705,6 +725,42 @@ integer(kind=irg)                   :: out
 out = self%nml%numsy
 
 end function getnumsy_
+
+!--------------------------------------------------------------------------
+subroutine setNGrid_(self,inp)
+!DEC$ ATTRIBUTES DLLEXPORT :: setNGrid_
+!! author: MDG
+!! version: 1.0
+!! date: 04/29/24
+!!
+!! set NGrid in the EBSD4D_T class
+
+IMPLICIT NONE
+
+class(EBSD4D_T), INTENT(INOUT)     :: self
+integer(kind=irg), INTENT(IN)       :: inp
+
+self%nml%NGrid = inp
+
+end subroutine setNGrid_
+
+!--------------------------------------------------------------------------
+function getNGrid_(self) result(out)
+!DEC$ ATTRIBUTES DLLEXPORT :: getNGrid_
+!! author: MDG
+!! version: 1.0
+!! date: 04/29/24
+!!
+!! get NGrid from the EBSD4D_T class
+
+IMPLICIT NONE
+
+class(EBSD4D_T), INTENT(INOUT)     :: self
+integer(kind=irg)                   :: out
+
+out = self%nml%NGrid
+
+end function getNGrid_
 
 !--------------------------------------------------------------------------
 subroutine setnthreads_(self,inp)
@@ -1471,6 +1527,42 @@ out = self%nml%doconvolution
 end function getdoconvolution_
 
 !--------------------------------------------------------------------------
+subroutine setapplyinversion_(self,inp)
+!DEC$ ATTRIBUTES DLLEXPORT :: setapplyinversion_
+!! author: MDG
+!! version: 1.0
+!! date: 04/15/24
+!!
+!! set applyinversion in the EBSD4D_T class
+
+IMPLICIT NONE
+
+class(EBSD4D_T), INTENT(INOUT)     :: self
+logical, INTENT(IN)                :: inp
+
+self%nml%applyinversion = inp
+
+end subroutine setapplyinversion_
+
+!--------------------------------------------------------------------------
+function getapplyinversion_(self) result(out)
+!DEC$ ATTRIBUTES DLLEXPORT :: getapplyinversion_
+!! author: MDG
+!! version: 1.0
+!! date: 04/15/24
+!!
+!! get applyinversion from the EBSD4D_T class
+
+IMPLICIT NONE
+
+class(EBSD4D_T), INTENT(INOUT)     :: self
+logical                            :: out
+
+out = self%nml%applyinversion
+
+end function getapplyinversion_
+
+!--------------------------------------------------------------------------
 subroutine drawMPpositions_(self, n, ctmp, sz, MP)
 !DEC$ ATTRIBUTES DLLEXPORT :: drawMPpositions_
 !! author: MDG 
@@ -1669,7 +1761,7 @@ type(PGA3D_T)                           :: mv_plane, mv_line, mv
 integer(kind=irg)                       :: L,totnumexpt,imght,imgwd, recordsize, hdferr, TID, iii, VDposx, VDposy, VDpx, VDpy,&
                                            TIFF_nx, TIFF_ny, itype, istat, iiistart, iiiend, jjstart, jjend, binx, biny, sz(3), &
                                            correctsize, dims(2), i, j, ii, jj, jjj, kk, patsz, Nexp, numhatn, io_int(4), sz2(2), &
-                                           VDpxref, VDpyref, VDkk, ival, kkk, lll, numpatx, numpaty
+                                           VDpxref, VDpyref, VDkk, ival, kkk, lll, numpatx, numpaty, VDgood, ix, jy, ipx, ipy
 integer(kind=ill)                       :: jjpat
 logical                                 :: ROIselected
 real(kind=sgl),allocatable              :: VDimage(:,:), exppatarray(:), VDmask(:,:), mask(:,:), Pat(:,:), window(:,:), &
@@ -1837,10 +1929,11 @@ else
 end if
 
 ! allocate the output image array
+! note that as of 4/29/24, ROI handling is still incorrect
 if (ROIselected.eqv..TRUE.) then
   call mem%alloc(VDimage, (/ nml%ROI(3), nml%ROI(4) /), 'VDimage')
 else
-  call mem%alloc(VDimage, (/ nml%ipf_wd, nml%ipf_ht /), 'VDimage')
+  call mem%alloc(VDimage, (/ (2*nml%NGrid+1)*nml%ipf_wd, (2*nml%NGrid+1)*nml%ipf_ht /), 'VDimage')
 end if
 call mem%alloc(VDmask, (/ nml%VDsize, nml%VDsize /), 'VDmask')
 call mem%alloc(VDmaskd, (/ nml%VDsize, nml%VDsize /), 'VDmaskd')
@@ -1888,21 +1981,24 @@ if (nml%VDreference.eq.'MPat') then
   call cell%TransSpace(hatn, pos, 'c', 'd')
 ! next, we want to get all symmetrically equivalent virtual detector positions on the Kikuchi sphere
   call SG%CalcStar( pos, numhatn, ctmp, 'd' )
-! if the structure is non-centrosymmetric then we need to add all the opposite directions
+! if the structure is non-centrosymmetric then we may need to add all the opposite directions
 ! as well, since it is unlikely that EBSD can readily distinguish between the two options
-  if (SG%getSpaceGroupCentro().eqv..FALSE.) then 
-    allocate(newctmp(2*numhatn,3))
-    do i=1,numhatn 
-      newctmp(i,1:3) = ctmp(i,1:3)
-      newctmp(i+numhatn,1:3) = -ctmp(i,1:3)
-    end do 
-    numhatn = 2*numhatn
-    deallocate(ctmp)
-    allocate(ctmp(numhatn,3))
-    ctmp = newctmp 
-    deallocate(newctmp)
-    call Message%printMessage(' ---> Imposing inversion symmetry ')
-  end if 
+! the user will need to decide whether or not to do this... 
+  if (nml%applyinversion.eqv..TRUE.) then 
+    if (SG%getSpaceGroupCentro().eqv..FALSE.) then 
+      allocate(newctmp(2*numhatn,3))
+      do i=1,numhatn 
+        newctmp(i,1:3) = ctmp(i,1:3)
+        newctmp(i+numhatn,1:3) = -ctmp(i,1:3)
+      end do 
+      numhatn = 2*numhatn
+      deallocate(ctmp)
+      allocate(ctmp(numhatn,3))
+      ctmp = newctmp 
+      deallocate(newctmp)
+      call Message%printMessage(' ---> Imposing inversion symmetry ')
+    end if 
+  end if
 ! and transform them back 
   do i=1,numhatn 
     hatn = ctmp(i,1:3)
@@ -1919,7 +2015,7 @@ if (nml%VDreference.eq.'MPat') then
 ! and keep the one that is closest to the center of the detector (3-rd component is distance)
   call mem%alloc( VDpositions, (/ 3, Nexp /), 'VDpositions' )
 !*********
-! we use projective geometric algebra to find the intersection point on the detector
+! we use 3D projective geometric algebra to find the intersection point on the detector
   call Message%printMessage(' --> initializing Projective Geometric Algebra')
   call PGA3D_initialize()
 !*********
@@ -2009,14 +2105,15 @@ if (nml%VDreference.eq.'MPat') then
 ! we should do this with OpenMP !
 
   VDpositions(3,:) =  100000000.D0   ! set to a large value
+  VDgood = 0
   do jj = 1, Nexp 
     quat = qAR%getQuatfromArray(jj)
     quat = conjg(quat)
     newctmp = quat%quat_Lp_vecarray(numhatn, transpose(ctmp))
-    do kk=1,numhatn
+    ! do kk=1,numhatn
 ! we will take the same symmetrically equivalent representative as selected above
-      ! mv_line = line(newctmp(1,VDkk),newctmp(2,VDkk),newctmp(3,VDkk))
-      mv_line = line(newctmp(1,kk),newctmp(2,kk),newctmp(3,kk))
+      mv_line = line(newctmp(1,VDkk),newctmp(2,VDkk),newctmp(3,VDkk))
+      ! mv_line = line(newctmp(1,kk),newctmp(2,kk),newctmp(3,kk))
       mv_line = mv_line%normalized()
       mv = meet(mv_plane, mv_line)
       mv = mv%normalized()
@@ -2032,12 +2129,12 @@ if (nml%VDreference.eq.'MPat') then
           if ( (VDpx.gt.0).and.(VDpx.le.DIFT%nml%exptnumsx).and.(VDpy.gt.0).and.(VDpy.le.DIFT%nml%exptnumsy) ) then 
             dis = sqrt( real( (VDpxref-VDpx)**2 + (VDpyref-VDpy)**2 ) )
             if ( ( dis .lt. VDpositions(3,jj) ) .and. ( dis .lt. nml%radiuscutoff ) ) then 
-              VDpositions(1:3,jj) = (/ pos(1), DIFT%nml%numsy - pos(2), dis /)
+              VDpositions(1:3,jj) = (/ pos(1), nml%numsy - pos(2), dis /)
             end if 
           end if
         end if
       end if
-    end do
+    ! end do
   end do
   call mem%dealloc(newctmp, 'newctmp')
  ! output the VDpositions array for debugging purposes
@@ -2046,127 +2143,60 @@ if (nml%VDreference.eq.'MPat') then
  ! write (20) sngl(VDpositions)
  ! close(unit=20,status='keep')
 else
-! get the lower left corner of the virtual detector
-  VDposx = nint(nml%VDlocx) - (nml%VDsize-1)/2
-  VDposy = nint(nml%VDlocy) - (nml%VDsize-1)/2
+! get the virtual detector coordinates
+  VDposx = nint(nml%VDlocx) ! - (nml%VDsize-1)/2
+  VDposy = nml%numsy - nint(nml%VDlocy) ! - (nml%VDsize-1)/2
+  io_int(1:2) = (/ VDposx, VDposy /)
+  call Message%WriteValue(' VD position set to ', io_int, 2)
 end if
 
+! generate a list of virtual detector locations for which we need to extract intensities 
 
-if (trim(nml%VDtype).ne.'Array') then
-! this next part is done with OpenMP, with only thread 0 doing the reading;
-! Thread 0 reads one line worth of patterns from the input file, then all threads do
-! the work; repeat until all patterns have been processed.
-  call OMP_setNThreads(nml%nthreads)
-  dims3 = (/ binx, biny, nml%ipf_wd /)
+! this will depend on what mode is selected with the VDtype parameter :
+!  - 'Array': this is a 2D array of step size VDstep across the entire EBSP
+!  - any other value: array of size (2*NGrid+1)*(2*NGrid+1) with step size 1, centered 
+!    on the VDpositions location for each pattern (VDreference='MPat') or on a single 
+!    location for all patterns (VDreference='EBSP').  
 
-  do iii = iiistart,iiiend
-
-! start the OpenMP portion
-!$OMP PARALLEL DEFAULT(SHARED) PRIVATE(TID, ival, jj, jjj, kk, Pat, window, VDpx, VDpy, rrdata, ffdata, inp, outp, offset3)
-
-! set the thread ID
-   TID = OMP_GET_THREAD_NUM()
-
-   allocate(Pat(binx,biny))
-
-! thread 0 reads the next row of patterns from the input file
-! we have to allow for all the different types of input files here...
-    if (TID.eq.0) then
-        offset3 = (/ 0, 0, (iii-1)*nml%ipf_wd /)
-        if (ROIselected.eqv..TRUE.) then
-          if ( (itype.eq.4) .or. (itype.eq.6) .or. (itype.eq.7) .or. (itype.eq.8) .or. (itype.eq.11) ) then
-            call VT%getExpPatternRow(iii, nml%ipf_wd, patsz, L, dims3, offset3, exppatarray, nml%ROI, &
-                                     HDFstrings=nml%HDFstrings, HDF=HDF2)
-          else
-            call VT%getExpPatternRow(iii, nml%ipf_wd, patsz, L, dims3, offset3, exppatarray, nml%ROI)
-          end if
-        else
-         if ( (itype.eq.4) .or. (itype.eq.6) .or. (itype.eq.7) .or. (itype.eq.8) .or. (itype.eq.11) ) then
-            call VT%getExpPatternRow(iii, nml%ipf_wd, patsz, L, dims3, offset3, exppatarray, &
-                                     HDFstrings=nml%HDFstrings, HDF=HDF2)
-          else
-            call VT%getExpPatternRow(iii, nml%ipf_wd, patsz, L, dims3, offset3, exppatarray)
-          end if
-        end if
-    end if
-
-! other threads must wait until T0 is ready
-!$OMP BARRIER    
-
-! then loop in parallel over all patterns to perform the preprocessing steps
-!$OMP DO SCHEDULE(DYNAMIC)
-    do jj=jjstart,jjend
-! convert imageexpt to 2D EBSD Pattern array
-        jjj = jj-jjstart+1
-        do kk=1,biny
-          Pat(1:binx,kk) = exppatarray((jjj-1)*patsz+(kk-1)*binx+1:(jjj-1)*patsz+kk*binx)
-        end do
-
-! get the virtual detector coordinates
-        if (trim(nml%VDreference).eq.'MPat') then 
-          ival = (iii-1)*nml%ipf_wd + jj
-          if (VDpositions(3,ival).lt.100000.0) then 
-            VDpx = nint(VDpositions(1,ival))
-            VDpy = nint(VDpositions(2,ival))
-          else
-            VDpx = -10
-          end if
-        else
-          VDpx = VDposx
-          VDpy = VDposy
-        end if
-
-        if (VDpx.lt.0) then 
-          VDimage(jj-jjstart+1,iii-iiistart+1) = 0.0
-        else
-          VDimage(jj-jjstart+1,iii-iiistart+1) = Pat(VDpx,VDpy)
-        end if 
-    end do
-!$OMP END DO
-
-!$OMP BARRIER
-  deallocate(Pat)
-!$OMP END PARALLEL
-
-  end do
-
-! prepare for image output  
-  if (ROIselected.eqv..TRUE.) then
-    TIFF_nx = nml%ROI(3)
-    TIFF_ny = nml%ROI(4)
-  else
-    TIFF_nx = nml%ipf_wd
-    TIFF_ny = nml%ipf_ht
-  end if
-
-  ! allocate memory for image
-  allocate(TIFF_image(TIFF_nx,TIFF_ny))
-
-! fill the image with whatever data you have (between 0 and 255)
-  ma = maxval(VDimage)
-  mi = minval(VDimage)
-
-  do j=1,TIFF_ny
-    do i=1,TIFF_nx
-      TIFF_image(i,j) = int(255 * (VDimage(i,j)-mi)/(ma-mi))
-    end do
-  end do
-else ! we're doing a regular array of virtual detectors in a single large output image ... 
+if (trim(nml%VDtype).eq.'Array') then
   numpatx = nml%numsx / nml%VDstep 
   numpaty = nml%numsy / nml%VDstep 
   TIFF_nx = nml%ipf_wd * numpatx
   TIFF_ny = nml%ipf_ht * numpaty
   io_int(1:4) = (/ numpatx, numpaty, TIFF_nx, TIFF_ny /)
-  call Message%WriteValue(' preparing to generate ', io_int, 4, '(I3," by ",I3," patterns in image of size ",I6," x ",I6)')
-  allocate( TIFF_image(TIFF_nx, TIFF_ny), montage(TIFF_nx, TIFF_ny), Pat(binx,biny) ) 
+  call Message%WriteValue(' preparing to generate ', io_int, 4, '(I4," by ",I4," patterns in image of size ",I6," x ",I6)')
+  allocate( TIFF_image(TIFF_nx, TIFF_ny), montage(TIFF_nx, TIFF_ny) ) 
 
 ! define the pixel coordinates that need to be used as offsets into the diffraction patterns
-  call mem%alloc( VDpos, (/ 2, numpatx , numpaty /), 'VDpositions' )
+  call mem%alloc( VDpos, (/ 2, numpatx , numpaty /), 'VDpos' )
   do j=1,numpaty
     do i=1,numpatx
       VDpos( 1:2, i, j ) = nml%VDstep/2 + (/ (i-1)*nml%VDstep, (j-1)*nml%VDstep /) 
     end do 
   end do
+else
+  numpatx = 2*nml%NGrid + 1
+  numpaty = 2*nml%NGrid + 1
+  TIFF_nx = nml%ipf_wd * numpatx
+  TIFF_ny = nml%ipf_ht * numpaty
+  io_int(1:4) = (/ numpatx, numpaty, TIFF_nx, TIFF_ny /)
+  call Message%WriteValue(' preparing to generate ', io_int, 4, '(I4," by ",I4," patterns in image of size ",I6," x ",I6)')
+  allocate( TIFF_image(TIFF_nx, TIFF_ny), montage(TIFF_nx, TIFF_ny) ) 
+  call mem%alloc( VDpos, (/ 2, numpatx , numpaty /), 'VDpos' )
+  if (nml%VDreference.eq.'EBSP') then 
+    do j= -nml%NGrid,nml%NGrid
+     do i= -nml%NGrid,nml%NGrid
+        VDpos( 1:2, nml%NGrid+i+1, nml%NGrid+j+1 ) = (/ VDposx+i, VDposy+j /) 
+      end do 
+    end do
+  else
+    do j= -nml%NGrid,nml%NGrid
+     do i= -nml%NGrid,nml%NGrid
+        VDpos( 1:2, nml%NGrid+i+1, nml%NGrid+j+1 ) = (/ i, j /) 
+      end do 
+    end do
+  end if
+end if 
 
 ! read rows of patterns and plug the proper pixels into the montage
   dims3 = (/ binx, biny, nml%ipf_wd /)
@@ -2188,6 +2218,8 @@ else ! we're doing a regular array of virtual detectors in a single large output
         call VT%getExpPatternRow(iii, nml%ipf_wd, patsz, L, dims3, offset3, exppatarray)
       end if
     end if
+    if (allocated(Pat)) deallocate(Pat)
+    allocate( Pat(binx,biny) ) 
 
 ! the VDpositions array lists the 1D positions of the virtual detector array pixels
 ! and can be used directly as an index into the exppatarray, accounting for the patsz
@@ -2203,7 +2235,23 @@ else ! we're doing a regular array of virtual detectors in a single large output
         do ii= 1, numpatx ! in the VDpositions array
           VDpx = nml%ipf_wd * (ii-1) + j-jjstart+1
           VDpy = nml%ipf_ht * (jj-1) + iii
-          montage(VDpx, VDpy) = Pat(VDpos(1,ii,jj),VDpos(2,ii,jj))
+          if ( (nml%VDreference.eq.'EBSP') .or. (nml%VDtype.eq.'Array') ) then
+            montage(VDpx, VDpy) = Pat(VDpos(1,ii,jj),VDpos(2,ii,jj))
+          end if 
+          if (nml%VDreference.eq.'MPat') then 
+            ival = (iii-1)*nml%ipf_wd + jjj
+            if (VDpositions(3,ival).lt.100000.0) then 
+              VDposx = nint(VDpositions(1,ival))
+              VDposy = nint(VDpositions(2,ival))
+            else
+              VDposx = -10
+            end if 
+            if (VDposx.gt.0) then 
+              montage(VDpx, VDpy) = Pat( VDposx+VDpos(1,ii,jj),VDposy + VDpos(2,ii,jj) )
+            else
+              montage(VDpx,VDpy) = 0.0
+            end if 
+          end if 
         end do
       end do
     end do
@@ -2236,8 +2284,6 @@ else ! we're doing a regular array of virtual detectors in a single large output
     end do 
     deallocate(Pat)
   end if
-
-end if 
 
 ! output the virtual detector image(s) as a tiff file
 fname = trim(EMsoft%generateFilePath('EMdatapathname'))//trim(nml%virtualimagefile)
@@ -2551,6 +2597,23 @@ call timer%Time_tick()
 
 do iii = iiistart,iiiend
 
+    offset3 = (/ 0, 0, (iii-1)*nml%ipf_wd /)
+    if (ROIselected.eqv..TRUE.) then
+      if ( (itype.eq.4) .or. (itype.eq.6) .or. (itype.eq.7) .or. (itype.eq.8) .or. (itype.eq.11) ) then
+        call VT%getExpPatternRow(iii, nml%ipf_wd, patsz, L, dims3, offset3, exppatarray, nml%ROI, &
+                                 HDFstrings=nml%HDFstrings, HDF=HDF)
+      else
+        call VT%getExpPatternRow(iii, nml%ipf_wd, patsz, L, dims3, offset3, exppatarray, nml%ROI)
+      end if
+    else
+     if ( (itype.eq.4) .or. (itype.eq.6) .or. (itype.eq.7) .or. (itype.eq.8) .or. (itype.eq.11) ) then
+        call VT%getExpPatternRow(iii, nml%ipf_wd, patsz, L, dims3, offset3, exppatarray, &
+                                 HDFstrings=nml%HDFstrings, HDF=HDF)
+      else
+        call VT%getExpPatternRow(iii, nml%ipf_wd, patsz, L, dims3, offset3, exppatarray)
+      end if
+    end if
+
 ! start the OpenMP portion
 !$OMP PARALLEL DEFAULT(SHARED) PRIVATE(TID, ival, jj, jjj, kk, Pat, rrdata, ffdata, inp, outp, offset3)
 
@@ -2560,30 +2623,6 @@ do iii = iiistart,iiiend
    allocate(Pat(binx,biny))
    allocate(rrdata(binx,biny),ffdata(binx,biny))
    allocate(inp(binx,biny),outp(binx,biny))
-
-! thread 0 reads the next row of patterns from the input file
-! we have to allow for all the different types of input files here...
-    if (TID.eq.0) then
-        offset3 = (/ 0, 0, (iii-1)*nml%ipf_wd /)
-        if (ROIselected.eqv..TRUE.) then
-          if ( (itype.eq.4) .or. (itype.eq.6) .or. (itype.eq.7) .or. (itype.eq.8) .or. (itype.eq.11) ) then
-            call VT%getExpPatternRow(iii, nml%ipf_wd, patsz, L, dims3, offset3, exppatarray, nml%ROI, &
-                                     HDFstrings=nml%HDFstrings, HDF=HDF)
-          else
-            call VT%getExpPatternRow(iii, nml%ipf_wd, patsz, L, dims3, offset3, exppatarray, nml%ROI)
-          end if
-        else
-         if ( (itype.eq.4) .or. (itype.eq.6) .or. (itype.eq.7) .or. (itype.eq.8) .or. (itype.eq.11) ) then
-            call VT%getExpPatternRow(iii, nml%ipf_wd, patsz, L, dims3, offset3, exppatarray, &
-                                     HDFstrings=nml%HDFstrings, HDF=HDF)
-          else
-            call VT%getExpPatternRow(iii, nml%ipf_wd, patsz, L, dims3, offset3, exppatarray)
-          end if
-        end if
-    end if
-
-! other threads must wait until T0 is ready
-!$OMP BARRIER    
 
 ! then loop in parallel over all patterns to perform the preprocessing steps
 !$OMP DO SCHEDULE(DYNAMIC)
