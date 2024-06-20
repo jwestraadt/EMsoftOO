@@ -2342,9 +2342,9 @@ do i=1, cnt
     case('ro')
       io_real(1:4) = FZtmp%rod%r_copyd()
       if (io_real(4).eq.inftyd()) then
-        call Message%WriteValue('', io_real, 3, frm="(2(F17.9,' '),'infinity')",redirect=53)
+        call Message%WriteValue('', io_real, 3, frm="(3(F17.9,' '),'infinity')",redirect=53)
       else
-        call Message%WriteValue('', io_real, 4, frm="(2(F17.9,' '),F17.9)",redirect=53)
+        call Message%WriteValue('', io_real, 4, frm="(3(F17.9,' '),F17.9)",redirect=53)
       end if
     case('om')
       o = FZtmp%qu%qo()
