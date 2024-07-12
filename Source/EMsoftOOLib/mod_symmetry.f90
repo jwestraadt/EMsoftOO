@@ -563,11 +563,18 @@ character(2), public, dimension(32) :: TSLsymtype = (/' 1',' 1',' 2',' 2',' 2','
 
 
 !>  SYM_GL  encoded point group generator strings
+  ! character(4), dimension(32) :: SYM_PGGL= (/  &
+  !   '----', 'h---', 'c---', 'j---', 'ch--', 'bc--', 'bj--', 'bch-', &
+  !   'g---', 'm---', 'gh--', 'cg--', 'gj--', 'cm--', 'cgh-', 'n---', &
+  !   'hn--', 'en--', 'kn--', 'fhn-', 'bn--', 'in--', 'bhn-', 'ben-', &
+  !   'bkn-', 'ikn-', 'benh', 'cd--', 'cdh-', 'dg--', 'dml-', 'dghl' /)
+
   character(4), dimension(32) :: SYM_PGGL= (/  &
     '----', 'h---', 'c---', 'j---', 'ch--', 'bc--', 'bj--', 'bch-', &
     'g---', 'm---', 'gh--', 'cg--', 'gj--', 'cm--', 'cgh-', 'n---', &
-    'hn--', 'en--', 'kn--', 'fhn-', 'bn--', 'in--', 'bhn-', 'ben-', &
+    'hn--', 'en--', 'kn--', 'ehn-', 'bn--', 'in--', 'bhn-', 'ben-', &
     'bkn-', 'ikn-', 'benh', 'cd--', 'cdh-', 'dg--', 'dml-', 'dghl' /)
+
 
 !DEC$ ATTRIBUTES DLLEXPORT :: SYM_PGGL
 
@@ -4012,6 +4019,8 @@ end if
 ! we need to include the identity as a generator
 self%GENnum = self%GENnum+1
 
+write (*,*) ' Number of point group generators found : ', self%GENnum 
+
 end subroutine MakePGGenerators_
 
 !--------------------------------------------------------------------------
@@ -4109,19 +4118,20 @@ if ( (SGnumber.ge.115).and.(SGnumber.le.120) ) then
   end do 
 end if 
 
-! next the rhombohedral cases
-if (minval(abs(Rnums-SGnumber)).eq.0) then 
-  sr2 = sqrt(3.D0)*0.5D0
-  R = reshape( (/ sr2, -0.5D0, 0.D0,  0.5D0, sr2, 0.D0, 0.D0, 0.D0, 1.D0 /), (/3,3/) )
-  do k=1, nsym
-    self%c(:,:) = self%direc(k,:,:)
-    write (*,*) k 
-    write (*,*) self%c
-    self%c = matmul( transpose(R), matmul(self%c, R) )
-    self%direc(k,:,:) = self%c(:,:)
-    write (*,*) self%c
-  end do 
-end if 
+! next the rhombohedral cases; 
+! THIS IS INCORRECT BECAUSE IT GENERATES MATRICES THAT HAVE ENTRIES OTHER THAN 0, +1, -1 ...
+! if (minval(abs(Rnums-SGnumber)).eq.0) then 
+!   sr2 = sqrt(3.D0)*0.5D0
+!   R = reshape( (/ sr2, 0.5D0, 0.D0,  -0.5D0, sr2, 0.D0, 0.D0, 0.D0, 1.D0 /), (/3,3/) )
+!   do k=1, nsym
+!     self%c(:,:) = self%direc(k,:,:)
+!     write (*,*) k 
+!     write (*,*) self%c
+!     self%c = matmul( transpose(R), matmul(self%c, R) )
+!     self%direc(k,:,:) = self%c(:,:)
+!     write (*,*) self%c
+!   end do 
+! end if 
 
 ! generate new elements from the squares of the generators
 do k=1,self%GENnum

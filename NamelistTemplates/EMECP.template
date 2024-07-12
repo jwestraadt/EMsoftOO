@@ -8,7 +8,7 @@
 ! size of output pattern in pixels (image is always square npix x npix)
  npix = 256,
 ! half angle of cone for incident beams (degrees)
- thetac = 5.0,
+ conesemiangle = 5.0,
 ! mask pattern or not; 'y' or 'n'
  maskpattern = 'n',
 ! monte carlo input file; path relative to EMdatapathname
@@ -37,32 +37,4 @@
 ! outer radius of annular detector [in mm]
  Rout = 6.0,
 !
-!==============================================================
-! the nml parameters only used in case of two layered structure
-! ignore them for normal ECP calculation
-! this is an experimental part of the code and is not guaranteed 
-! to work properly...
-!==============================================================
-! foil normal of film
- fn_f = 0,0,1,
-! foil normal of substrate
- fn_s = 0,0,1,
-! second (substrate) crystal structure filename
- xtalname2 = 'undefined',
-! plane normal in Film
- gF = 0,0,0,
-! plane normal in Substrate
- gS = 0,0,0,
-! direction in Film
- tF = 0,0,0,
-! direction in Substrate
- tS = 0,0,0,
-! smallest d-spacing to take into account [nm]
- dmin = 0.025,
-! film thickness if present  (0.0 if not present)
- filmthickness = 0.0,
-! output file for film signal
- filmfile = 'undefined',
-! output file for substrate signal
- subsfile = 'undefined'
- /
+/

@@ -1101,11 +1101,12 @@ end if
 usehex = .FALSE.
 if ((SG%getSpaceGroupXtalSystem().eq.4).or.(SG%getSpaceGroupXtalSystem().eq.5)) usehex = .TRUE.
 
-! write (*,*) '========================'
-! write (*,*) 'isym = ',isym
-! write (*,*) 'SamplingType = ', SamplingType
-! write (*,*) 'usehex = ', usehex
-! write (*,*) '========================'
+write (*,*) '========================'
+write (*,*) 'isym = ',isym
+write (*,*) 'SamplingType = ', SamplingType
+write (*,*) 'usehex = ', usehex
+write (*,*) 'SG%trigonal = ', SG%getSpaceGrouptrigonal()
+write (*,*) '========================'
 
 ! ---------- end of symmetry and crystallography section
 !=============================================
@@ -1535,12 +1536,12 @@ write (*,*) 'using kvector transform rule'
   karray(1:3,ik) = ktmp%k(1:3)
   karray(4,ik) = ktmp%kn
   kij(1:3,ik) = (/ ktmp%i, ktmp%j, ktmp%hs /)
-   do ik=2,numk
-     ktmp => ktmp%next
-     karray(1:3,ik) = ktmp%k(1:3)
-     karray(4,ik) = ktmp%kn
-     kij(1:3,ik) = (/ ktmp%i, ktmp%j, ktmp%hs /)
-   end do
+  do ik=2,numk
+    ktmp => ktmp%next
+    karray(1:3,ik) = ktmp%k(1:3)
+    karray(4,ik) = ktmp%kn
+    kij(1:3,ik) = (/ ktmp%i, ktmp%j, ktmp%hs /)
+  end do
 ! and remove the linked list
   call kvec%Delete_kvectorlist()
 
