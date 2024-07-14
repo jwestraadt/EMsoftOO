@@ -392,7 +392,7 @@ class(MCfile_T), INTENT(INOUT)          :: self
 type(HDF_T), INTENT(INOUT)              :: HDF
 type(HDFnames_T), INTENT(INOUT)         :: HDFnames
 
-integer(kind=irg),parameter             :: n_int = 11, n_real_bse1 = 9, n_real_full = 7, n_real_ivol = 6, &
+integer(kind=irg),parameter             :: n_int = 11, n_real_bse1 = 10, n_real_full = 7, n_real_ivol = 6, &
                                            n_real_foil = 10
 integer(kind=irg)                       :: hdferr,  io_int(n_int)
 real(kind=dbl)                          :: io_real_bse1(n_real_bse1), io_real_full(n_real_full), &
@@ -428,7 +428,7 @@ call HDF%writeNMLintegers(io_int, intlist, n_int)
 ! write all the single doubles
 if (mcnl%mode .eq. 'bse1') then
    io_real_bse1 = (/ mcnl%sigstart, mcnl%sigend, mcnl%sigstep, mcnl%omega, mcnl%EkeV, mcnl%Ehistmin, &
-                     mcnl%Ebinsize, mcnl%depthmax, mcnl%depthstep /)
+                     mcnl%Ebinsize, mcnl%depthmax, mcnl%depthstep, mcnl%sig /)
    reallist_bse1(1) = 'sigstart'
    reallist_bse1(2) = 'sigend'
    reallist_bse1(3) = 'sigstep'
@@ -438,6 +438,7 @@ if (mcnl%mode .eq. 'bse1') then
    reallist_bse1(7) = 'Ebinsize'
    reallist_bse1(8) = 'depthmax'
    reallist_bse1(9) = 'depthstep'
+   reallist_bse1(10) = 'sig'
    call HDF%writeNMLdbles(io_real_bse1, reallist_bse1, n_real_bse1)
 else if (mcnl%mode .eq. 'full') then
    io_real_full = (/ mcnl%sig, mcnl%omega, mcnl%EkeV, mcnl%Ehistmin, &
