@@ -2114,7 +2114,9 @@ logical                             :: dbd(nref)
     locvsave(jcnt)=Vgsave(i)
     dbd(jcnt)=.FALSE.
 ! take care of potential double diffraction reflections
-    if ((SG%getSpaceGroupSymmorphic()).and.(dbdiff(i))) dbd(jcnt) = .TRUE.
+    if (SG%getSpaceGroupSymmorphic().eqv..FALSE.) then 
+      if (dbdiff(i).eqv..TRUE.) dbd(jcnt) = .TRUE.
+    end if 
    end if
   end do
  end do
