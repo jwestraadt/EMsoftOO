@@ -133,6 +133,8 @@ execute_process( # get abbreviated hash
   OUTPUT_STRIP_TRAILING_WHITESPACE
 )
 
+string(REPLACE "\n" "" EMsoftOO_SHORT_GIT_HASH "${EMsoftOO_SHORT_GIT_HASH}")
+
 execute_process(COMMAND ${GIT_EXECUTABLE} log -1 --pretty='%cd' --date=format:%Y-%m-%d-%H:%M:%S
                 OUTPUT_VARIABLE GVS_GIT_COMMIT_DATE
                 RESULT_VARIABLE did_run
