@@ -837,9 +837,9 @@ select case (self%itype)
 
 ! finally, correct for the fact that the original values were unsigned integers
       if (self%itype.eq.3) then
-        where(exppatarray.lt.0.0) exppatarray = exppatarray + 65536.0
+        where(exppatarray.lt.0.0) exppatarray = exppatarray + 65535.0
       else
-        where(exppatarray.lt.0.0) exppatarray = exppatarray + 256.0
+        where(exppatarray.lt.0.0) exppatarray = exppatarray + 255.0
       end if
 
     case(5)  ! "OxfordBinary"
@@ -894,7 +894,7 @@ select case (self%itype)
       deallocate(pairs)
 
 ! finally, correct for the fact that the original values were unsigned integers
-      where(exppatarray.lt.0.0) exppatarray = exppatarray + 256.0
+      where(exppatarray.lt.0.0) exppatarray = exppatarray + 255.0
 
     case(6)  ! "OxfordHDF"
 ! read a hyperslab section from the HDF5 input file; note that these patterns may be 
@@ -907,7 +907,7 @@ select case (self%itype)
             do jj=1,dims3(2)
                 do ii=1,dims3(1)
                    z = float(EBSDpatint(ii,jj,kk))
-                   if (z.lt.0.0) z = z+2.0**16
+                   if (z.lt.0.0) z = z+65535.0 ! 2.0**16
                    exppatarray((kk-kkstart)*patsz+(jj-1)*dims3(1)+ii) = z
                 end do
             end do
@@ -921,7 +921,7 @@ select case (self%itype)
             do jj=1,dims3(2)
                 do ii=1,dims3(1)
                    z = float(EBSDpatint(ii,jj,kk))
-                   if (z.lt.0.0) z = z+2.0**16
+                   if (z.lt.0.0) z = z+65535.0 ! 2.0**16
                    exppatarray((kk-kkstart)*patsz+(jj-1)*dims3(1)+ii) = z
                 end do
             end do
@@ -1127,11 +1127,13 @@ select case (self%itype)
         end do
         deallocate(pairs)
 
+write (*,*) 'mod_vendors : ', minval(exppat), maxval(exppat)
+
 ! finally, correct for the fact that the original values were unsigned integers
-        if (itype.eq.3) then
-          where(exppat.lt.0.0) exppat = exppat + 65536.0
+        if (self%itype.eq.3) then
+          where(exppat.lt.0.0) exppat = exppat + 65535.0
         else
-          where(exppat.lt.0.0) exppat = exppat + 256.0
+          where(exppat.lt.0.0) exppat = exppat + 255.0
         end if
 
     case(5)  ! "OxfordBinary" ! [added/tested MDG 07/13/19]
@@ -1176,7 +1178,7 @@ select case (self%itype)
       deallocate(pairs)
 
 ! finally, correct for the fact that the original values were unsigned integers
-      where(exppat.lt.0.0) exppat = exppat + 256.0
+      where(exppat.lt.0.0) exppat = exppat + 255.0
 
     case(6)  ! "OxfordHDF"
 ! read a hyperslab section from the HDF5 input file; note that these patterns may be 
