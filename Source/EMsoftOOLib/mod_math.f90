@@ -80,6 +80,11 @@ interface vecnorm
         module procedure vecnorm2_d
 end interface
 
+interface TransSecondRankTensor
+        module procedure TransSecondRankTensorDouble
+        module procedure TransSecondRankTensorSingle
+end interface 
+
 contains
 
 !--------------------------------------------------------------------------
@@ -2391,7 +2396,66 @@ recursive subroutine r8vec_uniform_01 ( n, seed, r )
   return
 end
 
+!--------------------------------------------------------------------------
+recursive function TransSecondRankTensorSingle(tin,al,al2) result(tout)
+!DEC$ ATTRIBUTES DLLEXPORT :: TransSecondRankTensorSingle
+  !! author: MDG
+  !! version: 1.0
+  !! date: 11/30/24
+  !!
+  !! tranforms a second rank tensor between reference frames
+  !! an optional second transformation matrix can be specified; this will
+  !! be applied after the first one
 
+IMPLICIT NONE
+
+real(kind=sgl),INTENT(IN)               :: tin(3,3)
+real(kind=dbl),INTENT(IN)               :: al(3,3)
+real(kind=dbl),INTENT(IN),OPTIONAL      :: al2(3,3)
+real(kind=sgl)                          :: tout(3,3)
+
+real(kind=dbl)                          :: alpha(3,3)
+
+if (present(al2)) then 
+  alpha = matmul(al,al2)
+else
+  alpha = al
+end if
+
+tout = matmul(alpha,matmul(tin,transpose(alpha)))
+
+end function TransSecondRankTensorSingle
+
+!--------------------------------------------------------------------------
+recursive function TransSecondRankTensorDouble(tin,al,al2) result(tout)
+!DEC$ ATTRIBUTES DLLEXPORT :: TransSecondRankTensorDouble
+  !! author: MDG
+  !! version: 1.0
+  !! date: 11/30/24
+  !!
+  !! tranforms a second rank tensor between reference frames
+  !! an optional second transformation matrix can be specified; this will
+  !! be applied after the first one
+
+IMPLICIT NONE
+
+real(kind=dbl),INTENT(IN)               :: tin(3,3)
+real(kind=dbl),INTENT(IN)               :: al(3,3)
+real(kind=dbl),INTENT(IN),OPTIONAL      :: al2(3,3)
+real(kind=dbl)                          :: tout(3,3)
+
+real(kind=dbl)                          :: alpha(3,3)
+integer(kind=irg)                       :: i
+
+if (present(al2)) then 
+  alpha = matmul(al,al2)
+else
+  alpha = al
+end if
+
+tout = matmul( alpha, matmul( tin, transpose(alpha) ) )
+
+end function TransSecondRankTensorDouble
 
 !--------------------------------------------------------------------------
 !

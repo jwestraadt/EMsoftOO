@@ -404,7 +404,7 @@ prepexperimentalloop: do iii = iiistart,iiiend
         ffdata = applyHiPassFilter(rrdata, (/ binx, biny /), w, hpmask, inp, outp, HPplanf, HPplanb)
         Pat = sngl(ffdata)
 
-! adaptive histogram equalization
+        ! adaptive histogram equalization
         ma = maxval(Pat)
         mi = minval(Pat)
 

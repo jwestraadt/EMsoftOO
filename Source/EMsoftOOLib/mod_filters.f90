@@ -989,7 +989,8 @@ type(C_PTR),INTENT(INOUT)               :: planf, planb
 !f2py intent(in,out) ::  planf, planb
 
 integer(kind=irg)                       :: i, j
-real(kind=dbl)                          :: x, y, val, v2
+real(kind=dbl)                          :: x, y, v2
+complex(kind=dbl)                       :: z
 
 hpmask = cmplx(1.D0,0.D0)
 
@@ -1000,14 +1001,23 @@ do i=1,dims(1)/2
     y = dble(j)**2
     v2 = w * ( x+y )
     if (v2.lt.30.D0) then
-      val = 1.D0-dexp(-v2)
-      hpmask(i,j) = cmplx(val, 0.D0)
-      hpmask(dims(1)+1-i,j) = cmplx(val, 0.D0)
-      hpmask(i,dims(2)+1-j) = cmplx(val, 0.D0)
-      hpmask(dims(1)+1-i,dims(2)+1-j) = cmplx(val, 0.D0)
+      z = cmplx(1.D0-dexp(-v2), 0.D0)
+      hpmask(i,j) = z
+      hpmask(dims(1)+1-i,j) = z
+      hpmask(i,dims(2)+1-j) = z
+      hpmask(dims(1)+1-i,dims(2)+1-j) = z
     end if
   end do
 end do
+
+! test code
+! write (*,*) ' range hpmask%re : ', minval(hpmask%re), maxval(hpmask%re)
+! write (*,*) ' range hpmask%im : ', minval(hpmask%im), maxval(hpmask%im)
+
+! open(unit=20,file='hpmask.data',status='unknown',form='unformatted')
+! write (20) sngl(hpmask%re)
+! write (20) sngl(hpmask%im)
+! close(unit=20,status='keep')
 
 ! then we set up the fftw plans for forward and reverse transforms
 planf = fftw_plan_dft_2d(dims(2),dims(1),inp,outp, FFTW_FORWARD, FFTW_ESTIMATE)

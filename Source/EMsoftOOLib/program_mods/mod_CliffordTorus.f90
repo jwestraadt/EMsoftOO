@@ -1601,14 +1601,28 @@ SO = so3_T( self%nml%pgnum, zerolist='FZ' )
 ! read all the orientations from the anglefile
 oname = EMsoft%generateFilePath('EMdatapathname',self%nml%anglefile)
 call Message%printMessage(' Reading orientations from file '//trim(oname))
-call SO%getOrientationsfromFile( oname, listN=10 )
+call SO%getOrientationsfromFile( oname, listN=10)
 
 ! are we using weighted orientations ?  This could happen with .wxt files that are derived
 ! from programs like POPLA that extract orientations from an ODF based on pole figures
 ! or if we are reading in .ang or .ctf files; otherwise the weights are all set to 1.0
+! This can also happen when we read in disorientations where the weight factor is the segment
+! length
 weights = SO%getuseweights()
 
 ! we have the list, so what do we need to do with it before computing the Clifford Torus representation ?
+
+! do we need to reduce to the RFZ ? 
+if (self%nml%reducetoRFZ.eq.1) then 
+! get the symmetry operator quaternions for the point group
+  call dummy%QSym_Init(self%nml%pgnum, Pm)
+  num = Pm%getQnumber()
+  io_int(1) = num
+  call Message%WriteValue(' Number of symmetry operators ', io_int, 1)
+! note that the following step does not propagate any orientation weights... that would require a 
+! major rewrite of a lot of the code in mod_so3.f90 ...
+  call SO%ReducelisttoRFZ(Pm)
+end if
 
 ! do we need to generate the -q orientations as well ?
 ! it is up to the user to make sure that they are not already in the input file !!!
@@ -1639,58 +1653,47 @@ if (self%nml%shownegativeq0.eq.1) then
     call Message%WriteValue(' FZcnt after adding -q quaternions = ', io_int, 1)
 end if
 
-! do we need to reduce to the RFZ ? 
-if (self%nml%reducetoRFZ.eq.1) then 
+
+! do we need to generate all the equivalent orientations instead ?
+if (self%nml%symmetrize.eq.1) then 
+  call Message%printMessage(' applying crystal symmetry to the orientation set')
+
+! get a pointer to the end of the current linked list
+  FZhead => SO%getListHead('FZ')
+  FZtail => SO%getListHead('FZ')
+  FZcnt = SO%getListCount('FZ')
+  oldFZcnt = FZcnt
+  do i=1,FZcnt
+    FZtail => FZtail%next
+  end do
+
 ! get the symmetry operator quaternions for the point group
   call dummy%QSym_Init(self%nml%pgnum, Pm)
   num = Pm%getQnumber()
   io_int(1) = num
   call Message%WriteValue(' Number of symmetry operators ', io_int, 1)
-! note that the following step does not propagate any orientation weights... that would require a 
-! major rewrite of a lot of the code in mod_so3.f90 ...
-  call SO%ReducelisttoRFZ(Pm)
-else
-! do we need to generate all the equivalent orientations instead ?
-  if (self%nml%symmetrize.eq.1) then 
-    call Message%printMessage(' applying crystal symmetry to the orientation set')
 
-  ! get a pointer to the end of the current linked list
-    FZhead => SO%getListHead('FZ')
-    FZtail => SO%getListHead('FZ')
-    FZcnt = SO%getListCount('FZ')
-    oldFZcnt = FZcnt
-    do i=1,FZcnt
+! loop over all current orientations and generate the equivalent ones
+! keep in mind that the identity operator is always the first one in the list so we skip it
+  do k=2,num 
+    FZtmp => FZhead
+    qm = Pm%getQuatfromArray(k)
+    do i=1,oldFZcnt
+      xx = FZtmp%qu%q_copyd() 
+      qus = qm * Quaternion_T( qd = xx )
+      qq = q_T( qdinp = qus%get_quatd() )
+      allocate(FZtail%next)
+      FZtail%qu = qq
+      FZtail%weight = FZtmp%weight
       FZtail => FZtail%next
+      nullify(FZtail%next)       
+      FZtmp => FZtmp%next
     end do
-
-  ! get the symmetry operator quaternions for the point group
-    call dummy%QSym_Init(self%nml%pgnum, Pm)
-    num = Pm%getQnumber()
-    io_int(1) = num
-    call Message%WriteValue(' Number of symmetry operators ', io_int, 1)
-
-  ! loop over all current orientations and generate the equivalent ones
-  ! keep in mind that the identity operator is always the first one in the list so we skip it
-    do k=2,num 
-      FZtmp => FZhead
-      qm = Pm%getQuatfromArray(k)
-      do i=1,oldFZcnt
-        xx = FZtmp%qu%q_copyd() 
-        qus = qm * Quaternion_T( qd = xx )
-        qq = q_T( qdinp = qus%get_quatd() )
-        allocate(FZtail%next)
-        FZtail%qu = qq
-        FZtail%weight = FZtmp%weight
-        FZtail => FZtail%next
-        nullify(FZtail%next)       
-        FZtmp => FZtmp%next
-      end do
-    end do
-    FZcnt = num*FZcnt 
-    call SO%setFZcnt(FZcnt, 'FZ')
-    io_int(1) = FZcnt
-    call Message%WriteValue(' FZcnt after symmetrization = ', io_int, 1)
-  end if 
+  end do
+  FZcnt = num*FZcnt 
+  call SO%setFZcnt(FZcnt, 'FZ')
+  io_int(1) = FZcnt
+  call Message%WriteValue(' FZcnt after symmetrization = ', io_int, 1)
 end if 
 
 ! generate the output images using the Clifford Torus sprojection

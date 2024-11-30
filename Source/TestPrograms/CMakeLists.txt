@@ -12,6 +12,7 @@ if((EMsoftOO_ENABLE_HDF5_SUPPORT) AND (EMsoftOO_ENABLE_OpenCL_SUPPORT))
           clfortran
           EMsoftOOLib 
           EMOpenCLLib
+          ${BSPLINEFORTRAN_DIR}/libbspline-fortran.a
           ${EMSOFTOO_hdf5LinkLibs}
   )
 
@@ -49,10 +50,10 @@ if(EMsoftOO_ENABLE_HDF5_SUPPORT)
 
       Add_EMSoftOO_Executable(TARGET play
                                    SOURCES ${APP_DIR}/play.f90
-                                   LINK_LIBRARIES EMsoftOOLib ${EMSOFTOO_hdf5LinkLibs}
+                                   LINK_LIBRARIES ${EXE_LINK_LIBRARIES} 
                                    SOLUTION_FOLDER EMsoftOOPublic/TestPrograms
                                    INSTALL_PROGRAM TRUE
-                                   INCLUDE_DIRS ${EMsoftOOLib_BINARY_DIR}
+                                   INCLUDE_DIRS ${EMsoftOOLib_BINARY_DIR} ${BSPLINEFORTRAN_DIR}
                                    )
 
       Add_EMSoftOO_Executable(TARGET colortest

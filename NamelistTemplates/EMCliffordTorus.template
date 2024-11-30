@@ -5,7 +5,7 @@
 !#17:  '-3', #18:   '32', #19:    '3m', #20: '-3m', #21:   '6', #22:   '-6', #23:   '6/m', #24:  '622'
 !#25: '6mm', #26: '-6m2', #27: '6/mmm', #28:  '23', #29:  'm3', #30:  '432', #31:  '-43m', #32: 'm-3m'
  pgnum = 32,
-! the angle file, case 1: a simple text file with the following format
+! the angle file, case 1: a simple text file (*.txt or *.wxt) with the following format
 ! ##      ! two characters denoting the representation (eu, ro, ho, cu, ax, qu)
 ! n       ! number of entries in file
 ! ...     ! one line per entry, components separated by spaces

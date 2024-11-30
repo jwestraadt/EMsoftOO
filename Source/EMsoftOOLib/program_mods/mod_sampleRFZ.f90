@@ -495,7 +495,7 @@ if (trim(rfznl%samplemode).eq.'vMF') then
   call mu%quat_print()
   qAR = DS%SampleDS( rfznl%norientations, rfznl%seed, mu, kappa )
   call SO%setFZcnt( rfznl%norientations, 'FZ' )
-  call SO%QuaternionArraytonewlist( qAR, 'FZ')
+  call SO%QuaternionArraytonewlist( qAR, 'FZ', rfznl%SO3cover )
   io_int(1) = rfznl%norientations
   call Message%WriteValue('Number of von Mises-Fisher orientations requested = ',io_int,1,"(I10)")
   listmode = 'FZ'
@@ -511,7 +511,7 @@ if (trim(rfznl%samplemode).eq.'WAT') then
   call Message%WriteValue(' kappa, mu ', io_dble, 1)
   call mu%quat_print()
   qAR = DS%SampleDS( rfznl%norientations, rfznl%seed, mu, kappa )
-  call SO%QuaternionArraytonewlist( qAR, 'FZ')
+  call SO%QuaternionArraytonewlist( qAR, 'FZ', rfznl%SO3cover )
   io_int(1) = rfznl%norientations
   call Message%WriteValue(' Number of Watson orientations requested = ',io_int,1,"(I10)")
   listmode = 'FZ'

@@ -375,6 +375,7 @@ subroutine init(self)
   call self % getResourcepathname()
   call self % getTemplatepathname()
   call self % getTemplatecodefilename()
+  call self % getEMdevelop()
 
 ! from here on the order does not matter
   call self % getXtalpathname()
@@ -386,7 +387,6 @@ subroutine init(self)
   call self % getUserlocation()
   call self % getUseremail()
   call self % getNotify()
-  call self % getEMdevelop()
   call self % getRelease()
   call self % geth5copypath()
   call self % getEMsofttestpath()
@@ -1698,7 +1698,7 @@ character(fnlen)                        :: nmldefault
 
  call Message % printMessage('<EMsoftHeader>',frm="(/A/)")
  call Message % printMessage('Copyright (C) 2001-2024 Marc De Graef Research Group/CMU',frm="(A)")
- call Message % printMessage('EMsoft comes with ABSOLUTELY NO WARRANTY.')
+ call Message % printMessage('EMsoftOO comes with ABSOLUTELY NO WARRANTY.')
  call Message % printMessage('This is free software, and you are welcome to redistribute it')
  call Message % printMessage('under certain conditions; see License.txt file for details.',frm="(A/)")
 

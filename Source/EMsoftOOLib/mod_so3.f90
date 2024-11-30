@@ -2678,7 +2678,7 @@ end do
 end subroutine QuaternionArraytolist_
 
 !--------------------------------------------------------------------------
-recursive subroutine QuaternionArraytonewlist_(self, qAR, l)
+recursive subroutine QuaternionArraytonewlist_(self, qAR, l, SO3cover)
 !DEC$ ATTRIBUTES DLLEXPORT :: QuaternionArraytonewlist_
   !! author: MDG
   !! version: 1.0
@@ -2695,13 +2695,20 @@ IMPLICIT NONE
 class(so3_T),INTENT(INOUT)              :: self
 type(QuaternionArray_T), INTENT(INOUT)  :: qAR
 character(2), INTENT(IN), OPTIONAL      :: l
+character(6), INTENT(IN), OPTIONAL      :: SO3cover
 
 type(IO_T)                              :: Message
 type(FZpointd), pointer                 :: FZtmp
 integer(kind=irg)                       :: i, cnt, N
 type(Quaternion_T)                      :: qu
 type(q_T)                               :: qq
+logical                                 :: qpos 
 
+! do we need to convert quaternions to a positive scalar part ?
+qpos = .FALSE.
+if (present(SO3cover)) then 
+  if (SO3cover.eq.'double') qpos = .TRUE. 
+end if 
 
 N = qAR%getQnumber()
 
@@ -2793,6 +2800,9 @@ end if
 
 do i=1,N
   qu = qAR%getQuatfromArray(i)
+  if (qpos.eqv..TRUE.) then 
+    call qu%quat_pos()
+  end if 
   qq = q_T( qdinp = qu%get_quatd() )
   FZtmp%rod = qq%qr()
   FZtmp%qu = qq

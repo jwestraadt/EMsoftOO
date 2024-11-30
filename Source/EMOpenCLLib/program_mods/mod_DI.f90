@@ -297,8 +297,6 @@ HDF = HDF_T()
 ! we've already shown the standard splash screen, so we do this one silently
 EMsoft = EMsoft_T( progname, progdesc, tpl = (/ 80 /), silent=.TRUE.)
 
-
-
 ! link the proc procedure to the cproc argument
 Clinked = .FALSE.
 cancelled = .FALSE.
@@ -987,6 +985,7 @@ if (trim(dinl%maskfile).ne.'undefined') then
     else
       fname = trim(dinl%maskfile)
     end if
+    call Message%printMessage(' DIdriver: Reading custom mask file '//trim(fname))
     inquire(file=trim(fname), exist=f_exists)
     if (f_exists.eqv..TRUE.) then
       mask = 0.0
@@ -1403,6 +1402,7 @@ dictionaryloop: do ii = 1,cratio+1
     call memth%dealloc(dicttranspose, 'dicttranspose', TID=0)
 
 !$OMP SECTION
+    TID = OMP_GET_THREAD_NUM()
 ! allocate the local arrays that are used by each thread
     call memth%alloc(patterninteger, (/ binx,biny /), 'patterninteger', TID=TID, initval = 0)
     call memth%alloc(patternad, (/ binx,biny /), 'patternad', TID=TID, initval = 0) 

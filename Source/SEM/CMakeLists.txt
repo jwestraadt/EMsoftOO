@@ -52,23 +52,23 @@ if(EMsoftOO_ENABLE_HDF5_SUPPORT)
   GetHDF5LinkLibraries(EMSOFTOO)
   set(EXE_LINK_LIBRARIES ${EXE_LINK_LIBRARIES} ${EMSOFTOO_hdf5LinkLibs} )
 
-  Add_EMsoftOO_Executable(TARGET EMHREBSD
-                        SOURCES ${APP_DIR}/EMHREBSD.f90
-                        LINK_LIBRARIES ${EXE_LINK_LIBRARIES} ${NLOPT_LIBRARIES}
-                        TEMPLATE ${TMPLT_DIR}/EMHREBSD.template
-                        SOLUTION_FOLDER EMsoftOOPublic/SEM
-                        INSTALL_PROGRAM TRUE
-                        INCLUDE_DIRS ${NLOPT_INCLUDE_DIRS} ${EMsoftOOLib_BINARY_DIR}
-                        )
+  # Add_EMsoftOO_Executable(TARGET EMHREBSD
+  #                       SOURCES ${APP_DIR}/EMHREBSD.f90
+  #                       LINK_LIBRARIES ${EXE_LINK_LIBRARIES} ${NLOPT_LIBRARIES}
+  #                       TEMPLATE ${TMPLT_DIR}/EMHREBSD.template
+  #                       SOLUTION_FOLDER EMsoftOOPublic/SEM
+  #                       INSTALL_PROGRAM TRUE
+  #                       INCLUDE_DIRS ${NLOPT_INCLUDE_DIRS} ${EMsoftOOLib_BINARY_DIR}
+  #                       )
 
-  Add_EMsoftOO_Executable(TARGET EMHREBSDpreview
-                        SOURCES ${APP_DIR}/EMHREBSDpreview.f90
-                        LINK_LIBRARIES ${EXE_LINK_LIBRARIES} ${NLOPT_LIBRARIES}
-                        TEMPLATE ${TMPLT_DIR}/EMHREBSDpreview.template
-                        SOLUTION_FOLDER EMsoftOOPublic/SEM
-                        INSTALL_PROGRAM TRUE
-                        INCLUDE_DIRS ${EMsoftOOLib_BINARY_DIR}
-                        )
+  # Add_EMsoftOO_Executable(TARGET EMHREBSDpreview
+  #                       SOURCES ${APP_DIR}/EMHREBSDpreview.f90
+  #                       LINK_LIBRARIES ${EXE_LINK_LIBRARIES} ${NLOPT_LIBRARIES}
+  #                       TEMPLATE ${TMPLT_DIR}/EMHREBSDpreview.template
+  #                       SOLUTION_FOLDER EMsoftOOPublic/SEM
+  #                       INSTALL_PROGRAM TRUE
+  #                       INCLUDE_DIRS ${EMsoftOOLib_BINARY_DIR}
+  #                       )
 
   Add_EMsoftOO_Executable(TARGET EMEBSDmaster
                         SOURCES ${APP_DIR}/EMEBSDmaster.f90
