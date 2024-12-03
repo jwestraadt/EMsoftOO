@@ -480,6 +480,49 @@ integer(kind=irg)                       :: i, j
 end subroutine mInvert
 
 !--------------------------------------------------------------------------
+recursive function matrixInvert_wp(a) result(b)
+!DEC$ ATTRIBUTES DLLEXPORT :: matrixInvert_wp
+  !! author: MDG
+  !! version: 1.0
+  !! date: 12/01/24
+  !!
+  !! Invert a double precision 3x3 matrix in the "wp" kind used by bspline-fortran module;
+  !! this is only used in code that uses the bsplines.
+
+use bspline_kinds_module, only: wp
+use mod_io
+
+real(wp), INTENT(IN)    :: a(3,3)
+real(wp)                :: b(3,3)
+
+type(IO_T)              :: Message
+real(wp)                :: d 
+
+d = a(1,1)*a(2,2)*a(3,3)+a(1,2)*a(2,3)*a(3,1)+ &
+     a(1,3)*a(2,1)*a(3,2)-a(1,3)*a(2,2)*a(3,1)- &
+     a(1,2)*a(2,1)*a(3,3)-a(1,1)*a(2,3)*a(3,2)
+if (d.ne.0.D0) then
+    b(1,1)=a(2,2)*a(3,3)-a(2,3)*a(3,2)
+    b(1,2)=a(1,3)*a(3,2)-a(1,2)*a(3,3)
+    b(1,3)=a(1,2)*a(2,3)-a(1,3)*a(2,2)
+    b(2,1)=a(2,3)*a(3,1)-a(2,1)*a(3,3)
+    b(2,2)=a(1,1)*a(3,3)-a(1,3)*a(3,1)
+    b(2,3)=a(1,3)*a(2,1)-a(1,1)*a(2,3)
+    b(3,1)=a(2,1)*a(3,2)-a(2,2)*a(3,1)
+    b(3,2)=a(1,2)*a(3,1)-a(1,1)*a(3,2)
+    b(3,3)=a(1,1)*a(2,2)-a(1,2)*a(2,1)
+    b = b/d
+else
+    do i=1,3
+      write (*,*) (a(i,j),j=1,3)
+    end do
+    call Message%printMessage('matrixInvert_wp: matrix has zero determinant')
+    b = a
+end if
+
+end function matrixInvert_wp
+
+!--------------------------------------------------------------------------
 !
 ! SUBROUTINE:cInvert
 !

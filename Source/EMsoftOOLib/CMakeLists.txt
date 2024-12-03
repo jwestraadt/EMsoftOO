@@ -108,6 +108,8 @@ set(EMsoftOOLib_SRCS
   ${EMsoftOOLib_SOURCE_DIR}/mod_Detector.f90
   ${EMsoftOOLib_SOURCE_DIR}/mod_SphereIndexer.f90
   ${EMsoftOOLib_SOURCE_DIR}/mod_SphInxSupport.f90
+  ${EMsoftOOLib_SOURCE_DIR}/mod_DIC.f90
+
   # ${EMsoftOOLib_SOURCE_DIR}/mod_shapes.f90
 
   ${EMsoftOOLib_SOURCE_DIR}/program_mods/mod_sampleRFZ.f90
@@ -266,6 +268,7 @@ target_link_libraries(EMsoftOOLib
                 # EMsoftOOLib_Cpp
                 ${EMSOFTOO_hdf5LinkLibs}
                 jsonfortran
+                ${BSPLINEFORTRAN_DIR}/libbspline-fortran.a
                 bcls::bcls
 )
 
@@ -290,6 +293,7 @@ target_include_directories(EMsoftOOLib
                             ${FFTW3_INCLUDE_DIR}
                             ${HDF5_INCLUDE_DIR}
                             ${HDF5_INCLUDE_DIR_FORTRAN}
+                            ${BSPLINEFORTRAN_DIR}
                           PRIVATE
                             "${EMsoftOO_SOURCE_DIR}/Source"
                           )
