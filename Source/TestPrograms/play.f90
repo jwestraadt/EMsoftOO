@@ -31,7 +31,7 @@ program EMplay
   !! version: 1.0 
   !! date: 02/26/24
   !!
-  !! test program to look at triple junctions and fundamental zones
+  !! test program 
 
 use mod_kinds
 use mod_global
@@ -62,10 +62,12 @@ type(o_T)                    :: om
 type(e_T)                    :: eu 
 
 real(kind=wp), allocatable   :: refpat(:,:), defpat(:,:)
+real(kind=sgl),allocatable   :: tmppat(:,:)
 real(kind=wp)                :: DD, PCx, PCy, val, err, errmax, rnxi, rnyi, hg(8), W(3,3), gradCIC(8), Hessian(8,8), &
-                                minx, miny, xi1max, xi2max, normdp, oldnorm, oldW(3,3), horiginal(8), CIC, sol(8)
+                                minx, miny, xi1max, xi2max, normdp, oldnorm, oldW(3,3), horiginal(8), CIC, sol(8), &
+                                homographies(8,1000)
 real(kind=dbl)               :: Wnew(3,3), Winv(3,3), dx, dy, p2(3), Woriginal(3,3), alp, srt(3,3), srtrot(3,3)
-integer(kind=irg)            :: nx, ny, nxy, nbx, nby, i, ii, j, NSR, cnt, nxSR, nySR  
+integer(kind=irg)            :: nx, ny, nxy, nbx, nby, i, ii, j, NSR, cnt, nxSR, nySR, jj  
 real(wp)                     :: tol
 
 
@@ -88,8 +90,8 @@ DIC = DIC_T( nx, ny )
 nxy = nx * ny
 
 allocate(refpat(0:nx-1,0:ny-1), defpat(0:nx-1,0:ny-1))
-open(20,file='/Users/mdg/playarea/DIC/refpat.data',status='old',form='unformatted')
-! open(20,file='/Users/mdg/Files/EMPlay/playarea/DIC/refpat.data',status='old',form='unformatted')
+! open(20,file='/Users/mdg/playarea/DIC/refpat.data',status='old',form='unformatted')
+open(20,file='/Users/mdg/Files/EMPlay/playarea/DIC/refpat.data',status='old',form='unformatted')
 read(20) refpat
 close(20,status='keep')
 
@@ -109,10 +111,29 @@ call DIC%defineSR( nbx, nby, 0.5_wp, 0.5_wp)
 
 call DIC%getbsplines(refp=.TRUE., verify=.TRUE.)
 
+! read 1000 random homographies from a file and run the fitting, then 
+! write result to another file for comparison with an IDL routine.
+open(unit=dataunit,file='/Volumes/Drive2/playarea/DIC/test/homographies.data',status='unknown',form='unformatted')
+read(dataunit) homographies
+close(dataunit,status='keep')
+
+open(unit=dataunit,file='/Volumes/Drive2/playarea/DIC/test/homography-fits2.data',status='unknown',form='unformatted')
+
+do jj=1,1000
 ! here we deform the reference pattern to obtain a defpat array with known homography
 ! define the homography hg
-horiginal = (/ 0.0002_wp, 0.0001_wp, -0.0004_wp, -0.0001_wp, -0.0003_wp, 0.0005_wp, 0.0_wp, 0.0_wp /)
+horiginal = homographies(1:8,jj) ! (/ 0.002_wp, 0.001_wp, -0.004_wp, -0.001_wp, -0.003_wp, 0.005_wp, 0.0_wp, 0.0_wp /)
 call DIC%applyHomography(horiginal, 0.5_wp, 0.5_wp)
+
+! store both patterns in a binary file 
+! allocate( tmppat( nx, ny ) )
+! open(unit=dataunit,file='patterns.data',status='unknown',form='unformatted')
+! tmppat = DIC%getpattern('r', nx, ny)
+! write(dataunit) tmppat
+! tmppat = DIC%getpattern('d', nx, ny)
+! write(dataunit) tmppat
+! close(dataunit,status='keep')
+! deallocate(tmppat)
 
 Woriginal = DIC%getShapeFunction(horiginal)
 
@@ -155,12 +176,12 @@ do ii=1,100
     Wnew = DIC%getShapeFunction(reshape(SOL, (/8/)))
     Winv = matrixInvert_wp( Wnew )
     W = matmul( W, Winv )
-    W = W / W(3,3)
+ !  W = W / W(3,3)
     hg = DIC%getHomography(W)
     write (*,*) hg
     write (*,*) ' norm(deltap) = ', normdp
     write (*,*) '------------'
-    if (normdp.lt.oldnorm) then
+    if (normdp.lt.1.1*oldnorm) then
         oldnorm = normdp
         oldW = W 
     else
@@ -170,7 +191,7 @@ do ii=1,100
 end do 
 
 W = matrixInvert_wp( W )
-W = W / W(3,3)
+!W = W / W(3,3)
 hg = DIC%getHomography(W)
 write (*,*) '' 
 write (*,*) ' Final homography : '
@@ -178,8 +199,17 @@ write (*,*) DIC%getHomography(W)
 write (*,*) '' 
 write (*,*) ' Target homography : '
 write (*,*) horiginal
-
-write (*,*) ' differences : '
+write (*,*) '' 
+write (*,*) ' Differences : '
 write (*,*) horiginal-hg
+
+! write results to data file (single precision because IDL has a bug for double precision)
+write (dataunit) real(hg) 
+write (dataunit) real(normdp)
+write (dataunit) ii
+
+end do ! loop over jj 
+
+close(dataunit,status='keep')
 
 end program EMplay

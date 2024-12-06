@@ -164,7 +164,7 @@ set(EMsoftOOLib_SRCS
   ${EMsoftOOLib_SOURCE_DIR}/program_mods/mod_ISEDI.f90
   ${EMsoftOOLib_SOURCE_DIR}/program_mods/mod_EBSDPCA.f90
   ${EMsoftOOLib_SOURCE_DIR}/program_mods/mod_EBSDdefect.f90
-#  ${EMsoftOOLib_SOURCE_DIR}/program_mods/mod_HREBSD.f90
+  ${EMsoftOOLib_SOURCE_DIR}/program_mods/mod_HREBSDDIC.f90
   ${EMsoftOOLib_SOURCE_DIR}/program_mods/mod_CBED.f90
   ${EMsoftOOLib_SOURCE_DIR}/program_mods/mod_SRdefect.f90 
   ${EMsoftOOLib_SOURCE_DIR}/program_mods/mod_SRCBED.f90 
@@ -175,6 +175,7 @@ set(EMsoftOOLib_SRCS
   ${EMsoftOOLib_SOURCE_DIR}/program_mods/mod_BWshow.f90 
   ${EMsoftOOLib_SOURCE_DIR}/program_mods/mod_SphInx.f90
   ${EMsoftOOLib_SOURCE_DIR}/program_mods/mod_4DEBSD.f90
+  ${EMsoftOOLib_SOURCE_DIR}/program_mods/mod_ppEBSD.f90 
 
   ${EMsoftOOLib_Additional_SRCS}
 )

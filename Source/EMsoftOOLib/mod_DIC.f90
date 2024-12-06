@@ -44,9 +44,9 @@ IMPLICIT NONE
 
 type, public :: DIC_T
   private
-    real(wp)                        :: W(3,3)
-    real(wp)                        :: h(8)
-    real(wp)                        :: CIC
+    real(wp)                        :: W(3,3)     ! shape function
+    real(wp)                        :: h(8)       ! homography
+    real(wp)                        :: CIC        ! current value of function to be minimized
     integer(ip)                     :: kx = 5     ! spline order
     integer(ip)                     :: ky = 5     ! spline order
     integer(kind=irg)               :: nx         ! pattern x-size
@@ -58,12 +58,12 @@ type, public :: DIC_T
     integer(kind=irg)               :: nSR        ! sub-region total size
     integer(kind=irg)               :: nbx        ! sub-region border x-width
     integer(kind=irg)               :: nby        ! sub-region border y-width
-    type(bspline_2d)                :: sref
-    type(bspline_2d)                :: sdef
-    real(wp)                        :: tol = 100.0_wp * epsilon(1.0_wp)
+    type(bspline_2d)                :: sref       ! b-spline class for reference pattern
+    type(bspline_2d)                :: sdef       ! b-spline class for deformed pattern
+    real(wp)                        :: tol = 100.0_wp * epsilon(1.0_wp) ! tolerance
     logical                         :: verbose = .FALSE.   ! useful for debugging
 
-  ! the arrays that are tied to a given reference/target pattern are defined here
+! the arrays that are tied to a given reference/target pattern are defined here
     real(wp),allocatable            :: x(:)
     real(wp),allocatable            :: y(:)
     real(wp),allocatable            :: xiX(:)
@@ -105,6 +105,7 @@ type, public :: DIC_T
     procedure, pass(self) :: getresiduals_
     procedure, pass(self) :: setverbose_
     procedure, pass(self) :: setpattern_
+    procedure, pass(self) :: getpattern_
 
     final :: DIC_destructor
 
@@ -121,6 +122,7 @@ type, public :: DIC_T
     generic, public :: getresiduals => getresiduals_
     generic, public :: setverbose => setverbose_
     generic, public :: setpattern => setpattern_
+    generic, public :: getpattern => getpattern_
 
 end type DIC_T
 
@@ -184,6 +186,25 @@ type(DIC_T), INTENT(INOUT)      :: self
 call self%sref%destroy()
 call self%sdef%destroy()
 
+if (allocated(self%x)) deallocate(self%x)
+if (allocated(self%y)) deallocate(self%y)
+if (allocated(self%xiX)) deallocate(self%xiX)
+if (allocated(self%xiY)) deallocate(self%xiY)
+if (allocated(self%XiPrime)) deallocate(self%XiPrime)
+if (allocated(self%refpat)) deallocate(self%refpat)
+if (allocated(self%defpat)) deallocate(self%defpat)
+if (allocated(self%wtarget)) deallocate(self%wtarget)
+if (allocated(self%gradx)) deallocate(self%gradx)
+if (allocated(self%grady)) deallocate(self%grady)
+if (allocated(self%gxSR)) deallocate(self%gxSR)
+if (allocated(self%gySR)) deallocate(self%gySR)
+if (allocated(self%GradJac)) deallocate(self%GradJac)
+if (allocated(self%referenceSR)) deallocate(self%referenceSR)
+if (allocated(self%targetSR)) deallocate(self%targetSR)
+if (allocated(self%refzmn)) deallocate(self%refzmn)
+if (allocated(self%tarzmn)) deallocate(self%tarzmn)
+if (allocated(self%residuals)) deallocate(self%residuals)
+
 call reportDestructor('DIC_T')
 
 end subroutine DIC_destructor
@@ -242,12 +263,41 @@ if (rp.eq.'r') then
   self%refpat = pattern 
 end if
 
-if (rp.eq.'p') then 
+if (rp.eq.'d') then 
   allocate( self%defpat(0:sz(1)-1,0:sz(2)-1) )
   self%defpat = pattern 
 end if
 
 end subroutine setpattern_
+
+!--------------------------------------------------------------------------
+recursive function getpattern_(self, rp, nx, ny) result(pattern)
+!DEC$ ATTRIBUTES DLLEXPORT :: getpattern_
+ !! author: MDG
+ !! version: 1.0
+ !! date: 12/01/24
+ !!
+ !! get the reference or target pattern
+
+use mod_IO 
+
+IMPLICIT NONE
+
+class(DIC_T),INTENT(INOUT)      :: self
+character(1),INTENT(IN)         :: rp
+integer(kind=irg),INTENT(IN)    :: nx
+integer(kind=irg),INTENT(IN)    :: ny
+real(kind=sgl)                  :: pattern(nx, ny)
+
+if (rp.eq.'r') then 
+  pattern = real(self%refpat)
+end if
+
+if (rp.eq.'d') then 
+  pattern = real(self%defpat)
+end if
+
+end function getpattern_
 
 !--------------------------------------------------------------------------
 recursive subroutine getbsplines_(self, verify, refp, defp, grads)
@@ -300,7 +350,7 @@ if (present(verify)) then
   if (verify.eqv..TRUE.) then 
     do i=0,self%nx-1
        do j=0,self%ny-1
-            ! determine how well the spline coefficients represent the original pattern
+            ! determine how well the spline coefficients represent the original reference pattern
             call self%sref%evaluate(self%x(i),self%y(j),0,0,val,iflag)
             err = abs(self%refpat(i,j)-val)
             errmax = max(err,errmax)
@@ -319,7 +369,9 @@ end if
 
 if (present(grads)) then 
   if (grads.eqv..TRUE.) then 
-    allocate( self%gradx(0:self%nx-1,0:self%ny-1), self%grady(0:self%nx-1,0:self%ny-1) )
+    if (.not.allocated(self%gradx)) then 
+      allocate( self%gradx(0:self%nx-1,0:self%ny-1), self%grady(0:self%nx-1,0:self%ny-1) )
+    end if
     do i=0,self%nx-1
        do j=0,self%ny-1
             ! extract the gradient arrays

@@ -67,8 +67,10 @@ If you do not need the complete EMsoftOO package, you can compile sections of th
 
 ## Licenses ##
 
+The BSD-3 license text below can be found at the start of every source file in the EMsoftOO package.
+
 	!###################################################################
-	! Copyright (c) 2013-2022, Marc De Graef Research Group/Carnegie Mellon University
+	! Copyright (c) 2013-2025, Marc De Graef Research Group/Carnegie Mellon University
 	! All rights reserved.
 	!
 	! Redistribution and use in source and binary forms, with or without modification, are 

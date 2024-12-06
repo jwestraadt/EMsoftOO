@@ -1,5 +1,5 @@
 ! ###################################################################
-! Copyright (c) 2017-2022, Marc De Graef Research Group/Carnegie Mellon University
+! Copyright (c) 2017-2025, Marc De Graef Research Group/Carnegie Mellon University
 ! All rights reserved.
 !
 ! Redistribution and use in source and binary forms, with or without modification, are
@@ -312,6 +312,9 @@ OSM;"OSM"
 OpenCLpathname;"OpenCLpathname"
 Operator;"Operator"
 OrderParameter;"CPLP"
+ppEBSD;"ppEBSD"
+ppEBSDNameList;"ppEBSDNameList"
+ppEBSDNML;"ppEBSDNML"
 PEDZA;"PEDZA"
 PEDZANML;"PEDZANML"
 PEDZANameList;"PEDZANameList"
