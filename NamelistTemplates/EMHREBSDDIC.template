@@ -1,0 +1,38 @@
+ &HREBSDDICdata
+!###################################################################
+! EBSD Pattern Parameters will be read from an EMDI output file
+!###################################################################
+! name of the dot product file (.h5) path relative to EMdatapathname
+ DIfile = 'undefined',
+! output HDF5 file; path relative to EMdatapathname
+ datafile = 'undefined',
+! relative path to the namelist file for EMppEBSD program
+ ppEBSDnml = 'undefined'
+! coordinates of the reference pattern to be used (0-based coordinates)
+ patx = 0,
+ paty = 0,
+! width of the exclusion zone surrounding the sub-region
+ nbx = 0,
+ nby = 0,
+! number of threads (default = 1)
+ nthreads = 1,
+!
+! name of experimental pattern file; path relative to EMdatapathname
+! for this program, this should be a preprocessed data file (EMppEBSD output)
+ patternfile = 'undefined',
+
+!###################################################################
+! Stiffness tensor parameters (unit:GPa)
+!###################################################################
+! type of crystal (cubic: 'cub' or hcp: 'hex')
+crystal= 'cub',
+
+! cubic 
+C11 = 276.0,
+C12 = 159.0,
+C44 = 132.0,
+
+! additional terms for HCP 
+C13 = 0.0
+C33 = 0.0
+ /

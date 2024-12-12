@@ -287,6 +287,15 @@ if(EMsoftOO_ENABLE_HDF5_SUPPORT)
                         INCLUDE_DIRS ${EMsoftOOLib_BINARY_DIR}
                         )
 
+  Add_EMsoftOO_Executable(TARGET EMHREBSDDIC
+                        SOURCES ${APP_DIR}/EMHREBSDDIC.f90
+                        LINK_LIBRARIES ${EXE_LINK_LIBRARIES}
+                        TEMPLATE ${TMPLT_DIR}/EMHREBSDDIC.template
+                        SOLUTION_FOLDER EMsoftOOPublic/SEM
+                        INSTALL_PROGRAM TRUE
+                        INCLUDE_DIRS ${EMsoftOOLib_BINARY_DIR}
+                        )  
+
   Add_EMsoftOO_Executable(TARGET EMkinematical
                         SOURCES ${APP_DIR}/EMkinematical.f90
                         LINK_LIBRARIES ${EXE_LINK_LIBRARIES}

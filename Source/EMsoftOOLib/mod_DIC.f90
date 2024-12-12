@@ -106,6 +106,7 @@ type, public :: DIC_T
     procedure, pass(self) :: setverbose_
     procedure, pass(self) :: setpattern_
     procedure, pass(self) :: getpattern_
+    procedure, pass(self) :: DIC_cleanup_
 
     final :: DIC_destructor
 
@@ -123,6 +124,7 @@ type, public :: DIC_T
     generic, public :: setverbose => setverbose_
     generic, public :: setpattern => setpattern_
     generic, public :: getpattern => getpattern_
+    generic, public :: cleanup => DIC_cleanup_
 
 end type DIC_T
 
@@ -134,7 +136,7 @@ end interface DIC_T
 contains
 
 !--------------------------------------------------------------------------
-type(DIC_T) function DIC_constructor( nx, ny ) result(DIC)
+recursive type(DIC_T) function DIC_constructor( nx, ny ) result(DIC)
 !DEC$ ATTRIBUTES DLLEXPORT :: DIC_constructor
  !! author: MDG
  !! version: 1.0
@@ -210,6 +212,28 @@ call reportDestructor('DIC_T')
 end subroutine DIC_destructor
 
 !--------------------------------------------------------------------------
+subroutine DIC_cleanup_( self )
+!DEC$ ATTRIBUTES DLLEXPORT :: DIC_cleanup_
+ !! author: MDG
+ !! version: 1.0
+ !! date: 12/11/24
+ !!
+ !! deallocate some arrays
+
+IMPLICIT NONE
+
+class(DIC_T), INTENT(INOUT)      :: self
+
+call self%sdef%destroy()
+
+if (allocated(self%defpat)) deallocate(self%defpat)
+if (allocated(self%wtarget)) deallocate(self%wtarget)
+if (allocated(self%tarzmn)) deallocate(self%tarzmn)
+if (allocated(self%residuals)) deallocate(self%residuals)
+
+end subroutine DIC_cleanup_
+
+!--------------------------------------------------------------------------
 recursive subroutine setverbose_(self, v)
 !DEC$ ATTRIBUTES DLLEXPORT :: setverbose_
  !! author: MDG
@@ -254,18 +278,21 @@ class(DIC_T),INTENT(INOUT)      :: self
 character(1),INTENT(IN)         :: rp
 real(wp),INTENT(IN)             :: pattern(:,:)
 
+type(IO_T)                      :: Message 
 integer(kind=irg)               :: sz(2) 
 
 sz = shape(pattern)
 
 if (rp.eq.'r') then 
-  allocate( self%refpat(0:sz(1)-1,0:sz(2)-1) )
+  if (.not.allocated(self%defpat)) allocate( self%refpat(0:sz(1)-1,0:sz(2)-1) )
   self%refpat = pattern 
+  if (self%verbose) call Message%printMessage(' setpattern_::reference pattern set ')
 end if
 
 if (rp.eq.'d') then 
-  allocate( self%defpat(0:sz(1)-1,0:sz(2)-1) )
+  if (.not.allocated(self%defpat)) allocate( self%defpat(0:sz(1)-1,0:sz(2)-1) )
   self%defpat = pattern 
+  if (self%verbose) call Message%printMessage(' setpattern_::target pattern set ')
 end if
 
 end subroutine setpattern_
@@ -289,12 +316,16 @@ integer(kind=irg),INTENT(IN)    :: nx
 integer(kind=irg),INTENT(IN)    :: ny
 real(kind=sgl)                  :: pattern(nx, ny)
 
+type(IO_T)                      :: Message 
+
 if (rp.eq.'r') then 
   pattern = real(self%refpat)
+  if (self%verbose) call Message%printMessage(' getpattern_::reference pattern retrieved ')
 end if
 
 if (rp.eq.'d') then 
   pattern = real(self%defpat)
+  if (self%verbose) call Message%printMessage(' getpattern_::target pattern retrieved ')
 end if
 
 end function getpattern_
@@ -332,7 +363,7 @@ if (present(refp)) then
     call self%sref%initialize(self%x,self%y,self%refpat,self%kx,self%ky,iflag)
     ! for potential later calls, allow for extrapolation
     call self%sref%set_extrap_flag(.TRUE.)
-    if (self%verbose) call Message%printMessage(' b-splines for reference pattern completed')
+    if (self%verbose) call Message%printMessage(' getbsplines_::b-splines for reference pattern completed')
   end if 
 end if
 
@@ -342,7 +373,7 @@ if (present(defp)) then
     call self%sdef%initialize(self%x,self%y,self%defpat,self%kx,self%ky,iflag)
 ! for potential later calls, allow for extrapolation
     call self%sdef%set_extrap_flag(.TRUE.)
-    if (self%verbose) call Message%printMessage(' b-splines for target pattern completed')
+    if (self%verbose) call Message%printMessage(' getbsplines_::b-splines for target pattern completed')
   end if 
 end if
 
@@ -358,7 +389,7 @@ if (present(verify)) then
     end do
     ! check max error against tolerance
     io_real(1) = dble(errmax)
-    call Message%WriteValue(' max b-spline reconstruction error of reference pattern:', io_real, 1) 
+    call Message%WriteValue(' getbsplines_::max b-spline reconstruction error of reference pattern:', io_real, 1) 
     if (errmax >= self%tol) then
         call Message%printMessage(' ** reference reconstruction test failed ** ')
     else
@@ -379,7 +410,11 @@ if (present(grads)) then
             call self%sref%evaluate(self%x(i),self%y(j),0,1,self%grady(i,j),iflag)
        end do
     end do
-    if (self%verbose) call Message%printMessage(' gradient of reference pattern completed')
+    if (self%verbose) then 
+      call Message%printMessage(' getbsplines_::gradient of reference pattern completed')
+      write (*,*) ' getbsplines_::gradx(1:2,1:2) : ', self%gradx(1:2,1:2)
+      write (*,*) ' getbsplines_::grady(1:2,1:2) : ', self%grady(1:2,1:2)
+    end if 
     self%gxSR = reshape( self%gradx(self%nbx:self%nx-self%nbx-1,self%nby:self%ny-self%nby-1), (/ self%NSR /) )
     self%gySR = reshape( self%grady(self%nbx:self%nx-self%nbx-1,self%nby:self%ny-self%nby-1), (/ self%NSR /) )
   end if 
@@ -419,22 +454,25 @@ self%NSR = self%nxSR * self%nySR
 allocate( self%referenceSR(0:self%NSR-1), self%gxSR(0:self%NSR-1), self%gySR(0:self%NSR-1), & 
           self%refzmn(0:self%NSR-1), self%tarzmn(0:self%NSR-1) )
 self%referenceSR = reshape( self%refpat(nbx:self%nx-nbx-1,nby:self%ny-nby-1), (/ self%NSR /) )
+if (self%verbose) call Message%printMessage(' defineSR_::referenceSR array allocated')
 
 ! define the coordinate arrays for the sub-region
 allocate( self%xiX(0:self%nxSR-1), self%xiY(0:self%nySR-1) )
 self%xiX = self%x(nbx:self%nx-nbx-1) - PCx
 self%xiY = self%y(nby:self%ny-nby-1) - PCy
+if (self%verbose) call Message%printMessage(' defineSR_::xiX, xiY arrays allocated')
 
 ! allocate array for the product of the gradient and the Jacobian
 allocate( self%GradJac(0:7,0:self%NSR-1) )
+if (self%verbose) call Message%printMessage(' defineSR_::GradJac array allocated')
 
 ! allocate the residuals array 
 allocate( self%residuals(0:self%NSR-1) )
+if (self%verbose) call Message%printMessage(' defineSR_::residuals array allocated')
 
 ! and finally the targetdef array 
 allocate( self%targetSR(0:self%NSR-1) )
-
-if (self%verbose) call Message%printMessage(' sub-region arrays allocated')
+if (self%verbose) call Message%printMessage(' defineSR_::targetSR array allocated')
 
 end subroutine defineSR_
 
@@ -464,7 +502,8 @@ if (present(doreference)) then
     self%refstdev = sqrt( sum( (self%referenceSR - self%refmean)**2 ) )
     self%refzmn = (self%referenceSR-self%refmean)/self%refstdev 
     io_real(1:2) = (/ self%refmean, self%refstdev /)
-    if (self%verbose) call Message%WriteValue(' reference mean/stdev : ', io_real, 2)
+    if (self%verbose) call Message%WriteValue(' applyZMN_::reference mean/stdev : ', io_real, 2)
+    ! write (*,*) ' applyZMN_::refzmn range ', minval(self%refzmn), maxval(self%refzmn)
   end if 
 end if
 
@@ -474,7 +513,8 @@ if (present(dotarget)) then
     self%tarstdev = sqrt( sum( (self%targetSR - self%tarmean)**2 ) )
     self%tarzmn = (self%targetSR-self%tarmean)/self%tarstdev 
     io_real(1:2) = (/ self%tarmean, self%tarstdev /)
-    if (self%verbose) call Message%WriteValue(' target mean/stdev : ', io_real, 2)
+    if (self%verbose) call Message%WriteValue(' applyZMN_::target mean/stdev : ', io_real, 2)
+    ! write (*,*) ' applyZMN_::tarzmn range ', minval(self%tarzmn), maxval(self%tarzmn)
   end if 
 end if
 
@@ -535,6 +575,9 @@ do j = 0, lny-1
         cnt = cnt + 1
     end do 
 end do 
+if (self%verbose) then 
+  write (*,*) ' applyHomography_::XiPrime(0:1,0:1) : ', self%XiPrime(0:1,0:1)
+end if 
 
 ! and interpolate/extrapolate the deformed pattern as needed
 if (.not.allocated(self%defpat)) allocate( self%defpat( 0:lnx-1, 0:lny-1 ))
@@ -553,10 +596,15 @@ end do
 ! reduce to interval [0,1]
 self%defpat = self%defpat - minval(self%defpat)
 self%defpat = self%defpat/maxval(self%defpat)
+if (self%verbose) then 
+  call Message%printMessage(' applyHomography_::defpat interpolated')
+  write (*,*) ' applyHomography_::range(defpat) : ',minval(self%defpat), maxval(self%defpat)
+end if 
 
 ! finally get the b-spline coefficients for the deformed pattern
 if (.not.tgt) then 
   call self%sdef%initialize(self%x,self%y,self%defpat,self%kx,self%ky,iflag)
+  if (self%verbose) call Message%printMessage(' applyHomography_::sdef class initialized')
   call self%sdef%set_extrap_flag(.TRUE.)
 end if 
 
@@ -585,7 +633,7 @@ class(DIC_T),INTENT(INOUT)      :: self
 real(wp),INTENT(OUT),OPTIONAL   :: CIC 
 
 type(IO_T)                      :: Message 
-real(kind=dbl)                  :: io_real(1)
+real(kind=dbl)                  :: io_real(2)
 
 self%residuals = self%refzmn-self%tarzmn
 
@@ -594,7 +642,10 @@ if (present(CIC)) then
   CIC = self%CIC 
   if (self%verbose) then
     io_real(1) = dble(CIC)
-    call Message%WriteValue(' CIC value : ', io_real, 1)
+    call Message%WriteValue(' getresiduals_::CIC value : ', io_real, 1)
+    io_real(1) = minval(self%residuals)
+    io_real(2) = maxval(self%residuals)
+    call Message%WriteValue(' getresiduals_::residuals range : ', io_real, 2)
   end if 
 end if
 
@@ -637,7 +688,10 @@ self%Hessian = self%Hessian * 2.0_wp / self%refstdev**2
 
 if (present(Hessian)) Hessian = self%Hessian
 
-if (self%verbose) call Message%printMessage(' reference Hessian computed')
+if (self%verbose) then 
+  call Message%printMessage(' getHessian_::reference Hessian computed')
+  write (*,*) Hessian 
+end if 
 
 end subroutine getHessian_
 
@@ -658,8 +712,11 @@ class(DIC_T),INTENT(INOUT)   :: self
 real(wp),INTENT(INOUT)       :: SOL(8)
 real(wp),INTENT(INOUT)       :: normdp
 
+type(IO_T)                   :: Message
+
 real(wp)                     :: Hessiancopy(8,8) ! local copy 
 real(wp)                     :: xi1max, xi2max
+real(kind=dbl)               :: io_real(2)
 
 ! LAPACK variables
 character                    :: UPLO ='U'
@@ -673,18 +730,26 @@ integer                      :: INFO
 ! compute gradCIC (right-hand side of the equation)
 self%gradCIC = matmul(self%GradJac, self%residuals)
 self%gradCIC = self%gradCIC * 2.0_wp/self%refstdev
+if (self%verbose) then 
+  call Message%printMessage(' solveHessian_::gradCIC computed')
+  io_real(1) = minval(self%gradCIC)
+  io_real(2) = maxval(self%gradCIC)
+  call Message%WriteValue(' solveHessian_::gradCIC range : ',io_real,2)
+end if 
 
 ! solve by Cholesky decomposition 
 Hessiancopy = self%Hessian
 SL(1:8,1) = -self%gradCIC(1:8)
 call DPOSV(UPLO, NN, NRHS, Hessiancopy, LDA, SL, LDB, INFO)
 SOL(1:8) = SL(1:8,1)
+if (self%verbose) write (*,*) ' solveHessian_::SOL : ', SOL 
 
 ! get the weighted norm of the solution vector
 xi1max = maxval( self%XiPrime(0,:) )
 xi2max = maxval( self%XiPrime(1,:) )
 normdp = sqrt(xi1max * (SL(1,1)**2+SL(4,1)**2+SL(7,1)**2) + & 
               xi2max * (SL(2,1)**2+SL(5,1)**2+SL(8,1)**2) + SL(3,1)**2 + SL(6,1)**2)
+if (self%verbose) write (*,*) ' solveHessian_::normdp : ', normdp 
 
 end subroutine solveHessian_
 

@@ -47,6 +47,7 @@ use mod_crystallography
 use mod_DIC
 use HDF5
 use mod_HDFsupport
+use mod_platformsupport
 use bspline_module
 use bspline_kinds_module, only: wp, ip
 
@@ -60,6 +61,7 @@ type(DIC_T)                  :: DIC
 type(q_T)                    :: qu 
 type(o_T)                    :: om 
 type(e_T)                    :: eu 
+type(IO_T)                   :: Message
 
 real(kind=wp), allocatable   :: refpat(:,:), defpat(:,:)
 real(kind=sgl),allocatable   :: tmppat(:,:)
@@ -67,9 +69,12 @@ real(kind=wp)                :: DD, PCx, PCy, val, err, errmax, rnxi, rnyi, hg(8
                                 minx, miny, xi1max, xi2max, normdp, oldnorm, oldW(3,3), horiginal(8), CIC, sol(8), &
                                 homographies(8,1000)
 real(kind=dbl)               :: Wnew(3,3), Winv(3,3), dx, dy, p2(3), Woriginal(3,3), alp, srt(3,3), srtrot(3,3)
-integer(kind=irg)            :: nx, ny, nxy, nbx, nby, i, ii, j, NSR, cnt, nxSR, nySR, jj  
+integer(kind=irg)            :: nx, ny, nxy, nbx, nby, i, ii, j, NSR, cnt, nxSR, nySR, jj, recordsize, ierr  
 real(wp)                     :: tol
+integer(kind=4)              :: hnstat
+character(fnlen)             :: fname, gname, hostname 
 
+hnstat = system_hostnm(hostname)
 
 EMsoft = EMsoft_T( progname, progdesc )
 
@@ -86,14 +91,43 @@ ny = 480
 ! instantiate the DIC class
 ! this also initializes the x and y coordinate arrays
 DIC = DIC_T( nx, ny )
+call DIC%setverbose(.FALSE.)
+! call DIC%setverbose(.TRUE.)
 
 nxy = nx * ny
+recordsize = nxy * 4
 
-allocate(refpat(0:nx-1,0:ny-1), defpat(0:nx-1,0:ny-1))
+allocate(tmppat(nx,ny), refpat(0:nx-1,0:ny-1), defpat(0:nx-1,0:ny-1))
 ! open(20,file='/Users/mdg/playarea/DIC/refpat.data',status='old',form='unformatted')
-open(20,file='/Users/mdg/Files/EMPlay/playarea/DIC/refpat.data',status='old',form='unformatted')
+open(20,file='/Users/mdg/playarea/DIC/refpat.data',status='old',form='unformatted')
 read(20) refpat
 close(20,status='keep')
+! refpat = dble(tmppat) 
+!
+ ! open(20,file='/Users/mdg/Files/EMPlay/playarea/UCSB/GaN/pp27238.data',status='old',form='unformatted')
+! recordsize = nxy*4
+! open(unit=15,file='/Users/mdg/Files/EMPlay/playarea/UCSB/GaN/pp27238.data', &
+     ! status='unknown',form='unformatted',access='direct',action='read',recl=recordsize,iostat=ierr)
+
+! read(15, rec=1, iostat=ierr) tmppat
+! refpat = tmppat 
+if (trim(hostname).eq.'Mac-Studio.fios-router.home') then 
+    fname = EMsoft%generateFilePath('EMdatapathname','UCSB/GaN/homographypatterns.data')
+else
+    fname = EMsoft%generateFilePath('EMdatapathname','playarea/UCSB/GaN/homographypatterns.data')
+end if
+open(unit=dataunit,file=trim(fname),&
+     status='unknown',form='unformatted',access='direct',recl=recordsize,iostat=ierr)
+
+ ! read(20) refpat
+! read(dataunit, rec=1) tmppat
+! refpat = dble(tmppat)
+! close(dataunit,status='keep')
+! ! close(20,status='keep')
+
+! write (*,*) ' tmppat entries : ', tmppat(1:2,1:2)
+! write (*,*) ' reference pattern : ', minval(tmppat), maxval(tmppat)
+
 
 call DIC%setpattern('r', refpat)
 
@@ -108,47 +142,61 @@ nbx = 30
 nby = 30
 call DIC%defineSR( nbx, nby, 0.5_wp, 0.5_wp)
 
+call DIC%getbsplines(refp=.TRUE., verify=.TRUE., grads=.TRUE.)
 
-call DIC%getbsplines(refp=.TRUE., verify=.TRUE.)
+!zero-mean and normalize the referenceSR and targetSR arrays
+call DIC%applyZMN(doreference=.TRUE.)
+
+! compute the Hessian matrix
+call DIC%getHessian( Hessian )
 
 ! read 1000 random homographies from a file and run the fitting, then 
 ! write result to another file for comparison with an IDL routine.
-open(unit=dataunit,file='/Volumes/Drive2/playarea/DIC/test/homographies.data',status='unknown',form='unformatted')
+if (trim(hostname).eq.'Mac-Studio.fios-router.home') then 
+    gname = EMsoft%generateFilePath('EMdatapathname','UCSB/GaN/homographies.data')
+else
+    gname = EMsoft%generateFilePath('EMdatapathname','playarea/UCSB/GaN/homographies1.data')
+end if
+open(unit=dataunit,file=trim(gname),status='unknown',form='unformatted')
 read(dataunit) homographies
 close(dataunit,status='keep')
 
-open(unit=dataunit,file='/Volumes/Drive2/playarea/DIC/test/homography-fits2.data',status='unknown',form='unformatted')
+if (trim(hostname).eq.'Mac-Studio.fios-router.home') then 
+    gname = EMsoft%generateFilePath('EMdatapathname','UCSB/GaN/homographypatterns.data')
+else
+    gname = EMsoft%generateFilePath('EMdatapathname','playarea/UCSB/GaN/homographypatterns.data')
+end if
+open(unit=dataunit,file=trim(gname),&
+     status='unknown',form='unformatted',access='direct',recl=recordsize,iostat=ierr)
 
-do jj=1,1000
+open(unit=28,file='output.txt',status='unknown',form='formatted')
+
+do jj=1, 1000
+    call Message%printMessage(' ---------------------- ')
+    write (*,*) 'starting pattern ', jj
 ! here we deform the reference pattern to obtain a defpat array with known homography
 ! define the homography hg
-horiginal = homographies(1:8,jj) ! (/ 0.002_wp, 0.001_wp, -0.004_wp, -0.001_wp, -0.003_wp, 0.005_wp, 0.0_wp, 0.0_wp /)
-call DIC%applyHomography(horiginal, 0.5_wp, 0.5_wp)
+ horiginal = homographies(1:8,jj) ! (/ 0.002_wp, 0.001_wp, -0.004_wp, -0.001_wp, -0.003_wp, 0.005_wp, 0.0_wp, 0.0_wp /)
+! ! horiginal = (/ (0.0_wp, i=1,8) /)
+ call DIC%applyHomography(horiginal, 0.5_wp, 0.5_wp)
 
-! store both patterns in a binary file 
-! allocate( tmppat( nx, ny ) )
-! open(unit=dataunit,file='patterns.data',status='unknown',form='unformatted')
-! tmppat = DIC%getpattern('r', nx, ny)
-! write(dataunit) tmppat
-! tmppat = DIC%getpattern('d', nx, ny)
-! write(dataunit) tmppat
-! close(dataunit,status='keep')
-! deallocate(tmppat)
+! read(dataunit,rec=jj, iostat=ierr) tmppat
+! defpat = dble(tmppat)
+! call DIC%setpattern('d', defpat)
+
+write (dataunit,rec=jj) DIC%getpattern('d',nx,ny)
 
 Woriginal = DIC%getShapeFunction(horiginal)
 
 ! get the derivatives of the reference pattern to determine the Hessian
-call DIC%getbsplines(defp=.TRUE., grads=.TRUE.)
+call DIC%getbsplines(defp=.TRUE.)
 
-! zero-mean and normalize the referenceSR and targetSR arrays
-call DIC%applyZMN(doreference=.TRUE., dotarget=.TRUE.)
+! ! zero-mean and normalize the referenceSR and targetSR arrays
+! call DIC%applyZMN(dotarget=.TRUE.)
 
-! initial CIC function (to be minimized ...)
-call DIC%getresiduals( CIC )
-write (*,*) ' initial CIC value : ', CIC
-
-! compute the Hessian matrix
-call DIC%getHessian( Hessian )
+! ! initial CIC function (to be minimized ...)
+! call DIC%getresiduals( CIC )
+! stop
 
 ! initialize the homography coefficients to zero
 ! in a more general implementation we might initialize them to the 
@@ -159,7 +207,7 @@ W = DIC%getShapeFunction(hg)
 oldnorm = 100.0_wp
 
 ! and here we start the loop 
-do ii=1,100 
+do ii=1,500 
     write (*,*) ' iteration # ',ii
     call DIC%applyHomography(hg, 0.5_wp, 0.5_wp, dotarget=.TRUE.)
 
@@ -178,38 +226,41 @@ do ii=1,100
     W = matmul( W, Winv )
  !  W = W / W(3,3)
     hg = DIC%getHomography(W)
-    write (*,*) hg
-    write (*,*) ' norm(deltap) = ', normdp
-    write (*,*) '------------'
-    if (normdp.lt.1.1*oldnorm) then
+    ! write (*,*) hg
+    ! write (*,*) ' norm(deltap) = ', normdp
+    ! write (*,*) '------------'
+    if (normdp.lt.oldnorm) then
         oldnorm = normdp
         oldW = W 
     else
         W = oldW
         EXIT
     end if
+    ! call Message%printMessage(' ---------------------- ')
 end do 
 
 W = matrixInvert_wp( W )
-!W = W / W(3,3)
+W = W / W(3,3)
 hg = DIC%getHomography(W)
-write (*,*) '' 
-write (*,*) ' Final homography : '
-write (*,*) DIC%getHomography(W)
-write (*,*) '' 
-write (*,*) ' Target homography : '
-write (*,*) horiginal
-write (*,*) '' 
-write (*,*) ' Differences : '
-write (*,*) horiginal-hg
+! write (*,*) '' 
+! write (*,*) ' Final homography : '
+! write (*,*) DIC%getHomography(W)
+! write (*,*) '' 
+! write (*,*) ' Target homography : '
+! write (*,*) horiginal
+! write (*,*) '' 
+! write (*,*) ' Differences : '
+! write (*,*) horiginal-hg
 
 ! write results to data file (single precision because IDL has a bug for double precision)
-write (dataunit) real(hg) 
-write (dataunit) real(normdp)
-write (dataunit) ii
+write (unit=28,FMT='(9(F12.8,","),I4)') real(hg), real(normdp), ii
+
+! if (jj.eq.3) stop
+  call DIC%cleanup()
 
 end do ! loop over jj 
 
+close(28,status='keep')
 close(dataunit,status='keep')
 
 end program EMplay
