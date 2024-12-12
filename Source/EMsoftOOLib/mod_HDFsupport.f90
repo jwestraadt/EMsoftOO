@@ -642,6 +642,9 @@ do while (associated(self%head%next))
   call error_check_(self, trim(origin)//'pop_:unable to close requested level for object type '//self%head%next%objectType, &
                     error,.TRUE.)
 
+! if we just closed the file then we are done.
+  if (self%head%next%objectType.eq.'f') EXIT
+
 ! and re-point the stack head
   tmp => self%head%next
   self%head%next => self%head%next%next

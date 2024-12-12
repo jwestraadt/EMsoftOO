@@ -1242,6 +1242,7 @@ if (stat.eqv..FALSE.) then ! the file exists, so let's open it an first make sur
    call Message%printError('readDotProductFile','This is not a proper HDF5 file')
 end if
 
+
 ! open the dot product file
 readonly = .TRUE.
 hdferr =  HDF%openFile(dpfile, readonly)
@@ -1674,7 +1675,7 @@ dataset = SC_StepY
     end if
 
 ! and close the HDF5 dot product file
-!call HDF%popall()
+call HDF%popall()
 
 end associate
 
