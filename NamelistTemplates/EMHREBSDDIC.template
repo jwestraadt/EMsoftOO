@@ -3,11 +3,14 @@
 ! EBSD Pattern Parameters will be read from an EMDI output file
 !###################################################################
 ! name of the dot product file (.h5) path relative to EMdatapathname
+! not needed in the first version of this program...
  DIfile = 'undefined',
 ! output HDF5 file; path relative to EMdatapathname
  datafile = 'undefined',
 ! relative path to the namelist file for EMppEBSD program
  ppEBSDnml = 'undefined'
+! relative path to the namelist file for EMDI program
+ DInml = 'undefined'
 ! coordinates of the reference pattern to be used (0-based coordinates)
  patx = 0,
  paty = 0,
