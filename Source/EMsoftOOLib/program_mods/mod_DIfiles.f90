@@ -1674,7 +1674,7 @@ dataset = SC_StepY
     end if
 
 ! and close the HDF5 dot product file
-call HDF%popall()
+!call HDF%popall()
 
 end associate
 
