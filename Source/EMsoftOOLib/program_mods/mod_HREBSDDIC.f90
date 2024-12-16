@@ -47,6 +47,7 @@ type, public :: HREBSDDICNameListType
    integer(kind=irg)    :: paty
    integer(kind=irg)    :: nbx
    integer(kind=irg)    :: nby
+   integer(kind=irg)    :: maxnumit
    integer(kind=irg)    :: nthreads
    real(kind=sgl)       :: C11
    real(kind=sgl)       :: C12
@@ -167,6 +168,7 @@ integer(kind=irg)                    :: patx
 integer(kind=irg)                    :: paty
 integer(kind=irg)                    :: nbx
 integer(kind=irg)                    :: nby
+integer(kind=irg)                    :: maxnumit
 integer(kind=irg)                    :: nthreads
 real(kind=sgl)                       :: C11
 real(kind=sgl)                       :: C12
@@ -181,12 +183,13 @@ character(fnlen)                     :: DInml
 character(3)                         :: crystal
 
 namelist / HREBSDDICdata / patx, paty, nthreads, C11, C12, C44, C13, C33, DIfile, DInml, & 
-                           datafile, patternfile, DIfile, ppEBSDnml, crystal, nbx, nby
+                           datafile, patternfile, DIfile, ppEBSDnml, crystal, nbx, nby, maxnumit
 
 patx = 0
 paty = 0
 nbx = 0
 nby = 0
+maxnumit = 50
 nthreads = 1
 C11 = 276.0
 C12 = 159.0
@@ -237,6 +240,7 @@ self%nml%patx = patx
 self%nml%paty = paty
 self%nml%nbx = nbx
 self%nml%nby = nby
+self%nml%maxnumit = maxnumit
 self%nml%nthreads = nthreads
 self%nml%C11 = C11
 self%nml%C12 = C12
@@ -291,7 +295,7 @@ class(HREBSD_DIC_T), INTENT(INOUT)      :: self
 type(HDF_T), INTENT(INOUT)              :: HDF
 type(HDFnames_T), INTENT(INOUT)         :: HDFnames
 
-integer(kind=irg),parameter             :: n_int = 5, n_real = 5
+integer(kind=irg),parameter             :: n_int = 6, n_real = 5
 integer(kind=irg)                       :: hdferr,  io_int(n_int)
 real(kind=sgl)                          :: io_real(n_real)
 character(20)                           :: intlist(n_int), reallist(n_real)
@@ -304,12 +308,13 @@ associate( enl => self%nml )
 hdferr = HDF%createGroup(HDFnames%get_NMLlist())
 
 ! write all the single integers
-io_int = (/ enl%nthreads, enl%patx, enl%paty, enl%nbx, enl%nby /)
+io_int = (/ enl%nthreads, enl%patx, enl%paty, enl%nbx, enl%nby, enl%maxnumit /)
 intlist(1) = 'nthreads'
 intlist(2) = 'patx'
 intlist(3) = 'paty'
 intlist(4) = 'nbx'
 intlist(5) = 'nby'
+intlist(6) = 'maxnumit'
 call HDF%writeNMLintegers(io_int, intlist, n_int)
 
 ! write all the single reals
@@ -416,7 +421,7 @@ type(HDFnames_T)                        :: HDFnames2
 character(fnlen)                        :: inpfile, HDFstring
 real(kind=dbl)                          :: stepsizes(3), fpar(3), sig, totaltilt, ave, cosang, sinang
 real(kind=sgl)                          :: io_real(6), ss, tstop
-real(kind=dbl),allocatable              :: PC(:,:), homographies(:,:), normdp(:)
+real(kind=dbl),allocatable              :: PC(:,:), homographies(:,:), normdp(:), residuals(:)
 real(kind=sgl),allocatable              :: exptpattern(:,:), targetpattern(:,:)
 integer(kind=irg),allocatable           :: nit(:)
 integer(kind=irg)                       :: hdferr, binx, biny, L, recordsize, patsz, ROI_size, sz(2), i, j, kk, numangles, &
@@ -513,8 +518,9 @@ write (*,*) ' reference entries : ', exptpattern(1:2,1:2)
 write (*,*) 'reference pattern : ', minval(exptpattern), maxval(exptpattern)
 
 ! allocate global arrays to store the output of the DIC routine.
-call mem%alloc(homographies, (/ 8, numpats /), 'homographies', initval=0.D0 ) 
 call mem%alloc(normdp, (/ numpats /), 'normdp', initval=0.D0 ) 
+call mem%alloc(homographies, (/ 8, numpats /), 'homographies', initval=0.D0 ) 
+call mem%alloc(residuals, (/ numpats /), 'residuals', initval=0.D0 ) 
 call mem%alloc(nit, (/ numpats /), 'nit', initval=0 ) 
 
 ! open the pattern file so that each thread can read from it
@@ -576,7 +582,7 @@ do ii=1, numpats
   oldW = W
 
 ! loop until max iterations or convergence
-  do jj = 1,500 
+  do jj = 1, enl%maxnumit
     ! write (*,*) '-----------------'
     ! write (*,*) ' iteration # ',jj
     call DIC%applyHomography(hg, 0.5_wp, 0.5_wp, dotarget=.TRUE.)
@@ -588,8 +594,8 @@ do ii=1, numpats
     Wnew = DIC%getShapeFunction(reshape(SOL, (/8/)))
     Winv = matrixInvert_wp( Wnew )
     W = matmul( W, Winv )
-    ! W = W / W(3,3)
-    if (ndp.lt.oldnorm) then
+    W = W / W(3,3)
+    if (ndp.lt.0.001D0) then
         oldnorm = ndp
         oldW = W 
         hg = DIC%getHomography(W)
@@ -609,6 +615,7 @@ do ii=1, numpats
   hg = DIC%getHomography(W)
   homographies(1:8,ii) = dble(hg)
   normdp(ii) = dble(ndp)
+  residuals(ii) = CIC
   nit(ii) = jj
   call DIC%cleanup()
   ! call Message%printMessage(' -------------------------- ')
@@ -719,6 +726,14 @@ dataset = 'homographies'
     hdferr = HDF%writeDatasetDoubleArray(dataset, homographies, 8, numpats, overwrite)
   else
     hdferr = HDF%writeDatasetDoubleArray(dataset, homographies, 8, numpats)
+  end if
+
+dataset = 'residuals'
+  call H5Lexists_f(HDF%getobjectID(),trim(dataset),g_exists, hdferr)
+  if (g_exists) then
+    hdferr = HDF%writeDatasetDoubleArray(dataset, residuals, numpats, overwrite)
+  else
+    hdferr = HDF%writeDatasetDoubleArray(dataset, residuals, numpats)
   end if
 
 dataset = 'ndp'

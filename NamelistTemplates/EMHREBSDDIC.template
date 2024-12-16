@@ -17,6 +17,8 @@
 ! width of the exclusion zone surrounding the sub-region
  nbx = 0,
  nby = 0,
+! maximum number of iterations of the refinement algorithm
+ maxnumit = 50,
 ! number of threads (default = 1)
  nthreads = 1,
 !

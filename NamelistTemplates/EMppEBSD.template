@@ -24,10 +24,6 @@
  numsx = 640,
  numsy = 480,
 !
-!###################################################################
-! INPUT FILE PARAMETERS: COMMON TO 'STATIC' AND 'DYNAMIC'
-!###################################################################
-!
 ! name of datafile where the patterns are stored; path relative to EMdatapathname
  exptfile = 'undefined',
 ! input file type parameter: Binary, EMEBSD, EMEBSD32i, EMEBSD32f, TSLHDF, TSLup2, 
@@ -39,11 +35,7 @@
 ! be empty for the Binary and TSLup2 formats)
  HDFstrings = '' '' '' '' '' '' '' '' '' '',
 !
-!###################################################################
-! OTHER FILE PARAMETERS: COMMON TO 'STATIC' AND 'DYNAMIC'
-!###################################################################
-!
-! temporary data storage file name ; path will be relative to EMdatapathname
+! data storage file name ; path will be relative to EMdatapathname
  tmpfile = 'EMEBSD_pp.data',
 !
 ! number of threads for parallel pre-processing (0 to use all available)
