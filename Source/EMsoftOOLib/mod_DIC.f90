@@ -152,6 +152,7 @@ integer(kind=irg), INTENT(IN)     :: nx
 integer(kind=irg), INTENT(IN)     :: ny
 
 integer(kind=irg)                 :: i, j
+real(wp)                          :: arx, ary
 
 ! set pattern dimensions 
 DIC%nx = nx 
@@ -161,14 +162,28 @@ DIC%ny = ny
 allocate( DIC%x(0:nx-1), DIC%y(0:ny-1) )
 DIC%rnxi = 1.0_wp/real(nx-1,wp)
 DIC%rnyi = 1.0_wp/real(ny-1,wp)
+
+! account for pattern aspect ratio
+arx = 1.0_wp
+ary = 1.0_wp
+! if (nx.ne.ny) then 
+!   if (nx.lt.ny) then 
+!     arx = DIC%rnyi / DIC%rnxi
+!   else
+!     ary = DIC%rnxi / DIC%rnyi
+!   end if 
+! end if 
+
 do i=0,nx-1
     DIC%x(i) = real(i,wp)
 end do
-DIC%x = DIC%x * DIC%rnxi
+DIC%x = DIC%x * arx
+! DIC%x = DIC%x * DIC%rnxi
 do j=0,ny-1
     DIC%y(j) = real(j,wp)
 end do
-DIC%y = DIC%y * DIC%rnyi
+DIC%y = DIC%y * ary
+! DIC%y = DIC%y * DIC%rnyi
 
 end function DIC_constructor
 
@@ -458,8 +473,8 @@ if (self%verbose) call Message%printMessage(' defineSR_::referenceSR array alloc
 
 ! define the coordinate arrays for the sub-region
 allocate( self%xiX(0:self%nxSR-1), self%xiY(0:self%nySR-1) )
-self%xiX = self%x(nbx:self%nx-nbx-1) - PCx
-self%xiY = self%y(nby:self%ny-nby-1) - PCy
+self%xiX = self%x(nbx:self%nx-nbx-1) - self%nxSR/2 ! PCx
+self%xiY = self%y(nby:self%ny-nby-1) - self%nySR/2 ! PCy
 if (self%verbose) call Message%printMessage(' defineSR_::xiX, xiY arrays allocated')
 
 ! allocate array for the product of the gradient and the Jacobian
@@ -530,11 +545,12 @@ recursive subroutine applyHomography_(self, h, PCx, PCy, dotarget)
  !! apply a homography to the reference or target pattern and store in defpat
 
 use mod_IO 
+use mod_math
 
 IMPLICIT NONE
 
 class(DIC_T),INTENT(INOUT)      :: self
-real(wp),INTENT(IN)             :: h(0:7)
+real(wp),INTENT(IN)             :: h(8)
 real(wp),INTENT(IN)             :: PCx
 real(wp),INTENT(IN)             :: PCy
 logical,INTENT(IN),OPTIONAL     :: dotarget

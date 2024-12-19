@@ -429,7 +429,7 @@ integer(kind=irg)                       :: hdferr, binx, biny, L, recordsize, pa
                                            numpats, TID
 real(kind=dbl)                          :: interp_step, std
 real(kind=dbl)                          :: Wnew(3,3), Winv(3,3), oldW(3,3)
-real(wp)                                :: hg(8), W(3,3), ndp, oldnorm, SOL(8), Hessian(8,8), CIC
+real(wp)                                :: hg(8), W(3,3), ndp, oldnorm, SOL(8), Hessian(8,8), CIC, PCx, PCy
 character(11)                           :: dstr
 character(15)                           :: tstrb
 character(15)                           :: tstre
@@ -489,6 +489,8 @@ biny = dinl%exptnumsy
 L = binx * biny
 recordsize = 4 * L
 patsz = L
+PCx = real(binx,wp)/2.0_wp
+PCy = real(biny,wp)/2.0_wp
 
 write (*,*) ' pattern dimensions : ', binx, biny, L, self%ppEBSDnml%ROI 
 
@@ -547,7 +549,7 @@ call DIC%setpattern( 'r', dble(exptpattern) )
 ! define the border widths nbx and nby for the subregion
 nbx = enl%nbx
 nby = enl%nby
-call DIC%defineSR( nbx, nby, 0.5_wp, 0.5_wp)
+call DIC%defineSR( nbx, nby, PCx, PCy) ! 0.5_wp, 0.5_wp)
 
 ! generate the b-splines for the reference pattern and verify the accuracy
 ! also get the derivatives of the reference pattern to determine the Hessian
@@ -574,6 +576,8 @@ do ii=1, numpats
 
   call DIC%setpattern( 'd', dble(targetpattern) )
   call DIC%getbsplines(defp=.TRUE.)
+! ! zero-mean and normalize the referenceSR and targetSR arrays
+  call DIC%applyZMN(dotarget=.TRUE.)
 
 ! initialize the homography to zero
   hg = (/ (0.0_wp, i=1,8) /)
@@ -585,7 +589,8 @@ do ii=1, numpats
   do jj = 1, enl%maxnumit
     ! write (*,*) '-----------------'
     ! write (*,*) ' iteration # ',jj
-    call DIC%applyHomography(hg, 0.5_wp, 0.5_wp, dotarget=.TRUE.)
+    ! call DIC%applyHomography(hg, 0.5_wp, 0.5_wp, dotarget=.TRUE.)
+    call DIC%applyHomography(hg, PCx, PCy, dotarget=.TRUE.)
     call DIC%applyZMN(dotarget=.TRUE.)
     call DIC%getresiduals(CIC)
     call DIC%solveHessian(SOL, ndp)
@@ -595,13 +600,14 @@ do ii=1, numpats
     Winv = matrixInvert_wp( Wnew )
     W = matmul( W, Winv )
     W = W / W(3,3)
+    hg = DIC%getHomography(W)
     if (ndp.lt.0.001D0) then
-        oldnorm = ndp
-        oldW = W 
-        hg = DIC%getHomography(W)
-    else
-        W = oldW
-        ndp = oldnorm
+    !     oldnorm = ndp
+    !     oldW = W 
+    !     hg = DIC%getHomography(W)
+    ! else
+    !     W = oldW
+    !     ndp = oldnorm
         EXIT
     end if
   end do
