@@ -61,6 +61,7 @@ type, public :: HREBSDDICNameListType
    character(fnlen)     :: ppEBSDnml
    character(fnlen)     :: DInml
    character(3)         :: crystal
+   logical              :: verbose
 end type HREBSDDICNameListType
 
 ! class definition
@@ -183,8 +184,9 @@ character(fnlen)                     :: datafile
 character(fnlen)                     :: ppEBSDnml
 character(fnlen)                     :: DInml
 character(3)                         :: crystal
+logical                              :: verbose
 
-namelist / HREBSDDICdata / patx, paty, nthreads, C11, C12, C44, C13, C33, DIfile, DInml, mindeltap, & 
+namelist / HREBSDDICdata / patx, paty, nthreads, C11, C12, C44, C13, C33, DIfile, DInml, mindeltap, verbose, & 
                            datafile, patternfile, DIfile, ppEBSDnml, crystal, nbx, nby, maxnumit
 
 patx = 0
@@ -205,6 +207,7 @@ DIfile = 'undefined'
 ppEBSDnml = 'undefined'
 DInml = 'undefined'
 crystal = 'cub' 
+verbose = .FALSE. 
 
 if (present(initonly)) then
   if (initonly) skipread = .TRUE.
@@ -257,6 +260,7 @@ self%nml%datafile = datafile
 self%nml%ppEBSDnml = ppEBSDnml
 self%nml%DInml = DInml
 self%nml%crystal = crystal
+self%nml%verbose = verbose
 
 end subroutine readNameList_
 
@@ -299,8 +303,8 @@ class(HREBSD_DIC_T), INTENT(INOUT)      :: self
 type(HDF_T), INTENT(INOUT)              :: HDF
 type(HDFnames_T), INTENT(INOUT)         :: HDFnames
 
-integer(kind=irg),parameter             :: n_int = 6, n_real = 6
-integer(kind=irg)                       :: hdferr,  io_int(n_int)
+integer(kind=irg),parameter             :: n_int = 7, n_real = 6
+integer(kind=irg)                       :: hdferr,  io_int(n_int), vb
 real(kind=sgl)                          :: io_real(n_real)
 character(20)                           :: intlist(n_int), reallist(n_real)
 character(fnlen)                        :: dataset, sval(1),groupname
@@ -308,17 +312,21 @@ character(fnlen,kind=c_char)            :: line2(1),line10(10)
 
 associate( enl => self%nml )
 
+vb = 0
+if (self%nml%verbose.eqv..TRUE.) vb = 1 
+
 ! create the group for this namelist
 hdferr = HDF%createGroup(HDFnames%get_NMLlist())
 
 ! write all the single integers
-io_int = (/ enl%nthreads, enl%patx, enl%paty, enl%nbx, enl%nby, enl%maxnumit /)
+io_int = (/ enl%nthreads, enl%patx, enl%paty, enl%nbx, enl%nby, enl%maxnumit, vb /)
 intlist(1) = 'nthreads'
 intlist(2) = 'patx'
 intlist(3) = 'paty'
 intlist(4) = 'nbx'
 intlist(5) = 'nby'
 intlist(6) = 'maxnumit'
+intlist(7) = 'verbose'
 call HDF%writeNMLintegers(io_int, intlist, n_int)
 
 ! write all the single reals
@@ -547,8 +555,7 @@ TID = OMP_GET_THREAD_NUM()
 
 !copy the exptpattern into the thread's DIC class
 DIC = DIC_T( binx, biny )
-! call DIC%setverbose( .FALSE. )
-call DIC%setverbose( .TRUE. )
+call DIC%setverbose( enl%verbose )
 call DIC%setpattern( 'r', dble(exptpattern) )
 
 ! define the border widths nbx and nby for the subregion

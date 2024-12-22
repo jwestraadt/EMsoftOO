@@ -23,6 +23,7 @@
  mindeltap = 0.001D0,
 ! number of threads (default = 1)
  nthreads = 1,
+ verbose = .FALSE.,
 !
 ! name of experimental pattern file; path relative to EMdatapathname
 ! for this program, this should be a preprocessed data file (EMppEBSD output)
