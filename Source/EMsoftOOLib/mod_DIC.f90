@@ -47,8 +47,8 @@ type, public :: DIC_T
     real(wp)                        :: W(3,3)     ! shape function
     real(wp)                        :: h(8)       ! homography
     real(wp)                        :: CIC        ! current value of function to be minimized
-    integer(ip)                     :: kx = 5     ! spline order
-    integer(ip)                     :: ky = 5     ! spline order
+    integer(ip)                     :: kx = 4     ! spline order
+    integer(ip)                     :: ky = 4     ! spline order
     integer(kind=irg)               :: nx         ! pattern x-size
     integer(kind=irg)               :: ny         ! pattern y-size
     real(wp)                        :: rnxi       ! pattern x scale factor
@@ -177,7 +177,7 @@ ary = 1.0_wp
 do i=0,nx-1
     DIC%x(i) = real(i,wp)
 end do
-DIC%x = DIC%x * arx
+DIC%x =  DIC%x * arx
 ! DIC%x = DIC%x * DIC%rnxi
 do j=0,ny-1
     DIC%y(j) = real(j,wp)
@@ -576,6 +576,8 @@ lny = self%ny
 ! convert to shape function
 W = self%getShapeFunction(h)
 
+! W = matrixInvert_wp(W)
+
 ! determine the XiPrime coordinates so that we can apply the deformation by
 ! means of the evaluate method in the bspline class
 if (.not.allocated(self%XiPrime)) allocate( self%XiPrime(0:1, 0:lnx*lny-1))
@@ -778,6 +780,9 @@ recursive function getShapeFunction_(self, h, store) result(W)
  !!
  !! convert input homography to a 3x3 shape function W and optionally store it
  !! as a class variable
+ !!
+ !! note that the interpolation routines sample the original image to the deformed
+ !! image so we need to invert that behavior ...
 
 IMPLICIT NONE
 
@@ -786,14 +791,14 @@ real(wp), INTENT(IN)            :: h(8)
 logical, INTENT(IN), OPTIONAL   :: store
 real(wp)                        :: W(3,3)
 
-W(1,1) = 1.0_wp + h(1)
-W(2,2) = 1.0_wp + h(5)
+W(1,1) = 1.0_wp / (1.0_wp + h(1))
+W(2,2) = 1.0_wp / (1.0_wp + h(5))
 W(3,3) = 1.0_wp
 
-W(1,2:3) = h(2:3)
-W(2,1) = h(4)
-W(2,3) = h(6)
-W(3,1:2) = h(7:8)
+W(1,2:3) = -h(2:3)
+W(2,1) = -h(4)
+W(2,3) = -h(6)
+W(3,1:2) = -h(7:8)
 
 if (present(store)) then 
   if (store.eqv..TRUE.) then 
@@ -812,6 +817,10 @@ recursive function getHomography_(self, W, store) result(h)
  !!
  !! convert input 3x3 shape function to homography h and optionally store it 
  !! as a class variable
+ !!
+ !! note that the interpolation routines sample the original image to the deformed
+ !! image so we need to invert that behavior ...
+
 
 IMPLICIT NONE
 
@@ -820,7 +829,7 @@ real(wp), INTENT(IN)            :: W(3,3)
 logical, INTENT(IN), OPTIONAL   :: store
 real(wp)                        :: h(8)
 
-h = (/ W(1,1)-1.0_wp, W(1,2), W(1,3), W(2,1), W(2,2)-1.0_wp, W(2,3), W(3,1), W(3,2) /)
+h = (/ 1.0_wp/W(1,1)-1.0_wp, -W(1,2), -W(1,3), -W(2,1), 1.0_wp/W(2,2)-1.0_wp, -W(2,3), -W(3,1), W(3,2) /)
 
 if (present(store)) then 
   if (store.eqv..TRUE.) then 

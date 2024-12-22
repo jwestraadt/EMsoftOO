@@ -130,6 +130,11 @@ close(20,status='keep')
 ! write (*,*) ' tmppat entries : ', tmppat(1:2,1:2)
 ! write (*,*) ' reference pattern : ', minval(tmppat), maxval(tmppat)
 
+! refpat(20:40,20:22) = 1.0_wp
+! refpat(20:22,20:40) = 1.0_wp
+
+write (*,*) matmul( reshape( (/ 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0 /),(/3,3/) ), &
+                    (/ 10.0, 20.0, 30.0 /) )
 
 call DIC%setpattern('r', refpat)
 
@@ -185,32 +190,32 @@ PCy = real(ny,wp)/2.0_wp
 
 write (20) real(refpat)
 
-horiginal = (/ 0.5D0, 0.D0, 0.D0, 0.D0, 0.D0, 0.D0, 0.D0, 0.D0 /)
+horiginal = (/ 0.2D0, 0.D0, 0.D0, 0.D0, 0.D0, 0.D0, 0.D0, 0.D0 /)
 call DIC%applyHomography(horiginal, PCx, PCy)
 defpat = DIC%getpattern('d', nx, ny)
 write (20) real(defpat)
   call DIC%cleanup()
-horiginal = (/ 0.0D0, 0.3D0, 0.D0, 0.D0, 0.D0, 0.D0, 0.D0, 0.D0 /)
+horiginal = (/ 0.0D0, 0.5D0, 0.D0, 0.D0, 0.D0, 0.D0, 0.D0, 0.D0 /)
 call DIC%applyHomography(horiginal, PCx, PCy)
 defpat = DIC%getpattern('d', nx, ny)
 write (20) real(defpat)
   call DIC%cleanup()
-horiginal = (/ 0.D0, 0.D0, 25.0D0, 0.D0, 0.D0, 0.D0, 0.D0, 0.D0 /)
+horiginal = (/ 0.D0, 0.D0, 50.0D0, 0.D0, 0.D0, 0.D0, 0.D0, 0.D0 /)
 call DIC%applyHomography(horiginal, PCx, PCy)
 defpat = DIC%getpattern('d', nx, ny)
 write (20) real(defpat)
   call DIC%cleanup()
-horiginal = (/ 0.D0, 0.D0, 0.0D0, 0.3D0, 0.D0, 0.D0, 0.D0, 0.D0 /)
+horiginal = (/ 0.D0, 0.D0, 0.0D0, 0.5D0, 0.D0, 0.D0, 0.D0, 0.D0 /)
 call DIC%applyHomography(horiginal, PCx, PCy)
 defpat = DIC%getpattern('d', nx, ny)
 write (20) real(defpat)
   call DIC%cleanup()
-horiginal = (/ 0.D0, 0.D0, 0.D0, 0.D0, 0.5D0, 0.D0, 0.D0, 0.D0 /)
+horiginal = (/ 0.D0, 0.D0, 0.D0, 0.D0, 0.2D0, 0.D0, 0.D0, 0.D0 /)
 call DIC%applyHomography(horiginal, PCx, PCy)
 defpat = DIC%getpattern('d', nx, ny)
 write (20) real(defpat)
   call DIC%cleanup()
-horiginal = (/ 0.D0, 0.D0, 0.0D0, 0.D0, 0.D0, 20.0D0, 0.D0, 0.D0 /)
+horiginal = (/ 0.D0, 0.D0, 0.0D0, 0.D0, 0.D0, 50.0D0, 0.D0, 0.D0 /)
 call DIC%applyHomography(horiginal, PCx, PCy)
 defpat = DIC%getpattern('d', nx, ny)
 write (20) real(defpat)
@@ -220,7 +225,7 @@ call DIC%applyHomography(horiginal, PCx, PCy)
 defpat = DIC%getpattern('d', nx, ny)
 write (20) real(defpat)
   call DIC%cleanup()
-horiginal = (/ 0.D0, 0.D0, 0.0D0, 0.D0, 0.D0, 0.D0, 0.0D0, 0.002D0 /)
+horiginal = (/ 0.D0, 0.D0, 0.0D0, 0.D0, 0.D0, 0.D0, 0.0D0, 0.001D0 /)
 call DIC%applyHomography(horiginal, PCx, PCy)
 defpat = DIC%getpattern('d', nx, ny)
 write (20) real(defpat)
@@ -231,6 +236,15 @@ defpat = DIC%getpattern('d', nx, ny)
 write (20) real(defpat)
 
 close(20,status='keep')
+
+! check
+
+horiginal = (/ 0.01D0, 0.1D0, 50.0D0, 0.1D0, 0.5D0,-50.D0, 0.002D0, 0.002D0 /)
+write(*,*) horiginal
+W = DIC%getShapeFunction(horiginal)
+hg = DIC%getHomography(W) 
+write(*,*) hg 
+
 
 stop
 
