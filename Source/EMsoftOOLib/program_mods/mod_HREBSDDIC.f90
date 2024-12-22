@@ -54,6 +54,7 @@ type, public :: HREBSDDICNameListType
    real(kind=sgl)       :: C44
    real(kind=sgl)       :: C13
    real(kind=sgl)       :: C33
+   real(kind=dbl)       :: mindeltap
    character(fnlen)     :: patternfile
    character(fnlen)     :: DIfile
    character(fnlen)     :: datafile
@@ -175,6 +176,7 @@ real(kind=sgl)                       :: C12
 real(kind=sgl)                       :: C44
 real(kind=sgl)                       :: C13
 real(kind=sgl)                       :: C33
+real(kind=dbl)                       :: mindeltap
 character(fnlen)                     :: patternfile
 character(fnlen)                     :: DIfile
 character(fnlen)                     :: datafile
@@ -182,7 +184,7 @@ character(fnlen)                     :: ppEBSDnml
 character(fnlen)                     :: DInml
 character(3)                         :: crystal
 
-namelist / HREBSDDICdata / patx, paty, nthreads, C11, C12, C44, C13, C33, DIfile, DInml, & 
+namelist / HREBSDDICdata / patx, paty, nthreads, C11, C12, C44, C13, C33, DIfile, DInml, mindeltap, & 
                            datafile, patternfile, DIfile, ppEBSDnml, crystal, nbx, nby, maxnumit
 
 patx = 0
@@ -196,6 +198,7 @@ C12 = 159.0
 C44 = 132.0
 C13 = 0.0
 C33 = 0.0
+mindeltap = 0.001D0
 patternfile = 'undefined'
 datafile = 'undefined'
 DIfile = 'undefined'
@@ -247,6 +250,7 @@ self%nml%C12 = C12
 self%nml%C44 = C44
 self%nml%C13 = C13
 self%nml%C33 = C33
+self%nml%mindeltap = mindeltap
 self%nml%patternfile = patternfile
 self%nml%DIfile = DIfile
 self%nml%datafile = datafile
@@ -295,7 +299,7 @@ class(HREBSD_DIC_T), INTENT(INOUT)      :: self
 type(HDF_T), INTENT(INOUT)              :: HDF
 type(HDFnames_T), INTENT(INOUT)         :: HDFnames
 
-integer(kind=irg),parameter             :: n_int = 6, n_real = 5
+integer(kind=irg),parameter             :: n_int = 6, n_real = 6
 integer(kind=irg)                       :: hdferr,  io_int(n_int)
 real(kind=sgl)                          :: io_real(n_real)
 character(20)                           :: intlist(n_int), reallist(n_real)
@@ -318,12 +322,13 @@ intlist(6) = 'maxnumit'
 call HDF%writeNMLintegers(io_int, intlist, n_int)
 
 ! write all the single reals
-io_real = (/ enl%C11, enl%C12, enl%C44, enl%C13, enl%C33 /)
+io_real = (/ enl%C11, enl%C12, enl%C44, enl%C13, enl%C33, real(enl%mindeltap) /)
 reallist(1) = 'C11'
 reallist(2) = 'C12'
 reallist(3) = 'C44'
 reallist(4) = 'C13'
 reallist(5) = 'C33'
+reallist(6) = 'mindeltap'
 call HDF%writeNMLreals(io_real, reallist, n_real)
 
 ! write all the strings
@@ -542,8 +547,8 @@ TID = OMP_GET_THREAD_NUM()
 
 !copy the exptpattern into the thread's DIC class
 DIC = DIC_T( binx, biny )
-call DIC%setverbose( .FALSE. )
-! call DIC%setverbose( .TRUE. )
+! call DIC%setverbose( .FALSE. )
+call DIC%setverbose( .TRUE. )
 call DIC%setpattern( 'r', dble(exptpattern) )
 
 ! define the border widths nbx and nby for the subregion
@@ -601,13 +606,7 @@ do ii=1, numpats
     W = matmul( W, Winv )
     W = W / W(3,3)
     hg = DIC%getHomography(W)
-    if (ndp.lt.0.001D0) then
-    !     oldnorm = ndp
-    !     oldW = W 
-    !     hg = DIC%getHomography(W)
-    ! else
-    !     W = oldW
-    !     ndp = oldnorm
+    if (ndp.lt.enl%mindeltap) then
         EXIT
     end if
   end do

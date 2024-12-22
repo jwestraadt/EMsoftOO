@@ -47,8 +47,8 @@ type, public :: DIC_T
     real(wp)                        :: W(3,3)     ! shape function
     real(wp)                        :: h(8)       ! homography
     real(wp)                        :: CIC        ! current value of function to be minimized
-    integer(ip)                     :: kx = 4     ! spline order
-    integer(ip)                     :: ky = 4     ! spline order
+    integer(ip)                     :: kx = 5     ! spline order
+    integer(ip)                     :: ky = 5     ! spline order
     integer(kind=irg)               :: nx         ! pattern x-size
     integer(kind=irg)               :: ny         ! pattern y-size
     real(wp)                        :: rnxi       ! pattern x scale factor
@@ -152,7 +152,6 @@ integer(kind=irg), INTENT(IN)     :: nx
 integer(kind=irg), INTENT(IN)     :: ny
 
 integer(kind=irg)                 :: i, j
-real(wp)                          :: arx, ary
 
 ! set pattern dimensions 
 DIC%nx = nx 
@@ -163,27 +162,14 @@ allocate( DIC%x(0:nx-1), DIC%y(0:ny-1) )
 DIC%rnxi = 1.0_wp/real(nx-1,wp)
 DIC%rnyi = 1.0_wp/real(ny-1,wp)
 
-! account for pattern aspect ratio
-arx = 1.0_wp
-ary = 1.0_wp
-! if (nx.ne.ny) then 
-!   if (nx.lt.ny) then 
-!     arx = DIC%rnyi / DIC%rnxi
-!   else
-!     ary = DIC%rnxi / DIC%rnyi
-!   end if 
-! end if 
-
 do i=0,nx-1
     DIC%x(i) = real(i,wp)
 end do
-DIC%x =  DIC%x * arx
-! DIC%x = DIC%x * DIC%rnxi
+DIC%x = DIC%x * DIC%rnxi
 do j=0,ny-1
     DIC%y(j) = real(j,wp)
 end do
-DIC%y = DIC%y * ary
-! DIC%y = DIC%y * DIC%rnyi
+DIC%y = DIC%y * DIC%rnyi
 
 end function DIC_constructor
 
@@ -376,6 +362,7 @@ if (present(refp)) then
   if (refp.eqv..TRUE.) then 
     ! initialize the bsplines for the reference pattern
     call self%sref%initialize(self%x,self%y,self%refpat,self%kx,self%ky,iflag)
+    write (*,*) ' getbsplines_ : ', iflag, minval(self%x), maxval(self%x)
     ! for potential later calls, allow for extrapolation
     call self%sref%set_extrap_flag(.TRUE.)
     if (self%verbose) call Message%printMessage(' getbsplines_::b-splines for reference pattern completed')
@@ -394,6 +381,7 @@ end if
 
 if (present(verify)) then 
   if (verify.eqv..TRUE.) then 
+    errmax = -1.0_wp
     do i=0,self%nx-1
        do j=0,self%ny-1
             ! determine how well the spline coefficients represent the original reference pattern
@@ -473,8 +461,10 @@ if (self%verbose) call Message%printMessage(' defineSR_::referenceSR array alloc
 
 ! define the coordinate arrays for the sub-region
 allocate( self%xiX(0:self%nxSR-1), self%xiY(0:self%nySR-1) )
-self%xiX = self%x(nbx:self%nx-nbx-1) - self%nxSR/2 ! PCx
-self%xiY = self%y(nby:self%ny-nby-1) - self%nySR/2 ! PCy
+self%xiX = self%x(nbx:self%nx-nbx-1) - PCx ! self%nxSR/2 ! PCx
+self%xiY = self%y(nby:self%ny-nby-1) - PCy ! self%nySR/2 ! PCy
+write (*,*) 'defineSR : ',minval(self%xiX), maxval(self%xiX)
+write (*,*) 'defineSR : ',minval(self%xiY), maxval(self%xiY)
 if (self%verbose) call Message%printMessage(' defineSR_::xiX, xiY arrays allocated')
 
 ! allocate array for the product of the gradient and the Jacobian

@@ -19,6 +19,8 @@
  nby = 0,
 ! maximum number of iterations of the refinement algorithm
  maxnumit = 50,
+! minimum delta-p value at which the iteration ends
+ mindeltap = 0.001D0,
 ! number of threads (default = 1)
  nthreads = 1,
 !
