@@ -188,8 +188,8 @@ private
 
 ! we use a private parameter and a pair of get/set methods to control the precision (single or double);
 ! by default, all rotation operations are performed in double precision
-logical :: rotdoubleprecision = .TRUE.
-public :: setRotationPrecision, getRotationPrecision, toRadians, toDegrees, cvtoRadians, cvtoDegrees, &
+logical :: rotdoubleprecision = .TRUE., checkvalidity = .FALSE.
+public :: setRotationPrecision, setCheckValidity, getRotationPrecision, toRadians, toDegrees, cvtoRadians, cvtoDegrees, &
           RodriguesProduct, quat_average
 
 interface quat_average
@@ -2784,6 +2784,8 @@ real(kind=dbl)             :: rd
 
 res = 1
 
+if (checkvalidity.eqv..TRUE.) then
+
 if (rotdoubleprecision) then
   if (self%rd(4).lt.0.D0) then
      call Message%printMessage('rotations:r_check: Rodrigues-Frank vector has negative length')
@@ -2799,6 +2801,7 @@ else
   self%r(1:3) = self%r(1:3) / r
   res = 0
 end if
+end if 
 
 end function r_check_
 
@@ -2826,6 +2829,8 @@ real(kind=sgl), parameter  :: epsd = 1.d-15
 
 res = 1
 
+if (checkvalidity.eqv..TRUE.) then
+
 if (rotdoubleprecision) then
   rd = sqrt(sum(self%sd*self%sd))
   if (rd.gt.(1.D0+epsd)) then
@@ -2839,6 +2844,7 @@ else
   endif
   res = 0
 end if
+end if 
 
 end function s_check_
 
@@ -2866,6 +2872,8 @@ real(kind=sgl), parameter  :: epsd = 1.d-15
 integer(kind=irg)          :: i
 
 res = 1
+
+if (checkvalidity.eqv..TRUE.) then
 
 if (rotdoubleprecision) then
   ! compute the determinant (must be +1)
@@ -2904,6 +2912,7 @@ else
   endif
   res = 0
 end if
+end if 
 
 end function o_check_
 
@@ -2928,6 +2937,9 @@ real(kind=sgl)             :: r
 real(kind=dbl)             :: rd
 
 res = 1
+
+if (checkvalidity.eqv..TRUE.) then
+
 if (rotdoubleprecision) then
   rd = sqrt(sum(self%hd*self%hd))
   if (rd.gt.LPs%R1) then
@@ -2941,6 +2953,7 @@ else
   endif
   res = 0
 end if
+end if 
 
 end function h_check_
 
@@ -2968,6 +2981,8 @@ real(kind=sgl), parameter  :: epsd = 1.d-15
 
 res = 1
 
+if (checkvalidity.eqv..TRUE.) then
+
 if (rotdoubleprecision) then
   rd = sqrt(sum(self%ad(1:3)*self%ad(1:3)))
   if ((self%ad(4).lt.0.D0).or.(self%ad(4).gt.cPi)) then
@@ -2987,6 +3002,7 @@ else
   endif
   res = 0
 end if
+end if 
 
 end function a_check_
 
@@ -3014,6 +3030,9 @@ real(kind=dbl), parameter  :: epsd = 1.d-10
 
 res = 1
 
+if (checkvalidity.eqv..TRUE.) then
+
+
 if (rotdoubleprecision) then
   rd = sqrt(sum(self%vd*self%vd))
   write (*,*) rd, cPi, rd-cPi
@@ -3028,6 +3047,7 @@ else
   endif
   res = 0
 end if
+end if 
 
 end function v_check_
 
@@ -3053,6 +3073,9 @@ real(kind=dbl)             :: rd
 
 res = 1
 
+if (checkvalidity.eqv..TRUE.) then
+
+
 if (rotdoubleprecision) then
   rd = maxval(abs(self%cd))
   if (rd.gt.LPs%ap/2.D0) then
@@ -3066,6 +3089,7 @@ else
   endif
   res = 0
 end if
+end if 
 
 end function c_check_
 
@@ -3088,6 +3112,9 @@ integer(kind=irg)          :: res
 type(IO_t)                 :: Message
 
 res = 1
+
+if (checkvalidity.eqv..TRUE.) then
+
 
 if (rotdoubleprecision) then
   if ((self%ed(1).lt.0.D0).or.(self%ed(1).gt.(2.D0*cPi))) then
@@ -3112,6 +3139,7 @@ else
   endif
   res = 0
 end if
+end if 
 
 end function e_check_
 
@@ -3138,6 +3166,8 @@ real(kind=dbl)             :: rd
 
 res = 1
 
+if (checkvalidity.eqv..TRUE.) then
+
 if (rotdoubleprecision) then
   rd = dsqrt(sum(self%qd*self%qd))
   self%qd = self%qd/rd
@@ -3147,7 +3177,7 @@ else
   self%q = self%q/r
   res = 0
 end if
-
+end if 
 end function q_check_
 
 !--------------------------------------------------------------------------
@@ -6098,6 +6128,18 @@ else
 end if
 
 end function qe_
+
+!------------------------------------------
+subroutine setCheckValidity(c)
+!DEC$ ATTRIBUTES DLLEXPORT :: setCheckValidity
+
+IMPLICIT NONE
+
+logical, INTENT(IN)    :: c
+
+checkvalidity = c 
+
+end subroutine setCheckValidity
 
 !------------------------------------------
 subroutine setRotationPrecision(c)

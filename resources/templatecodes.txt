@@ -59,7 +59,7 @@
 081EMAverageOrient
 082EMDisorientations
 083EMOrientationSimilarity
-084EMKAM
+084EMgetKAM
 085EMDvsD
 086EMOrientationViz
 087EMConvertOrientations
