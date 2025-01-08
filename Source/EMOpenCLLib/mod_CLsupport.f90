@@ -229,13 +229,13 @@ logical,INTENT(IN),OPTIONAL     :: verb
 
 type(IO_T)                      :: Message
 type(memory_T)                  :: mem
-integer(c_int32_t)              :: err
-integer(c_int)                  :: nplatforms
+integer(c_int32_t)              :: err = 0
+integer(c_int)                  :: nplatforms = 0
 integer(c_size_t)               :: zero_size = 0
-integer(c_size_t)               :: temp_size
+integer(c_size_t)               :: temp_size = 0
 integer(kind=irg)               :: i
-integer(c_intptr_t)             :: platform_id
-integer(c_int32_t)              :: num_devices
+integer(c_intptr_t)             :: platform_id 
+integer(c_int32_t)              :: num_devices = 0
 integer(c_intptr_t), allocatable, target :: platform_ids(:)
 logical                         :: verbose 
 
@@ -246,7 +246,7 @@ end if
 
 ! Get the number of platforms, prior to allocating arrays.
   err = clGetPlatformIDs(0, C_NULL_PTR, nplatforms)
-  if (err /= CL_SUCCESS) call Message%printError('clGetPlatformIDs: ','Error quering platforms')
+  if (err /= CL_SUCCESS) call Message%printError('clGetPlatformIDs: ','Error quering platforms L249')
   CL%num_platforms = nplatforms
 
   if (CL%num_platforms.gt.0) then
@@ -265,7 +265,7 @@ end if
 
   ! Get platforms IDs.
     err = clGetPlatformIDs(nplatforms, C_LOC(platform_ids), nplatforms)
-    if (err /= CL_SUCCESS) call Message%printError('clGetPlatformIDs: ','Error quering platforms')
+    if (err /= CL_SUCCESS) call Message%printError('clGetPlatformIDs: ','Error quering platforms L269')
     CL%p_ids(:) = platform_ids(:)
 
   ! for each platform, get the number of devices so we can allocate the d_*PUids array
@@ -979,10 +979,10 @@ integer(c_int64_t)                       :: cmd_queue_props
 
 ! get the platform ID
 ierr = clGetPlatformIDs(0, C_NULL_PTR, nump)
-call error_check_(self, 'CLinit_PDCCQ:clGetPlatformIDs',ierr)
+call error_check_(self, 'CLinit_PDCCQ:clGetPlatformIDs L983',ierr)
 allocate(platform(nump))
 ierr = clGetPlatformIDs(nump, C_LOC(platform), nump)
-call error_check_(self, 'CLinit_PDCCQ:clGetPlatformIDs',ierr)
+call error_check_(self, 'CLinit_PDCCQ:clGetPlatformIDs L986',ierr)
 
 if (selnump.gt.nump) then
   call Message%printError("CLinit_PDCCQ","non-existing platform id requested")

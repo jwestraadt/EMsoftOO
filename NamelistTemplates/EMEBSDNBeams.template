@@ -1,0 +1,14 @@
+ &EBSDNBeams
+! smallest d-spacing to take into account [nm]
+ dmin = 0.05,
+! number of pixels along x-direction of the square master pattern  (2*npx+1 = total number)
+ npx = 500,
+! number of OpenMP threads (0 to use the maximum available)
+ nthreads = 1,
+! EMMCOpenCL energy (or EMEBSDmaster) file
+ energyfile = 'undefined', 
+! tiff output prefix (no extension, relative to EMdatapathname)
+ tiffprefix = 'undefined',
+! BetheParameters file name
+ BetheParametersFile = 'BetheParameters.nml',
+ /

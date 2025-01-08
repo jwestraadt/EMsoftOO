@@ -79,6 +79,16 @@ if(EMsoftOO_ENABLE_HDF5_SUPPORT)
                         INCLUDE_DIRS ${EMsoftOOLib_BINARY_DIR}
                         )
 
+  Add_EMsoftOO_Executable(TARGET EMEBSDNBeams
+                        SOURCES ${APP_DIR}/EMEBSDNBeams.f90
+                        LINK_LIBRARIES ${EXE_LINK_LIBRARIES}
+                        TEMPLATE ${TMPLT_DIR}/EMEBSDNBeams.template
+                        SOLUTION_FOLDER EMsoftOOPublic/SEM
+                        INSTALL_PROGRAM TRUE
+                        INCLUDE_DIRS ${EMsoftOOLib_BINARY_DIR}
+                        )
+
+
   Add_EMsoftOO_Executable(TARGET EMEBSDdepthmaster
                         SOURCES ${APP_DIR}/EMEBSDdepthmaster.f90
                         LINK_LIBRARIES ${EXE_LINK_LIBRARIES}
