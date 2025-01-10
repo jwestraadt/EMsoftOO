@@ -32,6 +32,14 @@
  eulerconvention = 'tsl',
 ! name of EBSD master output file; path relative to EMdatapathname
  masterfile = 'master.h5',
+! if superimposeNBeams is set to .TRUE., then the EMEBSD program will superimpose the result
+! of the EMEBSDNBeams program onto the simulated EBSP; the EBSP will be in the red channel
+! of the tiff file and the NBeams result in the green and blue channels; you should also set
+! the superimposeTIFF filename ... This requires that the EMEBSDNBeams program has been executed
+! first.
+ superimposeNBeams = .FALSE.,
+! filename without extension !!
+ superimposeTIFF = 'undefined',
 ! name of output file; path relative to EMdatapathname
  datafile = 'EBSDout.h5',
 ! bitdepth '8bit' for [0..255] bytes; 'float' for 32-bit reals; '##int' for 32-bit integers with ##-bit dynamic range

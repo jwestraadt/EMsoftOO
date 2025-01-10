@@ -93,6 +93,8 @@ type, public :: MPdataType
   real(kind=sgl),allocatable      :: mLPSH4(:,:,:,:)
   real(kind=sgl),allocatable      :: mLPNH(:,:,:)
   real(kind=sgl),allocatable      :: mLPSH(:,:,:)
+  real(kind=sgl),allocatable      :: NBeamsLPNH(:,:,:)
+  real(kind=sgl),allocatable      :: NBeamsLPSH(:,:,:)
   real(kind=sgl),allocatable      :: masterSPNH(:,:,:)
   real(kind=sgl),allocatable      :: masterSPSH(:,:,:)
 end type MPdataType
@@ -129,6 +131,8 @@ type, public :: MPfile_T
     procedure, pass(self) :: copymLPSH4_
     procedure, pass(self) :: copymLPNH_
     procedure, pass(self) :: copymLPSH_
+    procedure, pass(self) :: copyNBeamsLPNH_
+    procedure, pass(self) :: copyNBeamsLPSH_
     procedure, pass(self) :: copysummLPNH_
     procedure, pass(self) :: copysummLPSH_
     procedure, pass(self) :: copymasterSPNH_
@@ -158,6 +162,8 @@ type, public :: MPfile_T
     generic, public :: copymLPSH4 => copymLPSH4_
     generic, public :: copymLPNH => copymLPNH_
     generic, public :: copymLPSH => copymLPSH_
+    generic, public :: copyNBeamsLPNH => copyNBeamsLPNH_
+    generic, public :: copyNBeamsLPSH => copyNBeamsLPSH_
     generic, public :: copysummLPNH => copysummLPNH_
     generic, public :: copysummLPSH => copysummLPSH_
     generic, public :: copymasterSPNH => copymasterSPNH_
@@ -337,6 +343,60 @@ acc = self%MPDT%mLPSH
 if (.not.present(keep)) deallocate(self%MPDT%mLPSH)
 
 end subroutine copymLPSH_
+
+!--------------------------------------------------------------------------
+subroutine copyNBeamsLPNH_(self, acc, keep)
+!DEC$ ATTRIBUTES DLLEXPORT :: copyNBeamsLPNH_
+!! author: MDG
+!! version: 1.0
+!! date: 02/17/20
+!!
+!! copy the NBeamsLPNH array
+
+IMPLICIT NONE
+
+class(MPfile_T), INTENT(INOUT)                :: self
+real(kind=sgl), allocatable, INTENT(OUT)      :: acc(:,:,:)
+logical, INTENT(IN), OPTIONAL                 :: keep
+
+integer(kind=irg)                             :: s(3), nx
+
+s = shape(self%MPDT%NBeamsLPNH)
+nx = (s(1)-1)/2
+allocate(acc(-nx:nx,-nx:nx,s(3)))
+
+acc = self%MPDT%NBeamsLPNH
+
+if (.not.present(keep)) deallocate(self%MPDT%NBeamsLPNH)
+
+end subroutine copyNBeamsLPNH_
+
+!--------------------------------------------------------------------------
+subroutine copyNBeamsLPSH_(self, acc, keep)
+!DEC$ ATTRIBUTES DLLEXPORT :: copyNBeamsLPSH_
+!! author: MDG
+!! version: 1.0
+!! date: 01/09/25
+!!
+!! copy the NBeamsLPSH array
+
+IMPLICIT NONE
+
+class(MPfile_T), INTENT(INOUT)                :: self
+real(kind=sgl), allocatable, INTENT(OUT)      :: acc(:,:,:)
+logical, INTENT(IN), OPTIONAL                 :: keep
+
+integer(kind=irg)                             :: s(3), nx
+
+s = shape(self%MPDT%NBeamsLPSH)
+nx = (s(1)-1)/2
+allocate(acc(-nx:nx,-nx:nx,s(3)))
+
+acc = self%MPDT%NBeamsLPSH
+
+if (.not.present(keep)) deallocate(self%MPDT%NBeamsLPSH)
+
+end subroutine copyNBeamsLPSH_
 
 !--------------------------------------------------------------------------
 subroutine copysummLPNH_(self, acc, keep)
@@ -899,7 +959,7 @@ call HDF%pop()
 end subroutine writeHDFNameList_
 
 !--------------------------------------------------------------------------
-recursive subroutine readMPfile_(self, HDF, HDFnames, mpnl, getkeVs, getmLPNH, getmLPSH, &
+recursive subroutine readMPfile_(self, HDF, HDFnames, mpnl, getkeVs, getmLPNH, getmLPSH, getNBeams, &
                                  getmasterSPNH, getmasterSPSH, keep4, defectMP, getstrings, silent)
 !DEC$ ATTRIBUTES DLLEXPORT :: readMPfile_
 !! author: MDG
@@ -924,6 +984,7 @@ class(SEMmasterNameListType), INTENT(INOUT)      :: mpnl
 logical,INTENT(IN),OPTIONAL                      :: getkeVs
 logical,INTENT(IN),OPTIONAL                      :: getmLPNH
 logical,INTENT(IN),OPTIONAL                      :: getmLPSH
+logical,INTENT(IN),OPTIONAL                      :: getNBeams
 logical,INTENT(IN),OPTIONAL                      :: getmasterSPNH
 logical,INTENT(IN),OPTIONAL                      :: getmasterSPSH
 logical,INTENT(IN),OPTIONAL                      :: keep4
@@ -1287,6 +1348,31 @@ if (present(getmasterSPSH)) then
     call HDF%readDatasetFloatArray(dataset, dims3, hdferr, MPDT%masterSPSH)
   end if
 end if
+
+if (present(getNBeams)) then
+  if (getNBeams.eqv..TRUE.) then
+! switch data group to EBSDNBeams
+    call HDF%pop()
+    groupname = 'EBSDNBeams'
+    call H5Lexists_f(HDF%getobjectID(),trim(groupname),g_exists, hdferr)
+    if (g_exists.eqv..FALSE.) then 
+      call Message%printError('readMPfile:',' no EBSDNBeams group found in this file')
+    end if 
+    hdferr = HDF%openGroup(groupname)
+
+    dataset = SC_mLPNH
+    call HDF%readDatasetFloatArray(dataset, dims3, hdferr, mLPNH3)
+    allocate(MPDT%NBeamsLPNH(-mpnl%npx:mpnl%npx,-mpnl%npx:mpnl%npx,dims3(3)),stat=istat)
+    MPDT%NBeamsLPNH = mLPNH3
+    deallocate(mLPNH3)
+    
+    dataset = SC_mLPSH
+    call HDF%readDatasetFloatArray(dataset, dims3, hdferr, mLPNH3)
+    allocate(MPDT%NBeamsLPSH(-mpnl%npx:mpnl%npx,-mpnl%npx:mpnl%npx,dims3(3)),stat=istat)
+    MPDT%NBeamsLPSH = mLPNH3
+    deallocate(mLPNH3)
+  end if 
+end if     
 
 ! and close the HDF5 Master Pattern file
 call HDF%popall()

@@ -64,6 +64,7 @@ type, public :: EBSDNameListType
   real(kind=dbl)          :: Ftensor(3,3)
   real(kind=dbl)          :: beamcurrent
   real(kind=dbl)          :: dwelltime
+  logical                 :: superimposeNBeams
   character(1)            :: makedictionary
   character(1)            :: poisson
   character(1)            :: includebackground
@@ -74,6 +75,7 @@ type, public :: EBSDNameListType
   character(3)            :: outputformat
   character(1)            :: spatialaverage
   character(5)            :: bitdepth
+  character(fnlen)        :: superimposeTIFF
   character(fnlen)        :: anglefile
   character(fnlen)        :: anglefiletype
   character(fnlen)        :: masterfile
@@ -121,6 +123,8 @@ private
   procedure, pass(self) :: ComputeEBSDPatterns_
   procedure, pass(self) :: ComputedeformedEBSDpatterns_
   procedure, pass(self) :: CalcEBSDPatternSingleFull_
+  procedure, pass(self) :: CalcNBeamsPattern_
+  procedure, pass(self) :: writeColorTiff_
   procedure, pass(self) :: setnumsx_
   procedure, pass(self) :: getnumsx_
   procedure, pass(self) :: setnumsy_
@@ -163,6 +167,8 @@ private
   procedure, pass(self) :: getdwelltime_
   procedure, pass(self) :: setmakedictionary_
   procedure, pass(self) :: getmakedictionary_
+  procedure, pass(self) :: setsuperimposeNBeams_
+  procedure, pass(self) :: getsuperimposeNBeams_
   procedure, pass(self) :: setpoisson_
   procedure, pass(self) :: getpoisson_
   procedure, pass(self) :: setincludebackground_
@@ -181,6 +187,8 @@ private
   procedure, pass(self) :: getspatialaverage_
   procedure, pass(self) :: setbitdepth_
   procedure, pass(self) :: getbitdepth_
+  procedure, pass(self) :: setsuperimposeTIFF_
+  procedure, pass(self) :: getsuperimposeTIFF_
   procedure, pass(self) :: setanglefile_
   procedure, pass(self) :: getanglefile_
   procedure, pass(self) :: setanglefiletype_
@@ -202,6 +210,8 @@ private
   generic, public :: ComputeEBSDPatterns => ComputeEBSDPatterns_
   generic, public :: ComputedeformedEBSDpatterns => ComputedeformedEBSDpatterns_
   generic, public :: CalcEBSDPatternSingleFull => CalcEBSDPatternSingleFull_
+  generic, public :: CalcNBeamsPattern => CalcNBeamsPattern_
+  generic, public :: writeColorTiff => writeColorTiff_
   generic, public :: setnumsx => setnumsx_
   generic, public :: getnumsx => getnumsx_
   generic, public :: setnumsy => setnumsy_
@@ -244,6 +254,8 @@ private
   generic, public :: getdwelltime => getdwelltime_
   generic, public :: setmakedictionary => setmakedictionary_
   generic, public :: getmakedictionary => getmakedictionary_
+  generic, public :: setsuperimposeNBeams => setsuperimposeNBeams_
+  generic, public :: getsuperimposeNBeams => getsuperimposeNBeams_
   generic, public :: setpoisson => setpoisson_
   generic, public :: getpoisson => getpoisson_
   generic, public :: setincludebackground => setincludebackground_
@@ -262,6 +274,8 @@ private
   generic, public :: getspatialaverage => getspatialaverage_
   generic, public :: setbitdepth => setbitdepth_
   generic, public :: getbitdepth => getbitdepth_
+  generic, public :: setsuperimposeTIFF => setsuperimposeTIFF_
+  generic, public :: getsuperimposeTIFF => getsuperimposeTIFF_
   generic, public :: setanglefile => setanglefile_
   generic, public :: getanglefile => getanglefile_
   generic, public :: setanglefiletype => setanglefiletype_
@@ -347,6 +361,7 @@ real(kind=sgl)          :: hipassw
 real(kind=dbl)          :: Ftensor(3,3)
 real(kind=dbl)          :: beamcurrent
 real(kind=dbl)          :: dwelltime
+logical                 :: superimposeNBeams
 character(1)            :: includebackground
 character(1)            :: poisson
 character(1)            :: makedictionary
@@ -357,6 +372,7 @@ character(3)            :: scalingmode
 character(3)            :: eulerconvention
 character(3)            :: outputformat
 character(5)            :: bitdepth
+character(fnlen)        :: superimposeTIFF
 character(fnlen)        :: anglefile
 character(fnlen)        :: anglefiletype
 character(fnlen)        :: masterfile
@@ -368,7 +384,7 @@ namelist  / EBSDdata / L, thetac, delta, numsx, numsy, xpc, ypc, anglefile, eule
                        energyfile, datafile, beamcurrent, dwelltime, energymin, energymax, binning, gammavalue, alphaBD, &
                        scalingmode, axisangle, nthreads, outputformat, maskpattern, spatialaverage, &
                        applyDeformation, Ftensor, includebackground, anglefiletype, makedictionary, hipassw, nregions, &
-                       maskradius, poisson
+                       maskradius, poisson, superimposeNBeams, superimposeTIFF
 
 ! define the IO namelist to facilitate passing variables to the program.
 ! the two name lists are currently identical, but we allow for the fact that
@@ -400,6 +416,7 @@ axisangle       = (/0.0, 0.0, 1.0, 0.0/)        ! no additional axis angle rotat
 Ftensor         = reshape( (/ 1.D0, 0.D0, 0.D0, 0.D0, 1.D0, 0.D0, 0.D0, 0.D0, 1.D0 /), (/ 3,3 /) )
 beamcurrent     = 14.513D0      ! beam current (actually emission current) in nano ampere
 dwelltime       = 100.0D0       ! in microseconds
+superimposeNBeams = .FALSE.
 makedictionary  = 'y'
 poisson         = 'n'           ! apply poisson noise ?
 includebackground = 'y'         ! set to 'n' to remove realistic background intensity profile
@@ -412,6 +429,7 @@ bitdepth        = '8bit'        ! format for output; '8char' for [0..255], '##in
 ! the '##int' notation stands for the actual bitdepth; all values are stored as 32bit integers, but they are scaled
 ! from the float values to a maximum that is given by the first two digits, which indicate the bit depth; so, valid
 ! values would be '10int' for a 10-bit integer scale, '16int' for a 16-bit integer scale, and so on.
+superimposeTIFF = 'undefined'
 anglefile       = 'undefined'   ! filename
 anglefiletype   = 'orientations'! 'orientations' or 'orpcdef'
 masterfile      = 'undefined'   ! filename
@@ -460,6 +478,10 @@ if (.not.skipread) then
  if (numsy.eq.0) then
   call Message%printError('readNameList:',' pattern size numsy is zero '//nmlfile)
  end if
+
+ if ((superimposeNBeams.eqv..TRUE.).and.(trim(superimposeTIFF).eq.'undefined')) then 
+  call Message%printError('readNameList:',' superimposeTIFF must be set if superimposeNBeams=.TRUE.'//nmlfile)
+ end if
 end if
 
 ! if we get here, then all appears to be ok, and we need to fill in the enl fields
@@ -486,12 +508,14 @@ self%nml%dwelltime = dwelltime
 self%nml%includebackground = includebackground
 self%nml%makedictionary = makedictionary
 self%nml%poisson = poisson
+self%nml%superimposeNBeams = superimposeNBeams
 self%nml%applyDeformation = applyDeformation
 self%nml%maskpattern = maskpattern
 self%nml%scalingmode = scalingmode
 self%nml%eulerconvention = eulerconvention
 self%nml%outputformat = outputformat
 self%nml%bitdepth = bitdepth
+self%nml%superimposeTIFF = superimposeTIFF
 self%nml%anglefile = anglefile
 self%nml%anglefiletype = anglefiletype
 self%nml%masterfile = masterfile
@@ -543,8 +567,8 @@ type(HDF_T), INTENT(INOUT)              :: HDF
 type(HDFnames_T), INTENT(INOUT)         :: HDFnames
 logical,OPTIONAL,INTENT(IN)             :: isTKD
 
-integer(kind=irg),parameter             :: n_int = 6, n_real = 10
-integer(kind=irg)                       :: hdferr,  io_int(n_int)
+integer(kind=irg),parameter             :: n_int = 7, n_real = 10
+integer(kind=irg)                       :: hdferr,  io_int(n_int), NB=0
 real(kind=sgl)                          :: io_real(n_real)
 character(20)                           :: reallist(n_real)
 character(20)                           :: intlist(n_int)
@@ -556,14 +580,17 @@ associate( enl => self%nml )
 ! create the group for this namelist
 hdferr = HDF%createGroup(HDFnames%get_NMLlist())
 
+if (enl%superimposeNBeams.eqv..TRUE.) NB=1
+
 ! write all the single integers
-io_int = (/ enl%numsx, enl%numsy, enl%binning, enl%nthreads, enl%nregions, enl%maskradius /)
+io_int = (/ enl%numsx, enl%numsy, enl%binning, enl%nthreads, enl%nregions, enl%maskradius, NB /)
 intlist(1) = 'numsx'
 intlist(2) = 'numsy'
 intlist(3) = 'binning'
 intlist(4) = 'nthreads'
 intlist(5) = 'nregions'
 intlist(6) = 'maskradius'
+intlist(7) = 'superimposeNBeams'
 call HDF%writeNMLintegers(io_int, intlist, n_int)
 
 ! write all the single reals
@@ -650,6 +677,11 @@ dataset = SC_energyfile
 line2(1) = trim(enl%energyfile)
 hdferr = HDF%writeDatasetStringArray(dataset, line2, 1)
 if (hdferr.ne.0) call HDF%error_check('writeHDFNameList: unable to create energyfile dataset', hdferr)
+
+dataset = 'superimposeTIFF'
+line2(1) = trim(enl%superimposeTIFF)
+hdferr = HDF%writeDatasetStringArray(dataset, line2, 1)
+if (hdferr.ne.0) call HDF%error_check('writeHDFNameList: unable to create superimposeTIFF dataset', hdferr)
 
 dataset = SC_masterfile
 line2(1) = trim(enl%masterfile)
@@ -1471,6 +1503,42 @@ out = trim(self%nml%poisson)
 end function getpoisson_
 
 !--------------------------------------------------------------------------
+subroutine setsuperimposeNBeams_(self,inp)
+!DEC$ ATTRIBUTES DLLEXPORT :: setsuperimposeNBeams_
+!! author: MDG
+!! version: 1.0
+!! date: 05/10/23
+!!
+!! set superimposeNBeams in the EBSD_T class
+
+IMPLICIT NONE
+
+class(EBSD_T), INTENT(INOUT)    :: self
+logical, INTENT(IN)             :: inp
+
+self%nml%superimposeNBeams = inp
+
+end subroutine setsuperimposeNBeams_
+
+!--------------------------------------------------------------------------
+function getsuperimposeNBeams_(self) result(out)
+!DEC$ ATTRIBUTES DLLEXPORT :: getsuperimposeNBeams_
+!! author: MDG
+!! version: 1.0
+!! date: 05/10/23
+!!
+!! get superimposeNBeams from the EBSD_T class
+
+IMPLICIT NONE
+
+class(EBSD_T), INTENT(INOUT)    :: self
+logical                         :: out
+
+out = self%nml%superimposeNBeams
+
+end function getsuperimposeNBeams_
+
+!--------------------------------------------------------------------------
 subroutine setincludebackground_(self,inp)
 !DEC$ ATTRIBUTES DLLEXPORT :: setincludebackground_
 !! author: MDG
@@ -1795,6 +1863,42 @@ out = trim(self%nml%anglefile)
 end function getanglefile_
 
 !--------------------------------------------------------------------------
+subroutine setsuperimposeTIFF_(self,inp)
+!DEC$ ATTRIBUTES DLLEXPORT :: setsuperimposeTIFF_
+!! author: MDG
+!! version: 1.0
+!! date: 05/10/23
+!!
+!! set superimposeTIFF in the EBSD_T class
+
+IMPLICIT NONE
+
+class(EBSD_T), INTENT(INOUT)     :: self
+character(fnlen), INTENT(IN)       :: inp
+
+self%nml%superimposeTIFF = trim(inp)
+
+end subroutine setsuperimposeTIFF_
+
+!--------------------------------------------------------------------------
+function getsuperimposeTIFF_(self) result(out)
+!DEC$ ATTRIBUTES DLLEXPORT :: getsuperimposeTIFF_
+!! author: MDG
+!! version: 1.0
+!! date: 05/10/23
+!!
+!! get superimposeTIFF from the EBSD_T class
+
+IMPLICIT NONE
+
+class(EBSD_T), INTENT(INOUT)     :: self
+character(fnlen)                   :: out
+
+out = trim(self%nml%superimposeTIFF)
+
+end function getsuperimposeTIFF_
+
+!--------------------------------------------------------------------------
 subroutine setanglefiletype_(self,inp)
 !DEC$ ATTRIBUTES DLLEXPORT :: setanglefiletype_
 !! author: MDG
@@ -1983,7 +2087,7 @@ type(EBSDmasterNameListType)        :: mpnl
 type(MCOpenCLNameListType)          :: mcnl
 type(EBSDAnglePCDefType)            :: orpcdef
 
-logical                             :: verbose, isTKD = .FALSE.
+logical                             :: verbose, isTKD = .FALSE., NBeams = .FALSE.
 character(fnlen)                    :: fname, nmldeffile
 integer(kind=irg)                   :: numangles, istat
 type(FZpointd),pointer              :: FZtmp
@@ -2003,6 +2107,8 @@ call openFortranHDFInterface()
 HDF = HDF_T()
 
 associate( enl => self%nml, EBSDdetector => self%det, EBSDMCdata => MCFT%MCDT )
+
+if (enl%superimposeNBeams.eqv..TRUE.) NBeams = .TRUE.
 
 ! set the HDF group names for this program
 HDFnames = HDFnames_T()
@@ -2028,6 +2134,21 @@ else
   call Message%printError('EBSD','unknown anglefiletype')
 end if
 
+! print a warning message if numangles>100 and imposeNBeams=.TRUE. 
+if ((numangles.gt.100).and.(enl%superimposeNBeams.eqv..TRUE.)) then 
+  call Message%printMessage( (/ &
+' #####################################################################################', & 
+' #####################################################################################', & 
+' Warning: superimposeNBeams is set to .TRUE. and there are more than 100 orientations ', & 
+'          in the anglefile... this program will generate a TIFF file for each of the  ', & 
+'          orientations.  This could be a large number of files in the folder and may  ', & 
+'          cause issues with the file system... if you do not want this many files,    ', & 
+'          please reduce the number of orientations in the anglefile or turn off the   ', & 
+'          superimposeNBeams flag.                                                     ', & 
+' #####################################################################################', & 
+' #####################################################################################' /) )
+end if 
+
 ! 2. read the Monte Carlo data file (HDF format)
 call HDFnames%set_ProgramData(SC_MCOpenCL)
 call HDFnames%set_NMLlist(SC_MCCLNameList)
@@ -2051,7 +2172,11 @@ call HDFnames%set_Variable(SC_MCOpenCL)
 
 fname = EMsoft%generateFilePath('EMdatapathname',trim(enl%masterfile))
 call MPFT%setFileName(fname)
-call MPFT%readMPfile(HDF, HDFnames, mpnl, getmLPNH=.TRUE., getmLPSH=.TRUE.)
+if (NBeams.eqv..TRUE.) then
+  call MPFT%readMPfile(HDF, HDFnames, mpnl, getmLPNH=.TRUE., getmLPSH=.TRUE., getNBeams=.TRUE.)
+else
+  call MPFT%readMPfile(HDF, HDFnames, mpnl, getmLPNH=.TRUE., getmLPSH=.TRUE.)
+end if 
 
 if (isTKD.eqv..TRUE.) then
   HDFnames = saveHDFnames
@@ -2418,12 +2543,12 @@ type(memory_T)                          :: memth
 real(kind=dbl)                          :: prefactor, qz(3)
 
 ! allocatable arrays
-real(kind=sgl),allocatable              :: EBSDpattern(:,:), binned(:,:)        ! array with EBSD patterns
+real(kind=sgl),allocatable              :: EBSDpattern(:,:), binned(:,:), beams(:,:)        ! array with EBSD patterns
 real(kind=sgl),allocatable              :: z(:,:)               ! used to store the computed patterns before writing to disk
 real(kind=sgl),allocatable              :: energywf(:), eulerangles(:,:)
 
 ! arrays for each OpenMP thread
-real(kind=sgl),allocatable              :: tmLPNH(:,:,:) , tmLPSH(:,:,:)
+real(kind=sgl),allocatable              :: tmLPNH(:,:,:) , tmLPSH(:,:,:), tNBeamsLPNH(:,:,:) , tNBeamsLPSH(:,:,:)
 real(kind=sgl),allocatable              :: trgx(:,:), trgy(:,:), trgz(:,:)          ! auxiliary detector arrays needed for interpolation
 real(kind=sgl),allocatable              :: taccum(:,:,:)
 
@@ -2467,7 +2592,7 @@ character(15)                           :: tstrb
 character(15)                           :: tstre
 character(10)                           :: char10
 character(fnlen)                        :: datafile
-logical                                 :: overwrite = .TRUE., insert = .TRUE., singlebatch
+logical                                 :: overwrite = .TRUE., insert = .TRUE., singlebatch, doNBeams
 character(5)                            :: bitmode
 integer(kind=irg)                       :: numbits
 real(kind=sgl)                          :: bitrange
@@ -2481,6 +2606,10 @@ if (trim(HDFnames%get_ProgramData()).eq.trim(SC_TKD)) isTKD = .TRUE.
 
 associate( enl => self%nml, mcnl => MCFT%nml, &
            EBSDMCdata => MCFT%MCDT, EBSDMPdata => MPFT%MPDT, EBSDdetector => self%det )
+
+! do we need to generate color images with number-of-beams information?
+doNBeams = .FALSE.
+if (allocated(EBSDMPdata%NBeamsLPNH)) doNBeams = .TRUE.
 
 !====================================
 ! max number of OpenMP threads on this platform
@@ -2867,7 +2996,7 @@ do ibatch=1,totnumbatches
 ! use OpenMP to run on multiple cores ...
 !$OMP PARALLEL default(shared)  PRIVATE(TID,iang,i,j,istat,EBSDpattern,binned,idum,bpat,ma,mi,threadbatchpatterns,bpatint)&
 !$OMP& PRIVATE(tmLPNH, tmLPSH, trgx, trgy, trgz, taccum, dims2, dims3, threadbatchpatternsint, threadbatchpatterns32)&
-!$OMP& PRIVATE(binnedvec, threadbatchpatterns32lin)
+!$OMP& PRIVATE(binnedvec, threadbatchpatterns32lin, tNBeamsLPNH, tNBeamsLPSH, beams)
 
   NUMTHREADS = OMP_GET_NUM_THREADS()
   TID = OMP_GET_THREAD_NUM()
@@ -2887,7 +3016,6 @@ do ibatch=1,totnumbatches
   call memth%alloc(taccum, shape(self%det%accum_e_detector), 'taccum', TID=TID)
   call memth%alloc(tmLPNH, shape(MPFT%MPDT%mLPNH), 'tmLPNH', TID=TID)
   call memth%alloc(tmLPSH, shape(MPFT%MPDT%mLPNH), 'tmLPSH', TID=TID)
-
 ! and copy the data in
   trgx = self%det%rgx
   trgy = self%det%rgy
@@ -2895,9 +3023,22 @@ do ibatch=1,totnumbatches
   taccum = self%det%accum_e_detector
   tmLPNH = MPFT%MPDT%mLPNH
   tmLPSH = MPFT%MPDT%mLPSH
+ 
+  if (doNBeams.eqv..TRUE.) then 
+    call memth%alloc(tNBeamsLPNH, shape(MPFT%MPDT%NBeamsLPNH), 'tNBeamsLPNH', TID=TID)
+    call memth%alloc(tNBeamsLPSH, shape(MPFT%MPDT%NBeamsLPNH), 'tNBeamsLPSH', TID=TID)
+! and copy the data in
+    tNBeamsLPNH = MPFT%MPDT%NBeamsLPNH
+    tNBeamsLPSH = MPFT%MPDT%NBeamsLPSH
+  end if
 
-! allocate the arrays that will hold the computed pattern
+!
+! allocate the arrays that will hold the computed pattern and, optionally, the number-of-beams pattern
   call memth%alloc(binned, (/ binx,biny /), 'binned', TID=TID) 
+  if (doNBeams.eqv..TRUE.) then 
+    call memth%alloc(beams, (/ binx,biny /), 'beams', TID=TID) 
+  end if
+
   if (trim(bitmode).eq.'char') then
     allocate(bpat(binx,biny))
   end if
@@ -2990,6 +3131,11 @@ do ibatch=1,totnumbatches
      end if
     end if
 
+    if (doNBeams.eqv..TRUE.) then 
+      call self%CalcNBeamsPattern(ipar,angles%getQuatfromArray(iang),taccum,tNBeamsLPNH,tNBeamsLPSH, &
+                                  trgx,trgy,trgz,beams,Emin,Emax,mask)
+    end if 
+
     if (self%nml%scalingmode .eq. 'gam') then
         binned = binned**self%nml%gammavalue
     end if
@@ -3040,6 +3186,13 @@ do ibatch=1,totnumbatches
       if (trim(bitmode).eq.'float') then
         threadbatchpatterns32(1:binx,1:biny, iang-istart(TID,ibatch)+1) = binned
       end if
+    end if
+
+! do we need to combine binned and beams into a color TIFF image ?
+    if (doNBeams.eqv..TRUE.) then 
+!$OMP CRITICAL
+      call self%writeColorTiff(EMsoft, enl%superimposeTIFF, iang, binx, biny, binned, beams)
+!$OMP END CRITICAL
     end if
 
   end do ! end of iang loop
@@ -3455,6 +3608,192 @@ binned = binned * mask
 deallocate(EBSDpattern)
 
 end subroutine CalcEBSDPatternSingleFull_
+
+!--------------------------------------------------------------------------
+recursive subroutine CalcNBeamsPattern_(self,ipar,qq,accum,mLPNH,mLPSH,rgx,rgy,rgz,beams,Emin,Emax,mask)
+!DEC$ ATTRIBUTES DLLEXPORT :: CalcNBeamsPattern_
+ !! author: MDG
+ !! version: 1.0
+ !! date: 01/09/25
+ !!
+ !! compute a single NBeams pattern (number of beams in dynamical master pattern calculation)
+
+use mod_Lambert
+use mod_quaternions
+use mod_rotations
+
+IMPLICIT NONE
+
+integer, parameter                              :: K4B=selected_int_kind(9)
+
+class(EBSD_T), INTENT(INOUT)                    :: self
+integer(kind=irg),INTENT(IN)                    :: ipar(7)
+type(Quaternion_T),INTENT(IN)                   :: qq
+integer(kind=irg),INTENT(IN)                    :: Emin, Emax
+real(kind=sgl),INTENT(IN)                       :: accum(ipar(6),ipar(2),ipar(3))
+real(kind=sgl),INTENT(IN)                       :: mLPNH(-ipar(4):ipar(4),-ipar(5):ipar(5),ipar(7))
+real(kind=sgl),INTENT(IN)                       :: mLPSH(-ipar(4):ipar(4),-ipar(5):ipar(5),ipar(7))
+real(kind=sgl),INTENT(IN)                       :: rgx(ipar(2),ipar(3))
+real(kind=sgl),INTENT(IN)                       :: rgy(ipar(2),ipar(3))
+real(kind=sgl),INTENT(IN)                       :: rgz(ipar(2),ipar(3))
+real(kind=sgl),INTENT(OUT)                      :: beams(ipar(2)/ipar(1),ipar(3)/ipar(1))
+real(kind=sgl),INTENT(IN)                       :: mask(ipar(2)/ipar(1),ipar(3)/ipar(1))
+
+real(kind=sgl),allocatable                      :: beamspattern(:,:)
+real(kind=sgl),allocatable                      :: wf(:)
+real(kind=sgl)                                  :: dc(3),ixy(2),scl,bindx, tmp, mv
+real(kind=sgl)                                  :: dx,dy,dxm,dym, x, y, z
+integer(kind=irg)                               :: ii,jj,kk,istat
+integer(kind=irg)                               :: nix,niy,nixp,niyp
+logical                                         :: nobg, noise
+
+
+! ipar(1) = ebsdnl%binning
+! ipar(2) = ebsdnl%numsx
+! ipar(3) = ebsdnl%numsy
+! ipar(4) = ebsdnl%npx
+! ipar(5) = ebsdnl%npy
+! ipar(6) = ebsdnl%numEbins
+! ipar(7) = ebsdnl%nE
+
+allocate(beamspattern(ipar(2),ipar(3)),stat=istat)
+
+beams = 0.0
+beamspattern = 0.0
+
+scl = float(ipar(4))
+
+do ii = 1,ipar(2)
+    do jj = 1,ipar(3)
+! get the pixel direction cosines from the pre-computed array
+        dc = (/ rgx(ii,jj),rgy(ii,jj),rgz(ii,jj) /)
+! apply the grain rotation
+        dc = sngl( qq%quat_Lp( dble(dc) ) )
+! and normalize the direction cosines (to remove any rounding errors)
+        dc = dc/sqrt(sum(dc**2))
+
+! convert these direction cosines to interpolation coordinates in the Rosca-Lambert projection
+        call LambertgetInterpolation(dc, scl, ipar(4), ipar(5), nix, niy, nixp, niyp, dx, dy, dxm, dym)
+
+        if ((abs(nix).gt.500).or.(abs(niy).gt.500)) then 
+          dc = (/ rgx(ii,jj),rgy(ii,jj),rgz(ii,jj) /)
+! apply the grain rotation
+          dc = sngl( qq%quat_Lp( dble(dc) ) )
+          call qq%quat_print()
+! and normalize the direction cosines (to remove any rounding errors)
+          dc = dc/sqrt(sum(dc**2))
+        end if 
+
+! interpolate the intensity
+        if (dc(3) .ge. 0.0) then
+          do kk = Emin, Emax
+            beamspattern(ii,jj) = beamspattern(ii,jj) + accum(kk,ii,jj) * ( mLPNH(nix,niy,kk) * dxm * dym + &
+                                     mLPNH(nixp,niy,kk) * dx * dym + mLPNH(nix,niyp,kk) * dxm * dy + &
+                                     mLPNH(nixp,niyp,kk) * dx * dy )
+          end do
+        else
+          do kk = Emin, Emax
+            beamspattern(ii,jj) = beamspattern(ii,jj) + accum(kk,ii,jj) * ( mLPSH(nix,niy,kk) * dxm * dym + &
+                                     mLPSH(nixp,niy,kk) * dx * dym + mLPSH(nix,niyp,kk) * dxm * dy + &
+                                     mLPSH(nixp,niyp,kk) * dx * dy )
+          end do
+        end if
+    end do
+end do
+
+mv = minval(beamspattern)
+if (mv.lt.0.0) beamspattern = beamspattern - mv
+
+if (ipar(1) .ne. 1) then
+    do ii=1,ipar(2),ipar(1)
+        do jj=1,ipar(3),ipar(1)
+            beams(ii/ipar(1)+1,jj/ipar(1)+1) = &
+            sum(beamspattern(ii:ii+ipar(1)-1,jj:jj+ipar(1)-1))
+        end do
+    end do
+else
+    beams = beamspattern
+end if
+
+beams = beams * mask
+
+deallocate(beamspattern)
+
+end subroutine CalcNBeamsPattern_
+
+!--------------------------------------------------------------------------
+recursive subroutine writeColorTiff_(self, EMsoft, fn, n, binx, biny, binned, beams) 
+!DEC$ ATTRIBUTES DLLEXPORT :: writeColorTiff_
+ !! author: MDG
+ !! version: 1.0
+ !! date: 01/06/25
+ !!
+ !! write a composite binned-beams image to a TIFF file 
+
+use mod_io
+use mod_EMsoft
+use mod_image 
+use, intrinsic :: iso_fortran_env
+
+class(EBSD_T), INTENT(INOUT)            :: self
+type(EMsoft_T), INTENT(INOUT)           :: EMsoft
+character(fnlen), INTENT(IN)            :: fn 
+integer(kind=irg), INTENT(IN)           :: n
+integer(kind=irg), INTENT(IN)           :: binx
+integer(kind=irg), INTENT(IN)           :: biny
+real(kind=sgl), INTENT(IN)              :: binned(binx,biny)
+real(kind=sgl), INTENT(IN)              :: beams(binx,biny)
+
+type(IO_T)                              :: Message 
+
+real(kind=sgl)                          :: nmax, bmax 
+character(4)                            :: pnum
+character(fnlen)                        :: fname 
+
+! declare variables for use in object oriented image module
+integer(kind=irg)                       :: RGBmap(3,binx,biny)
+integer                                 :: iostat
+character(len=128)                      :: iomsg
+logical                                 :: isInteger, OPC, PUC
+type(image_t)                           :: im
+integer(int8)                           :: TIFF_image(3*binx,biny)
+integer                                 :: dim2(2), Pm
+integer(c_int32_t)                      :: result
+
+! combine the original master pattern with this new NBeams pattern as an RGB image
+! and store it in a tiff image file; master patter nin red channel, NBeams in green and blue.
+! they are scaled to a common but arbitrary intensity scale 
+  bmax = maxval(binned)
+  nmax = maxval(beams)
+  RGBmap(1,1:binx,1:biny) = binned(1:binx,1:biny) * nmax / bmax
+  RGBmap(2,1:binx,1:biny) = beams(1:binx,1:biny)
+  RGBmap(3,1:binx,1:biny) = beams(1:binx,1:biny)
+
+  RGBmap = RGBmap * 255.0 / maxval(RGBmap)
+
+! and generate a color tiff file 
+  fname = trim(EMsoft%generateFilePath('EMdatapathname'))//trim(fn)
+  write (pnum, "(I4.4)") n
+  fname = trim(fname)//'_'//pnum//'.tiff'
+
+! allocate memory for a color image; each pixel has 3 bytes (RGB)
+  TIFF_image = reshape( RGBmap, (/ 3*binx,biny /) )
+
+! set up the image_t structure
+  im = image_t(TIFF_image)
+  im%dims = (/ binx,biny /)
+  im%samplesPerPixel = 3
+  if(im%empty()) call Message%printMessage("writeColorTiff_: failed to convert array to rgb image")
+
+! create the file
+  call im%write(trim(fname), iostat, iomsg) ! format automatically detected from extension
+  if(0.ne.iostat) then
+    call Message%printMessage(" Failed to write image to file : "//iomsg)
+  else
+    call Message%printMessage(' IPF map written to '//trim(fname),"(A)")
+  end if
+
+end subroutine writeColorTiff_
 
 !--------------------------------------------------------------------------
 subroutine ComputedeformedEBSDPatterns_(self, EMsoft, MCFT, MPFT, HDF, HDFnames, &
