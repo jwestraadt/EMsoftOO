@@ -609,9 +609,12 @@ if (self%verbose) then
   write (*,*) ' applyHomography_::range(defpat) : ',minval(self%defpat), maxval(self%defpat)
 end if 
 
+
+  call self%sdef%initialize(self%x,self%y,self%defpat,self%kx,self%ky,iflag)
+
+
 ! finally get the b-spline coefficients for the deformed pattern
 if (.not.tgt) then 
-  call self%sdef%initialize(self%x,self%y,self%defpat,self%kx,self%ky,iflag)
   if (self%verbose) call Message%printMessage(' applyHomography_::sdef class initialized')
   call self%sdef%set_extrap_flag(.TRUE.)
 end if 
@@ -757,6 +760,7 @@ xi1max = maxval( self%XiPrime(0,:) )
 xi2max = maxval( self%XiPrime(1,:) )
 normdp = sqrt(xi1max * (SL(1,1)**2+SL(4,1)**2+SL(7,1)**2) + & 
               xi2max * (SL(2,1)**2+SL(5,1)**2+SL(8,1)**2) + SL(3,1)**2 + SL(6,1)**2)
+! normdp = sum(SOL*SOL)
 if (self%verbose) write (*,*) ' solveHessian_::normdp : ', normdp 
 
 end subroutine solveHessian_
@@ -788,7 +792,8 @@ W(3,3) = 1.0_wp
 W(1,2:3) = -h(2:3)
 W(2,1) = -h(4)
 W(2,3) = -h(6)
-W(3,1:2) = -h(7:8)
+W(3,1) = h(7)
+W(3,2) = -h(8)
 
 if (present(store)) then 
   if (store.eqv..TRUE.) then 
@@ -819,7 +824,7 @@ real(wp), INTENT(IN)            :: W(3,3)
 logical, INTENT(IN), OPTIONAL   :: store
 real(wp)                        :: h(8)
 
-h = (/ 1.0_wp/W(1,1)-1.0_wp, -W(1,2), -W(1,3), -W(2,1), 1.0_wp/W(2,2)-1.0_wp, -W(2,3), -W(3,1), W(3,2) /)
+h = (/ 1.0_wp/W(1,1)-1.0_wp, -W(1,2), -W(1,3), -W(2,1), 1.0_wp/W(2,2)-1.0_wp, -W(2,3), W(3,1), -W(3,2) /)
 
 if (present(store)) then 
   if (store.eqv..TRUE.) then 

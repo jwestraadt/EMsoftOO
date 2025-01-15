@@ -63,11 +63,11 @@ type(o_T)                    :: om
 type(e_T)                    :: eu 
 type(IO_T)                   :: Message
 
-real(kind=wp), allocatable   :: refpat(:,:), defpat(:,:)
+real(kind=wp), allocatable   :: refpat(:,:), defpat(:,:), newpat(:,:)
 real(kind=sgl),allocatable   :: tmppat(:,:)
 real(kind=wp)                :: DD, PCx, PCy, val, err, errmax, rnxi, rnyi, hg(8), W(3,3), gradCIC(8), Hessian(8,8), &
                                 minx, miny, xi1max, xi2max, normdp, oldnorm, oldW(3,3), horiginal(8), CIC, sol(8), &
-                                homographies(8,2500)
+                                homographies(8,1600)
 real(kind=dbl)               :: Wnew(3,3), Winv(3,3), dx, dy, p2(3), Woriginal(3,3), alp, srt(3,3), srtrot(3,3)
 integer(kind=irg)            :: nx, ny, nxy, nbx, nby, i, ii, j, NSR, cnt, nxSR, nySR, jj, recordsize, ierr  
 real(wp)                     :: tol
@@ -88,18 +88,25 @@ EMsoft = EMsoft_T( progname, progdesc )
 nx = 640
 ny = 480
 
+nxy = nx * ny
+recordsize = nxy * 4
+
 ! instantiate the DIC class
 ! this also initializes the x and y coordinate arrays
 DIC = DIC_T( nx, ny )
 call DIC%setverbose(.FALSE.)
 ! call DIC%setverbose(.TRUE.)
 
-nxy = nx * ny
-recordsize = nxy * 4
 
 allocate(tmppat(nx,ny), refpat(0:nx-1,0:ny-1), defpat(0:nx-1,0:ny-1))
 ! open(20,file='/Users/mdg/playarea/DIC/verification-sq.data',status='old',form='unformatted')
-open(20,file='/Users/mdg/Files/EMPlay/playarea/DIC/refpat.data',status='old',form='unformatted')
+if (trim(hostname).eq.'Mac-Studio.fios-router.home') then 
+    fname = EMsoft%generateFilePath('EMdatapathname','DIC/refpat.data')
+else
+    fname = EMsoft%generateFilePath('EMdatapathname','playarea/DIC/refpat.data')
+end if
+
+open(20,file=trim(fname),status='old',form='unformatted')
 read(20) tmppat
 close(20,status='keep')
 refpat = dble(tmppat) 
@@ -133,7 +140,10 @@ refpat = dble(tmppat)
 ! refpat(20:40,20:22) = 1.0_wp
 ! refpat(20:22,20:40) = 1.0_wp
 
+refpat = refpat - minval(refpat)
+refpat = refpat/maxval(refpat)
 call DIC%setpattern('r', refpat)
+
 
 ! define some parameters for now...
 tol = 100 * epsilon(1.0_wp)
@@ -162,18 +172,18 @@ end do
 ! read 2500 random homographies from a file and run the fitting, then 
 ! write result to another file for comparison with an IDL routine.
 if (trim(hostname).eq.'Mac-Studio.fios-router.home') then 
-    gname = EMsoft%generateFilePath('EMdatapathname','UCSB/GaN/homographies2.data')
+    gname = EMsoft%generateFilePath('EMdatapathname','DIC/test/homographies2.data')
 else
-    gname = EMsoft%generateFilePath('EMdatapathname','playarea/DIC/test/homographies1.data')
+    gname = EMsoft%generateFilePath('EMdatapathname','playarea/DIC/test/homographies2.data')
 end if
 open(unit=dataunit,file=trim(gname),status='unknown',form='unformatted')
 read(dataunit) homographies
 close(dataunit,status='keep')
 
 if (trim(hostname).eq.'Mac-Studio.fios-router.home') then 
-    gname = EMsoft%generateFilePath('EMdatapathname','UCSB/GaN/homographypatterns2.data')
+    gname = EMsoft%generateFilePath('EMdatapathname','DIC/test/homographypatterns2.data')
 else
-    gname = EMsoft%generateFilePath('EMdatapathname','playarea/DIC/test/homographypatterns.data')
+    gname = EMsoft%generateFilePath('EMdatapathname','playarea/DIC/test/homographypatterns2.data')
 end if
 open(unit=dataunit,file=trim(gname),&
      status='unknown',form='unformatted',access='direct',recl=recordsize,iostat=ierr)
@@ -245,7 +255,7 @@ open(unit=dataunit,file=trim(gname),&
 
 ! stop
 
-do jj=1, 2500
+do jj=1, 1600
     ! call Message%printMessage(' ---------------------- ')
     if (mod(jj,100).eq.0) write (*,*) 'starting pattern ', jj
 ! here we deform the reference pattern to obtain a defpat array with known homography
@@ -260,8 +270,10 @@ do jj=1, 2500
 ! write (*,*) 'read error = ', ierr
 ! defpat = dble(tmppat)
 ! call DIC%setpattern('d', defpat)
-
-write (dataunit,rec=jj) DIC%getpattern('d',nx,ny)
+defpat = DIC%getpattern('d',nx,ny)
+defpat = defpat-minval(defpat)
+defpat = defpat/maxval(defpat)
+write (dataunit,rec=jj) sngl(defpat)
 
 if (1.eq.0) then 
 
@@ -286,7 +298,7 @@ W = DIC%getShapeFunction(hg)
 oldnorm = 100.0_wp
 
 ! and here we start the loop 
-do ii=1,50 
+do ii=1,3 !50 
     ! write (*,*) ' iteration # ',ii
     call DIC%applyHomography(hg, PCx, PCy, dotarget=.TRUE.)
 

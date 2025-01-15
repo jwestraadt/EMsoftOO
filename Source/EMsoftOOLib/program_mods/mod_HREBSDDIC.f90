@@ -442,7 +442,7 @@ integer(kind=irg)                       :: hdferr, binx, biny, L, recordsize, pa
                                            numpats, TID
 real(kind=dbl)                          :: interp_step, std
 real(kind=dbl)                          :: Wnew(3,3), Winv(3,3), oldW(3,3)
-real(wp)                                :: hg(8), W(3,3), ndp, oldnorm, SOL(8), Hessian(8,8), CIC, PCx, PCy
+real(wp)                                :: hg(8), W(3,3), ndp, oldnorm, SOL(8), Hessian(8,8), CIC, PCx, PCy, hpartial(8)
 character(11)                           :: dstr
 character(15)                           :: tstrb
 character(15)                           :: tstre
@@ -502,8 +502,8 @@ biny = dinl%exptnumsy
 L = binx * biny
 recordsize = 4 * L
 patsz = L
-PCx = real(binx,wp)/2.0_wp
-PCy = real(biny,wp)/2.0_wp
+PCx = 0.5_wp ! real(binx,wp)/2.0_wp
+PCy = 0.5_wp ! real(biny,wp)/2.0_wp
 
 write (*,*) ' pattern dimensions : ', binx, biny, L, self%ppEBSDnml%ROI 
 
@@ -529,8 +529,11 @@ write (*,*) ' reference pattern offset = ', offset, recordsize
 read(dataunit,rec=offset) exptpattern
 close(dataunit,status='keep')
 
+exptpattern = exptpattern - minval(exptpattern)
+exptpattern = exptpattern/maxval(exptpattern)
+
 write (*,*) ' reference entries : ', exptpattern(1:2,1:2)
-write (*,*) 'reference pattern : ', minval(exptpattern), maxval(exptpattern)
+write (*,*) ' reference pattern : ', minval(exptpattern), maxval(exptpattern)
 
 ! allocate global arrays to store the output of the DIC routine.
 call mem%alloc(normdp, (/ numpats /), 'normdp', initval=0.D0 ) 
@@ -548,7 +551,7 @@ memth = memory_T( nt = enl%nthreads )
 
 ! here we go parallel with OpenMP
 !$OMP PARALLEL DEFAULT(SHARED) PRIVATE(TID, DIC, nbx, nby, targetpattern, ii, jj, hg, W)&
-!$OMP& PRIVATE(oldnorm, oldW, SOL, ndp, Wnew, Winv, io_int, i) 
+!$OMP& PRIVATE(oldnorm, oldW, SOL, ndp, Wnew, Winv, io_int, i, hpartial) 
 
 ! set the thread ID
 TID = OMP_GET_THREAD_NUM()
@@ -561,7 +564,7 @@ call DIC%setpattern( 'r', dble(exptpattern) )
 ! define the border widths nbx and nby for the subregion
 nbx = enl%nbx
 nby = enl%nby
-call DIC%defineSR( nbx, nby, PCx, PCy) ! 0.5_wp, 0.5_wp)
+call DIC%defineSR( nbx, nby, PCx, PCy) 
 
 ! generate the b-splines for the reference pattern and verify the accuracy
 ! also get the derivatives of the reference pattern to determine the Hessian
@@ -573,36 +576,40 @@ call DIC%applyZMN(doreference=.TRUE.)
 ! compute the Hessian matrix
 call DIC%getHessian(Hessian)
 
+hpartial = (/ (0.0_wp, i=1,8) /)
+call DIC%applyHomography(hpartial, PCx, PCy)
+
 ! allocate the targetpattern array
 call memth%alloc(targetpattern, (/ binx,biny /), 'targetpattern', TID=TID )
 
 ! in the main loop we iterate over all the experimental patterns in the input file
 !$OMP DO SCHEDULE(DYNAMIC)
 do ii=1, numpats
-  ! write (*,*) '-----------------'
-  ! write (*,*) 'starting pattern ', ii
 
 !$OMP CRITICAL
   read(dataunit,rec=ii) targetpattern
 !$OMP END CRITICAL
 
+  targetpattern = targetpattern - minval(targetpattern)
+  targetpattern = targetpattern/maxval(targetpattern)
+
   call DIC%setpattern( 'd', dble(targetpattern) )
   call DIC%getbsplines(defp=.TRUE.)
 ! ! zero-mean and normalize the referenceSR and targetSR arrays
   call DIC%applyZMN(dotarget=.TRUE.)
+  call DIC%getresiduals()
 
 ! initialize the homography to zero
-  hg = (/ (0.0_wp, i=1,8) /)
-  W = DIC%getShapeFunction(hg)
   oldnorm = 100.0_wp
   oldW = W
 
 ! loop until max iterations or convergence
   do jj = 1, enl%maxnumit
-    ! write (*,*) '-----------------'
-    ! write (*,*) ' iteration # ',jj
-    ! call DIC%applyHomography(hg, 0.5_wp, 0.5_wp, dotarget=.TRUE.)
-    call DIC%applyHomography(hg, PCx, PCy, dotarget=.TRUE.)
+    if (jj.eq.1) then 
+      hpartial = (/ (0.0_wp, i=1,8) /)
+      W = DIC%getShapeFunction(hpartial)
+    end if
+    call DIC%applyHomography(hpartial, PCx, PCy, dotarget=.TRUE.)
     call DIC%applyZMN(dotarget=.TRUE.)
     call DIC%getresiduals(CIC)
     call DIC%solveHessian(SOL, ndp)
@@ -612,7 +619,7 @@ do ii=1, numpats
     Winv = matrixInvert_wp( Wnew )
     W = matmul( W, Winv )
     W = W / W(3,3)
-    hg = DIC%getHomography(W)
+    hpartial = reshape(SOL, (/8/))
     if (ndp.lt.enl%mindeltap) then
         EXIT
     end if
@@ -623,7 +630,6 @@ do ii=1, numpats
     io_int(2) = numpats
     call Message%WriteValue(' completed # patterns/total ',io_int,2)
   end if  
-  W = matrixInvert_wp( W )
   hg = DIC%getHomography(W)
   homographies(1:8,ii) = dble(hg)
   normdp(ii) = dble(ndp)
