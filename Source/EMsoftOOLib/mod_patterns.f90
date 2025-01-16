@@ -166,7 +166,7 @@ end function computeEBSDIQ
 
 !--------------------------------------------------------------------------
 recursive subroutine PreProcessPatterns(EMsoft, HDF, inRAM, nml, binx, biny, masklin, correctsize, totnumexpt, &
-                                        epatterns, exptIQ)
+                                        epatterns, exptIQ, log)
 !DEC$ ATTRIBUTES DLLEXPORT :: PreProcessPatterns
 !! author: MDG
 !! version: 1.0
@@ -204,13 +204,14 @@ integer(kind=irg),INTENT(IN)                      :: totnumexpt
 real(kind=sgl),INTENT(INOUT),OPTIONAL             :: epatterns(correctsize, totnumexpt)
 !f2py intent(in,out) ::  epatterns
 real(kind=sgl),INTENT(INOUT),OPTIONAL             :: exptIQ(totnumexpt)
+logical,INTENT(IN),OPTIONAL                       :: log
 !f2py intent(in,out) ::  exptIQ
 
 type(IO_T)                                        :: Message
 type(Vendor_T)                                    :: VT
 type(timing_T)                                    :: timer
 
-logical                                           :: ROIselected, f_exists
+logical                                           :: ROIselected, f_exists, dolog=.FALSE.
 character(fnlen)                                  :: fname
 integer(kind=irg)                                 :: istat, L, recordsize, io_int(2), patsz, iii, &
                                                      iiistart, iiiend, jjend, TID, jj, kk, ierr, itype
@@ -228,6 +229,11 @@ type(C_PTR)                                       :: planf, HPplanf, HPplanb
 logical                                           :: isEBSD = .FALSE., isTKD = .FALSE.
 
 call Message%printMessage(' Preprocessing experimental patterns')
+
+! standard or log-hipass processing ?
+if (present(log)) then 
+    if (log.eqv..TRUE.) dolog = .TRUE. 
+end if 
 
 if (nml%DIModality.eq.'EBSD') then
   isEBSD = .TRUE.
@@ -399,17 +405,21 @@ prepexperimentalloop: do iii = iiistart,iiiend
           exptIQ((iii-iiistart)*jjend + jj) = sngl(computeEBSDIQ(binx, biny, Pat, ksqarray, Jres, planf))
         end if
 
+        if (dolog.eqv..FALSE.) then 
 ! Hi-Pass filter
-        rrdata = dble(Pat)
-        ffdata = applyHiPassFilter(rrdata, (/ binx, biny /), w, hpmask, inp, outp, HPplanf, HPplanb)
-        Pat = sngl(ffdata)
+            rrdata = dble(Pat)
+            ffdata = applyHiPassFilter(rrdata, (/ binx, biny /), w, hpmask, inp, outp, HPplanf, HPplanb)
+            Pat = sngl(ffdata)
 
         ! adaptive histogram equalization
-        ma = maxval(Pat)
-        mi = minval(Pat)
+            ma = maxval(Pat)
+            mi = minval(Pat)
 
-        pint = nint(((Pat - mi) / (ma-mi))*255.0)
-        Pat = float(adhisteq(nml%nregions,binx,biny,pint))
+            pint = nint(((Pat - mi) / (ma-mi))*255.0)
+            Pat = float(adhisteq(nml%nregions,binx,biny,pint))
+        else  
+            Pat = loghipass(Pat, 10, binx, biny)
+        end if 
 
 ! convert back to 1D vector
         do kk=1,biny

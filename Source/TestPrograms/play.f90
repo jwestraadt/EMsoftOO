@@ -39,6 +39,7 @@ use mod_EMsoft
 use mod_rotations
 use mod_quaternions
 use mod_math
+use mod_filters
 use mod_povray
 use mod_so3
 use mod_io
@@ -67,7 +68,7 @@ real(kind=wp), allocatable   :: refpat(:,:), defpat(:,:)
 real(kind=sgl),allocatable   :: tmppat(:,:)
 real(kind=wp)                :: DD, PCx, PCy, val, err, errmax, rnxi, rnyi, hg(8), W(3,3), gradCIC(8), Hessian(8,8), &
                                 minx, miny, xi1max, xi2max, normdp, oldnorm, oldW(3,3), horiginal(8), CIC, sol(8), &
-                                homographies(8,1600), hpartial(8)
+                                homographies(8,1000), hpartial(8), scalingfactor
 real(kind=dbl)               :: Wnew(3,3), Winv(3,3), dx, dy, p2(3), Woriginal(3,3), alp, srt(3,3), srtrot(3,3)
 integer(kind=irg)            :: nx, ny, nxy, nbx, nby, i, ii, j, NSR, cnt, nxSR, nySR, jj, recordsize, ierr  
 real(wp)                     :: tol
@@ -107,7 +108,8 @@ end if
 open(20,file=trim(fname),status='old',form='unformatted')
 read(20) tmppat
 close(20,status='keep')
-refpat = dble(tmppat) 
+! refpat = dble( loghipass(tmppat, 5, nx, ny) ) 
+refpat = dble( tmppat ) 
 refpat = refpat - minval(refpat)
 refpat = refpat/maxval(refpat)
 call DIC%setpattern('r', refpat)
@@ -152,12 +154,13 @@ open(unit=28,file='output2-verify.txt',status='unknown',form='formatted')
 horiginal = (/ (0.0_wp, i=1,8) /)
 call DIC%applyHomography(horiginal, PCx, PCy)
 
-do jj=1, 1600
+do jj=1, 1000
     ! call Message%printMessage(' ---------------------- ')
     if (mod(jj,100).eq.0) write (*,*) 'starting pattern ', jj
 
 read(dataunit,rec=jj, iostat=ierr) tmppat
-defpat = dble(tmppat)
+! defpat = dble( loghipass(tmppat, 5, nx, ny) )
+defpat = dble( tmppat)
 defpat = defpat - minval(defpat)
 defpat = defpat/maxval(defpat)
 call DIC%setpattern('d', defpat)
@@ -179,9 +182,11 @@ call DIC%getresiduals( CIC )
 ! values for one of the nearest neighbor patterns
 
 oldnorm = 100.0_wp
+scalingfactor = 1.5D0  ! simple multiplicative term for the partial solutions
+! maybe this will speed up convergence a little...
 
 ! and here we start the loop 
-do ii=1,20 ! 50 
+do ii=1,50 
     ! write (*,*) ' iteration # ',ii
     if (ii.eq.1) then  ! initialize to identity homography in first cycle
         hpartial = (/ (0.0_wp, i=1,8) /)
@@ -200,18 +205,19 @@ do ii=1,20 ! 50
     call DIC%solveHessian(SOL, normdp)
 
     ! convert to a shape function and take the inverse
-    Wnew = DIC%getShapeFunction(reshape(SOL, (/8/)))
+    Wnew = DIC%getShapeFunction(reshape(SOL, (/8/))*scalingfactor)
     Winv = matrixInvert_wp( Wnew )
     W = matmul( W, Winv )
     W = W / W(3,3)
     hg = DIC%getHomography(W)
-    hpartial = reshape(SOL, (/8/))
+    hpartial = reshape(SOL, (/8/)) * scalingfactor
     ! write (*,*) '------------'
     ! write (*,*) hg
     ! write (*,*) ' norm(deltap) = ', normdp
     ! write (*,*) '------------'
     ! if (normdp.lt.oldnorm) then
-    if (normdp.lt.0.0001D0) then
+    if (normdp.lt.0.000025D0) then
+    ! if (normdp.lt.0.001D0) then
     !     oldnorm = normdp
     !     oldW = W 
     ! else

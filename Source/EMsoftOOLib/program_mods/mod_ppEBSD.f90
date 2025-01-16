@@ -49,6 +49,7 @@ type, public :: ppEBSDNameListType
  integer(kind=irg)  :: nregions
  integer(kind=irg)  :: ROI(4)
  real(kind=dbl)     :: hipassw
+ character(3)       :: filtertype
  character(1)       :: maskpattern
  character(1)       :: filterpattern
  character(fnlen)   :: exptfile
@@ -80,6 +81,7 @@ private
   procedure, pass(self) :: get_nregions_
   procedure, pass(self) :: get_ROI_
   procedure, pass(self) :: get_hipassw_
+  procedure, pass(self) :: get_filtertype_
   procedure, pass(self) :: get_maskpattern_
   procedure, pass(self) :: get_exptfile_
   procedure, pass(self) :: get_tmpfile_
@@ -95,6 +97,7 @@ private
   procedure, pass(self) :: set_nregions_
   procedure, pass(self) :: set_ROI_
   procedure, pass(self) :: set_hipassw_
+  procedure, pass(self) :: set_filtertype_
   procedure, pass(self) :: set_maskpattern_
   procedure, pass(self) :: set_exptfile_
   procedure, pass(self) :: set_tmpfile_
@@ -115,6 +118,7 @@ private
   generic, public :: get_nregions => get_nregions_
   generic, public :: get_ROI => get_ROI_
   generic, public :: get_hipassw => get_hipassw_
+  generic, public :: get_filtertype => get_filtertype_
   generic, public :: get_maskpattern => get_maskpattern_
   generic, public :: get_exptfile => get_exptfile_
   generic, public :: get_tmpfile => get_tmpfile_
@@ -130,6 +134,7 @@ private
   generic, public :: set_nregions => set_nregions_
   generic, public :: set_ROI => set_ROI_
   generic, public :: set_hipassw => set_hipassw_
+  generic, public :: set_filtertype => set_filtertype_
   generic, public :: set_maskpattern => set_maskpattern_
   generic, public :: set_exptfile => set_exptfile_
   generic, public :: set_tmpfile => set_tmpfile_
@@ -594,6 +599,42 @@ self%nml%exptfile = inp
 end subroutine set_exptfile_
 
 !--------------------------------------------------------------------------
+function get_filtertype_(self) result(out)
+!DEC$ ATTRIBUTES DLLEXPORT :: get_filtertype_
+!! author: MDG
+!! version: 1.0
+!! date: 12/06/24
+!!
+!! get filtertype from the ppEBSD_T class
+
+IMPLICIT NONE
+
+class(ppEBSD_T), INTENT(INOUT)     :: self
+character(fnlen)                :: out
+
+out = self%nml%filtertype
+
+end function get_filtertype_
+
+!--------------------------------------------------------------------------
+subroutine set_filtertype_(self,inp)
+!DEC$ ATTRIBUTES DLLEXPORT :: set_filtertype_
+!! author: MDG
+!! version: 1.0
+!! date: 12/06/24
+!!
+!! set filtertype in the ppEBSD_T class
+
+IMPLICIT NONE
+
+class(ppEBSD_T), INTENT(INOUT)     :: self
+character(fnlen), INTENT(IN)    :: inp
+
+self%nml%filtertype = inp
+
+end subroutine set_filtertype_
+
+!--------------------------------------------------------------------------
 function get_tmpfile_(self) result(out)
 !DEC$ ATTRIBUTES DLLEXPORT :: get_tmpfile_
 !! author: MDG
@@ -769,6 +810,7 @@ integer(kind=irg)  :: nregions
 integer(kind=irg)  :: ROI(4)
 real(kind=dbl)     :: hipassw
 character(1)       :: maskpattern
+character(3)       :: filtertype
 character(fnlen)   :: exptfile
 character(fnlen)   :: tmpfile
 character(fnlen)   :: maskfile
@@ -777,7 +819,7 @@ character(fnlen)   :: HDFstrings(10)
 
 ! define the IO namelist to facilitate passing variables to the program.
 namelist  / ppEBSDdata / numsx, numsy, nregions, maskpattern, nthreads, ipf_ht, ipf_wd, exptfile, maskradius, inputtype, &
-                     tmpfile, maskfile, HDFstrings, hipassw, ROI 
+                         filtertype, tmpfile, maskfile, HDFstrings, hipassw, ROI 
 
 ! set the input parameters to default values
  ipf_ht = 100
@@ -790,6 +832,7 @@ namelist  / ppEBSDdata / numsx, numsy, nregions, maskpattern, nthreads, ipf_ht, 
  numsx = 0
  numsy = 0
  ROI = (/ 0, 0, 0, 0 /)
+ filtertype = 'fft'      ! or 'log'
  exptfile = 'undefined'
  inputtype = 'Binary'
  HDFstrings = ''
@@ -830,6 +873,7 @@ self%nml%nthreads = nthreads
 self%nml%nregions = nregions
 self%nml%ROI = ROI
 self%nml%hipassw = hipassw
+self%nml%filtertype = filtertype
 self%nml%maskpattern = maskpattern
 self%nml%exptfile = exptfile
 self%nml%tmpfile = tmpfile
@@ -1015,7 +1059,13 @@ dinl%HDFstrings = ppnl%HDFstrings
 dinl%nregions = ppnl%nregions
 dinl%DIModality = 'EBSD'
 
-call PreProcessPatterns(EMsoft, HDF, .FALSE., dinl, binx, biny, masklin, correctsize, totnumexpt)
+if (ppnl%filtertype.eq.'fft') then 
+! standard hipass and adaptive histogram equalization pre-processing step
+  call PreProcessPatterns(EMsoft, HDF, .FALSE., dinl, binx, biny, masklin, correctsize, totnumexpt)
+else
+  ! logarithmic high-pass filter only
+  call PreProcessPatterns(EMsoft, HDF, .FALSE., dinl, binx, biny, masklin, correctsize, totnumexpt, log=.TRUE.)
+end if 
 
 !=====================================================
 call Message%printMessage(' -> created pre-processed EBSD pattern file '//trim(fname))

@@ -1083,6 +1083,57 @@ call fftw_cleanup()
 
 end function applyHiPassFilter
 
+!--------------------------------------------------------------------------
+recursive function loghipass(input, kn, nx, ny) result(filtered)
+!DEC$ ATTRIBUTES DLLEXPORT :: loghipass
+!
+!> @author Marc De Graef, Carnegie Mellon University
+!
+!> @brief  Perform a logaritmic high pass filter
+!
+! 01/16/25
+
+integer(kind=irg), INTENT(IN)   :: nx
+integer(kind=irg), INTENT(IN)   :: ny
+real(kind=sgl), INTENT(IN)      :: input(nx, ny)
+integer(kind=irg), INTENT(IN)   :: kn 
+real(kind=sgl)                  :: filtered(nx, ny)
+
+integer(kind=irg)               :: i, j, NN 
+real(kind=sgl)                  :: local(nx, ny), shifts(nx, ny), xshifted(nx, ny)
+
+NN = 2*kn+1
+
+local = input 
+
+! make sure this is normalized
+local = local - minval(local)
+local = local/maxval(local)
+
+! logarithm
+local = alog10(local+1.0)
+
+! compute the circular shifts
+shifts = 0.0
+do i=-kn,kn 
+  xshifted = cshift(local, i, 1)
+  do j=-kn,kn 
+    shifts = shifts + cshift(xshifted, j, 2)
+  end do 
+end do 
+
+! and get the final filtered version
+local = local * NN**2 - shifts 
+
+! make sure this is normalized
+local = local - minval(local)
+local = local/maxval(local)
+
+! return array
+filtered = local 
+
+end function loghipass
+
 ! !--------------------------------------------------------------------------
 ! !
 ! ! SUBROUTINE: HiPassFilterC

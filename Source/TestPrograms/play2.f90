@@ -67,7 +67,7 @@ real(kind=wp), allocatable   :: refpat(:,:), defpat(:,:), newpat(:,:)
 real(kind=sgl),allocatable   :: tmppat(:,:)
 real(kind=wp)                :: DD, PCx, PCy, val, err, errmax, rnxi, rnyi, hg(8), W(3,3), gradCIC(8), Hessian(8,8), &
                                 minx, miny, xi1max, xi2max, normdp, oldnorm, oldW(3,3), horiginal(8), CIC, sol(8), &
-                                homographies(8,1600)
+                                homographies(8,1000)
 real(kind=dbl)               :: Wnew(3,3), Winv(3,3), dx, dy, p2(3), Woriginal(3,3), alp, srt(3,3), srtrot(3,3)
 integer(kind=irg)            :: nx, ny, nxy, nbx, nby, i, ii, j, NSR, cnt, nxSR, nySR, jj, recordsize, ierr  
 real(wp)                     :: tol
@@ -255,7 +255,7 @@ open(unit=dataunit,file=trim(gname),&
 
 ! stop
 
-do jj=1, 1600
+do jj=1, 1000
     ! call Message%printMessage(' ---------------------- ')
     if (mod(jj,100).eq.0) write (*,*) 'starting pattern ', jj
 ! here we deform the reference pattern to obtain a defpat array with known homography
