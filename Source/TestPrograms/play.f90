@@ -70,7 +70,7 @@ real(kind=wp)                :: DD, PCx, PCy, val, err, errmax, rnxi, rnyi, hg(8
                                 minx, miny, xi1max, xi2max, normdp, oldnorm, oldW(3,3), horiginal(8), CIC, sol(8), &
                                 homographies(8,1000), hpartial(8), scalingfactor
 real(kind=dbl)               :: Wnew(3,3), Winv(3,3), dx, dy, p2(3), Woriginal(3,3), alp, srt(3,3), srtrot(3,3)
-integer(kind=irg)            :: nx, ny, nxy, nbx, nby, i, ii, j, NSR, cnt, nxSR, nySR, jj, recordsize, ierr  
+integer(kind=irg)            :: nx, ny, nxy, nbx, nby, i, ii, j, NSR, cnt, nxSR, nySR, jj, recordsize, ierr, maxnumit  
 real(wp)                     :: tol
 integer(kind=4)              :: hnstat
 character(fnlen)             :: fname, gname, hostname 
@@ -156,6 +156,8 @@ open(unit=28,file='output2-verify.txt',status='unknown',form='formatted')
 horiginal = (/ (0.0_wp, i=1,8) /)
 call DIC%applyHomography(horiginal, PCx, PCy)
 
+maxnumit = 50 
+
 do jj=1, 1000
     ! call Message%printMessage(' ---------------------- ')
     if (mod(jj,100).eq.0) write (*,*) 'starting pattern ', jj
@@ -189,7 +191,7 @@ oldnorm = 100.0_wp
 scalingfactor = 1.5D0  
 
 ! and here we start the loop 
-do ii=1,50 
+do ii=1, maxnumit
     ! write (*,*) ' iteration # ',ii
     if (ii.eq.1) then  ! initialize to identity homography in first cycle
         hpartial = (/ (0.0_wp, i=1,8) /)
@@ -244,7 +246,11 @@ hg = DIC%getHomography(W)
 ! write (*,*) horiginal-hg
 
 ! write results to data file (single precision because IDL has a bug for double precision)
-write (unit=28,FMT='(9(F12.8,","),I4)') real(hg), real(normdp), ii
+if (ii.eq.maxnumit+1) then 
+    write (unit=28,FMT='(9(F12.8,","),I4)') (/ (0.0, i=1,8) /), real(normdp), ii
+else
+    write (unit=28,FMT='(9(F12.8,","),I4)') real(hg), real(normdp), ii
+end if
 
 ! if (jj.eq.3) stop
   call DIC%cleanup()

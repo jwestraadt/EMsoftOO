@@ -636,13 +636,17 @@ do ii=1, numpats
     end if
   end do
 
-  if (mod(ii,25).eq.0) then 
+  if (mod(ii,250).eq.0) then 
     io_int(1) = ii
     io_int(2) = numpats
     call Message%WriteValue(' completed # patterns/total ',io_int,2)
   end if  
   hg = DIC%getHomography(W)
-  homographies(1:8,ii) = dble(hg)
+  if (jj.eq.enl%maxnumit+1) then  ! zero solution if no convergence is reached
+    homographies(1:8,ii) = (/ (0.0_wp, i=1,8) /)
+  else
+    homographies(1:8,ii) = dble(hg)
+  end if
   normdp(ii) = dble(ndp)
   residuals(ii) = CIC
   nit(ii) = jj

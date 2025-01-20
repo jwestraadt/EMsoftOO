@@ -51,6 +51,8 @@ type, public :: DIC_T
     integer(ip)                     :: ky = 5     ! spline order
     integer(kind=irg)               :: nx         ! pattern x-size
     integer(kind=irg)               :: ny         ! pattern y-size
+    integer(kind=irg)               :: nxc        ! actual size of x-coordinate array
+    integer(kind=irg)               :: nyc        ! actual size of y-coordinate array
     real(wp)                        :: rnxi       ! pattern x scale factor
     real(wp)                        :: rnyi       ! pattern y scale factor
     real(wp)                        :: aspectratio! smallest n over largest n
@@ -64,6 +66,7 @@ type, public :: DIC_T
     real(wp)                        :: tol = 100.0_wp * epsilon(1.0_wp) ! tolerance
     logical                         :: verbose = .FALSE.   ! useful for debugging
     logical                         :: normalizedcoordinates = .TRUE.
+
 
 ! the arrays that are tied to a given reference/target pattern are defined here
     real(wp),allocatable            :: x(:)
@@ -138,24 +141,26 @@ end interface DIC_T
 contains
 
 !--------------------------------------------------------------------------
-recursive type(DIC_T) function DIC_constructor( nx, ny, normalize) result(DIC)
+recursive type(DIC_T) function DIC_constructor( nx, ny, normalize ) result(DIC)
 !DEC$ ATTRIBUTES DLLEXPORT :: DIC_constructor
  !! author: MDG
  !! version: 1.0
  !! date: 12/01/24
  !!
  !! constructor for the DIC_T Class;
+ !!
+ !! only normalized coordinates have been tested so far...
 
 use bspline_kinds_module, only: wp, ip 
 
 IMPLICIT NONE
 
-integer(kind=irg), INTENT(IN)     :: nx
-integer(kind=irg), INTENT(IN)     :: ny
-logical,INTENT(IN),OPTIONAL       :: normalize
+integer(kind=irg), INTENT(IN)               :: nx
+integer(kind=irg), INTENT(IN)               :: ny
+logical,INTENT(IN),OPTIONAL                 :: normalize
 
-integer(kind=irg)                 :: i, j
-real(wp)                          :: ratio=1.0_wp 
+integer(kind=irg)                           :: i, j
+real(wp)                                    :: ratio=1.0_wp 
 
 DIC%normalizedcoordinates = .FALSE.
 
@@ -164,24 +169,18 @@ DIC%nx = nx
 DIC%ny = ny 
 
 ! allocate and initialize the normalized coordinate arrays
-allocate( DIC%x(0:nx-1), DIC%y(0:ny-1) )
+allocate( DIC%x(0:DIC%nx-1), DIC%y(0:DIC%ny-1) )
+
 DIC%x = (/ (real(i,wp),i=0,nx-1) /)
 DIC%y = (/ (real(j,wp),j=0,ny-1) /)
 
 if (present(normalize)) then  
   if (normalize.eqv..TRUE.) then ! we use normalized coordinates
-    DIC%rnxi = 1.0_wp/real(nx-1,wp)
-    DIC%rnyi = 1.0_wp/real(ny-1,wp)
+    DIC%rnxi = 1.0_wp/real(DIC%nx-1,wp)
+    DIC%rnyi = 1.0_wp/real(DIC%ny-1,wp)
     DIC%x = DIC%x * DIC%rnxi
     DIC%y = DIC%y * DIC%rnyi
     DIC%normalizedcoordinates = .TRUE.
-    ! if (nx.gt.ny) then 
-    !   ! ratio = real(ny,wp) / real(nx,wp)
-    !   DIC%y = DIC%y * ratio
-    ! else
-    !   ! ratio = real(nx,wp) / real(ny,wp)
-    !   DIC%x = DIC%x * ratio
-    ! end if
   end if
 end if
 
@@ -488,8 +487,6 @@ else
     self%xiY = self%y(nby:self%ny-nby-1) - PCy
   end if
 end if
-write (*,*) 'defineSR : ',minval(self%xiX), maxval(self%xiX)
-write (*,*) 'defineSR : ',minval(self%xiY), maxval(self%xiY)
 if (self%verbose) call Message%printMessage(' defineSR_::xiX, xiY arrays allocated')
 
 ! allocate array for the product of the gradient and the Jacobian
@@ -587,6 +584,7 @@ end if
 
 lnx = self%nx
 lny = self%ny
+
 if (self%aspectratio.eq.1.0_wp) then 
   lPCx = PCx 
   lPCy = PCy 
