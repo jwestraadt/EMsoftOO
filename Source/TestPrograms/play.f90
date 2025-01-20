@@ -91,7 +91,7 @@ ny = 480
 
 ! instantiate the DIC class
 ! this also initializes the x and y coordinate arrays
-DIC = DIC_T( nx, ny )
+DIC = DIC_T( nx, ny, normalize = .TRUE. )
 call DIC%setverbose(.FALSE.)
 ! call DIC%setverbose(.TRUE.)
 
@@ -121,6 +121,8 @@ write (*,*) refpat(1:3,1:3)
 tol = 100 * epsilon(1.0_wp)
 PCx = 0.5_wp ! real(nx/2-1,wp)
 PCy = 0.5_wp ! real(ny/2-1,wp)
+! PCx = real(nx/2-1,wp)
+! PCy = real(ny/2-1,wp)
 DD = 15000.0_wp/50.0_wp 
 
 ! define the border widths nbx and nby for the subregion
@@ -182,8 +184,9 @@ call DIC%getresiduals( CIC )
 ! values for one of the nearest neighbor patterns
 
 oldnorm = 100.0_wp
-scalingfactor = 1.5D0  ! simple multiplicative term for the partial solutions
+! simple multiplicative term for the partial solutions
 ! maybe this will speed up convergence a little...
+scalingfactor = 1.5D0  
 
 ! and here we start the loop 
 do ii=1,50 

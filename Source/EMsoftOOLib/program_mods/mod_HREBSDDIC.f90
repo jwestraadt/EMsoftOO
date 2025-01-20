@@ -55,6 +55,8 @@ type, public :: HREBSDDICNameListType
    real(kind=sgl)       :: C13
    real(kind=sgl)       :: C33
    real(kind=dbl)       :: mindeltap
+   real(kind=dbl)       :: scalingfactor
+   character(fnlen)     :: pixelornormalized
    character(fnlen)     :: patternfile
    character(fnlen)     :: DIfile
    character(fnlen)     :: datafile
@@ -178,6 +180,8 @@ real(kind=sgl)                       :: C44
 real(kind=sgl)                       :: C13
 real(kind=sgl)                       :: C33
 real(kind=dbl)                       :: mindeltap
+real(kind=dbl)                       :: scalingfactor
+character(fnlen)                     :: pixelornormalized
 character(fnlen)                     :: patternfile
 character(fnlen)                     :: DIfile
 character(fnlen)                     :: datafile
@@ -187,7 +191,8 @@ character(3)                         :: crystal
 logical                              :: verbose
 
 namelist / HREBSDDICdata / patx, paty, nthreads, C11, C12, C44, C13, C33, DIfile, DInml, mindeltap, verbose, & 
-                           datafile, patternfile, DIfile, ppEBSDnml, crystal, nbx, nby, maxnumit
+                           datafile, patternfile, DIfile, ppEBSDnml, crystal, nbx, nby, maxnumit, scalingfactor, &
+                           pixelornormalized
 
 patx = 0
 paty = 0
@@ -201,6 +206,8 @@ C44 = 132.0
 C13 = 0.0
 C33 = 0.0
 mindeltap = 0.001D0
+scalingfactor = 1.5D0
+pixelornormalized = 'normalized'
 patternfile = 'undefined'
 datafile = 'undefined'
 DIfile = 'undefined'
@@ -254,6 +261,8 @@ self%nml%C44 = C44
 self%nml%C13 = C13
 self%nml%C33 = C33
 self%nml%mindeltap = mindeltap
+self%nml%scalingfactor = scalingfactor
+self%nml%pixelornormalized = pixelornormalized
 self%nml%patternfile = patternfile
 self%nml%DIfile = DIfile
 self%nml%datafile = datafile
@@ -303,7 +312,7 @@ class(HREBSD_DIC_T), INTENT(INOUT)      :: self
 type(HDF_T), INTENT(INOUT)              :: HDF
 type(HDFnames_T), INTENT(INOUT)         :: HDFnames
 
-integer(kind=irg),parameter             :: n_int = 7, n_real = 6
+integer(kind=irg),parameter             :: n_int = 7, n_real = 7
 integer(kind=irg)                       :: hdferr,  io_int(n_int), vb
 real(kind=sgl)                          :: io_real(n_real)
 character(20)                           :: intlist(n_int), reallist(n_real)
@@ -330,13 +339,14 @@ intlist(7) = 'verbose'
 call HDF%writeNMLintegers(io_int, intlist, n_int)
 
 ! write all the single reals
-io_real = (/ enl%C11, enl%C12, enl%C44, enl%C13, enl%C33, real(enl%mindeltap) /)
+io_real = (/ enl%C11, enl%C12, enl%C44, enl%C13, enl%C33, real(enl%mindeltap),real(enl%scalingfactor) /)
 reallist(1) = 'C11'
 reallist(2) = 'C12'
 reallist(3) = 'C44'
 reallist(4) = 'C13'
 reallist(5) = 'C33'
 reallist(6) = 'mindeltap'
+reallist(7) = 'scalingfactor'
 call HDF%writeNMLreals(io_real, reallist, n_real)
 
 ! write all the strings
@@ -440,7 +450,7 @@ integer(kind=irg),allocatable           :: nit(:)
 integer(kind=irg)                       :: hdferr, binx, biny, L, recordsize, patsz, ROI_size, sz(2), i, j, kk, numangles, &
                                            istat, interp_grid, interp_size, info, offset, nbx, nby, ii, jj, ierr, io_int(2), &
                                            numpats, TID
-real(kind=dbl)                          :: interp_step, std
+real(kind=dbl)                          :: interp_step, std, sf
 real(kind=dbl)                          :: Wnew(3,3), Winv(3,3), oldW(3,3)
 real(wp)                                :: hg(8), W(3,3), ndp, oldnorm, SOL(8), Hessian(8,8), CIC, PCx, PCy, hpartial(8)
 character(11)                           :: dstr
@@ -549,6 +559,8 @@ call OMP_setNThreads(enl%nthreads)
 
 memth = memory_T( nt = enl%nthreads )
 
+sf = enl%scalingfactor
+
 ! here we go parallel with OpenMP
 !$OMP PARALLEL DEFAULT(SHARED) PRIVATE(TID, DIC, nbx, nby, targetpattern, ii, jj, hg, W)&
 !$OMP& PRIVATE(oldnorm, oldW, SOL, ndp, Wnew, Winv, io_int, i, hpartial) 
@@ -557,7 +569,7 @@ memth = memory_T( nt = enl%nthreads )
 TID = OMP_GET_THREAD_NUM()
 
 !copy the exptpattern into the thread's DIC class
-DIC = DIC_T( binx, biny )
+DIC = DIC_T( binx, biny, normalize = .TRUE. )
 call DIC%setverbose( enl%verbose )
 call DIC%setpattern( 'r', dble(exptpattern) )
 
@@ -599,10 +611,6 @@ do ii=1, numpats
   call DIC%applyZMN(dotarget=.TRUE.)
   call DIC%getresiduals()
 
-! initialize the homography to zero
-  oldnorm = 100.0_wp
-  oldW = W
-
 ! loop until max iterations or convergence
   do jj = 1, enl%maxnumit
     if (jj.eq.1) then 
@@ -615,11 +623,14 @@ do ii=1, numpats
     call DIC%solveHessian(SOL, ndp)
 
 ! convert to a shape function and take the inverse
-    Wnew = DIC%getShapeFunction(reshape(SOL, (/8/)))
+! we use a multiplicative factor to increase the value of the increment; testing 
+! shows that in ideal conditions (simulated patterns), a value of sf=1.5 can
+! speed up convergence by a factor of 2
+    Wnew = DIC%getShapeFunction(reshape(SOL, (/8/))*sf)
     Winv = matrixInvert_wp( Wnew )
     W = matmul( W, Winv )
     W = W / W(3,3)
-    hpartial = reshape(SOL, (/8/))
+    hpartial = reshape(SOL, (/8/)) * sf
     if (ndp.lt.enl%mindeltap) then
         EXIT
     end if

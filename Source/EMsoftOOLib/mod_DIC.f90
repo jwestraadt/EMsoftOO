@@ -53,6 +53,7 @@ type, public :: DIC_T
     integer(kind=irg)               :: ny         ! pattern y-size
     real(wp)                        :: rnxi       ! pattern x scale factor
     real(wp)                        :: rnyi       ! pattern y scale factor
+    real(wp)                        :: aspectratio! smallest n over largest n
     integer(kind=irg)               :: nxSR       ! sub-region x-size
     integer(kind=irg)               :: nySR       ! sub-region y-size
     integer(kind=irg)               :: nSR        ! sub-region total size
@@ -62,6 +63,7 @@ type, public :: DIC_T
     type(bspline_2d)                :: sdef       ! b-spline class for deformed pattern
     real(wp)                        :: tol = 100.0_wp * epsilon(1.0_wp) ! tolerance
     logical                         :: verbose = .FALSE.   ! useful for debugging
+    logical                         :: normalizedcoordinates = .TRUE.
 
 ! the arrays that are tied to a given reference/target pattern are defined here
     real(wp),allocatable            :: x(:)
@@ -136,7 +138,7 @@ end interface DIC_T
 contains
 
 !--------------------------------------------------------------------------
-recursive type(DIC_T) function DIC_constructor( nx, ny ) result(DIC)
+recursive type(DIC_T) function DIC_constructor( nx, ny, normalize) result(DIC)
 !DEC$ ATTRIBUTES DLLEXPORT :: DIC_constructor
  !! author: MDG
  !! version: 1.0
@@ -150,8 +152,12 @@ IMPLICIT NONE
 
 integer(kind=irg), INTENT(IN)     :: nx
 integer(kind=irg), INTENT(IN)     :: ny
+logical,INTENT(IN),OPTIONAL       :: normalize
 
 integer(kind=irg)                 :: i, j
+real(wp)                          :: ratio=1.0_wp 
+
+DIC%normalizedcoordinates = .FALSE.
 
 ! set pattern dimensions 
 DIC%nx = nx 
@@ -159,17 +165,27 @@ DIC%ny = ny
 
 ! allocate and initialize the normalized coordinate arrays
 allocate( DIC%x(0:nx-1), DIC%y(0:ny-1) )
-DIC%rnxi = 1.0_wp/real(nx-1,wp)
-DIC%rnyi = 1.0_wp/real(ny-1,wp)
+DIC%x = (/ (real(i,wp),i=0,nx-1) /)
+DIC%y = (/ (real(j,wp),j=0,ny-1) /)
 
-do i=0,nx-1
-    DIC%x(i) = real(i,wp)
-end do
-DIC%x = DIC%x * DIC%rnxi
-do j=0,ny-1
-    DIC%y(j) = real(j,wp)
-end do
-DIC%y = DIC%y * DIC%rnyi
+if (present(normalize)) then  
+  if (normalize.eqv..TRUE.) then ! we use normalized coordinates
+    DIC%rnxi = 1.0_wp/real(nx-1,wp)
+    DIC%rnyi = 1.0_wp/real(ny-1,wp)
+    DIC%x = DIC%x * DIC%rnxi
+    DIC%y = DIC%y * DIC%rnyi
+    DIC%normalizedcoordinates = .TRUE.
+    ! if (nx.gt.ny) then 
+    !   ! ratio = real(ny,wp) / real(nx,wp)
+    !   DIC%y = DIC%y * ratio
+    ! else
+    !   ! ratio = real(nx,wp) / real(ny,wp)
+    !   DIC%x = DIC%x * ratio
+    ! end if
+  end if
+end if
+
+DIC%aspectratio = ratio
 
 end function DIC_constructor
 
@@ -362,7 +378,6 @@ if (present(refp)) then
   if (refp.eqv..TRUE.) then 
     ! initialize the bsplines for the reference pattern
     call self%sref%initialize(self%x,self%y,self%refpat,self%kx,self%ky,iflag)
-    write (*,*) ' getbsplines_ : ', iflag, minval(self%x), maxval(self%x)
     ! for potential later calls, allow for extrapolation
     call self%sref%set_extrap_flag(.TRUE.)
     if (self%verbose) call Message%printMessage(' getbsplines_::b-splines for reference pattern completed')
@@ -461,8 +476,18 @@ if (self%verbose) call Message%printMessage(' defineSR_::referenceSR array alloc
 
 ! define the coordinate arrays for the sub-region
 allocate( self%xiX(0:self%nxSR-1), self%xiY(0:self%nySR-1) )
-self%xiX = self%x(nbx:self%nx-nbx-1) - PCx ! self%nxSR/2 ! PCx
-self%xiY = self%y(nby:self%ny-nby-1) - PCy ! self%nySR/2 ! PCy
+if (self%aspectratio.eq.1.0_wp) then 
+  self%xiX = self%x(nbx:self%nx-nbx-1) - PCx
+  self%xiY = self%y(nby:self%ny-nby-1) - PCy
+else
+  if (self%nx.gt.self%ny) then 
+    self%xiX = self%x(nbx:self%nx-nbx-1) - PCx
+    self%xiY = self%y(nby:self%ny-nby-1) - PCy * self%aspectratio
+  else
+    self%xiX = self%x(nbx:self%nx-nbx-1) - PCx * self%aspectratio
+    self%xiY = self%y(nby:self%ny-nby-1) - PCy
+  end if
+end if
 write (*,*) 'defineSR : ',minval(self%xiX), maxval(self%xiX)
 write (*,*) 'defineSR : ',minval(self%xiY), maxval(self%xiY)
 if (self%verbose) call Message%printMessage(' defineSR_::xiX, xiY arrays allocated')
@@ -547,7 +572,7 @@ logical,INTENT(IN),OPTIONAL     :: dotarget
 
 type(IO_T)                      :: Message
 
-real(wp)                        :: W(3,3), p(3)
+real(wp)                        :: W(3,3), p(3), lPCx, lPCy
 integer(ip)                     :: iflag
 integer(kind=irg)               :: cnt, i, j, lnx, lny 
 logical                         :: tgt
@@ -562,11 +587,21 @@ end if
 
 lnx = self%nx
 lny = self%ny
+if (self%aspectratio.eq.1.0_wp) then 
+  lPCx = PCx 
+  lPCy = PCy 
+else
+  if (self%nx.gt.self%ny) then 
+    lPCx = PCx 
+    lPCy = PCy*self%aspectratio
+  else
+    lPCx = PCx*self%aspectratio 
+    lPCy = PCy
+  end if 
+end if
 
 ! convert to shape function
 W = self%getShapeFunction(h)
-
-! W = matrixInvert_wp(W)
 
 ! determine the XiPrime coordinates so that we can apply the deformation by
 ! means of the evaluate method in the bspline class
@@ -574,13 +609,13 @@ if (.not.allocated(self%XiPrime)) allocate( self%XiPrime(0:1, 0:lnx*lny-1))
 cnt = 0
 do j = 0, lny-1
     do i = 0, lnx-1
-        p = matmul( W,  (/ self%x(i)-PCx, self%y(j)-PCy, 1.0_wp /) )
-        if (p(3).ne.0.0_wp) then 
-            self%XiPrime(0:1,cnt) = p(1:2)/p(3)
-        else
-            self%XiPrime(0:1,cnt) = p(1:2)
-        end if
-        cnt = cnt + 1
+      p = matmul( W,  (/ self%x(i)-lPCx, self%y(j)-lPCy, 1.0_wp /) )
+      if (p(3).ne.0.0_wp) then 
+          self%XiPrime(0:1,cnt) = p(1:2)/p(3)
+      else
+          self%XiPrime(0:1,cnt) = p(1:2)
+      end if
+      cnt = cnt + 1
     end do 
 end do 
 if (self%verbose) then 
@@ -592,13 +627,13 @@ if (.not.allocated(self%defpat)) allocate( self%defpat( 0:lnx-1, 0:lny-1 ))
 cnt = 0
 do j=0,lny-1
     do i=0,lnx-1
-        iflag = 0_wp
-        if (tgt) then 
-          call self%sdef%evaluate(self%XiPrime(0,cnt)+PCx,self%XiPrime(1,cnt)+PCy,0,0,self%defpat(i,j),iflag)
-        else
-          call self%sref%evaluate(self%XiPrime(0,cnt)+PCx,self%XiPrime(1,cnt)+PCy,0,0,self%defpat(i,j),iflag)
-        end if
-        cnt = cnt+1
+      iflag = 0_wp
+      if (tgt) then 
+        call self%sdef%evaluate(self%XiPrime(0,cnt)+lPCx,self%XiPrime(1,cnt)+lPCy,0,0,self%defpat(i,j),iflag)
+      else
+        call self%sref%evaluate(self%XiPrime(0,cnt)+lPCx,self%XiPrime(1,cnt)+lPCy,0,0,self%defpat(i,j),iflag)
+      end if
+      cnt = cnt+1
    end do
 end do
 ! reduce to interval [0,1]
@@ -609,9 +644,8 @@ if (self%verbose) then
   write (*,*) ' applyHomography_::range(defpat) : ',minval(self%defpat), maxval(self%defpat)
 end if 
 
-
-  call self%sdef%initialize(self%x,self%y,self%defpat,self%kx,self%ky,iflag)
-
+! do we need to reinit sdef each time ?
+call self%sdef%initialize(self%x,self%y,self%defpat,self%kx,self%ky,iflag)
 
 ! finally get the b-spline coefficients for the deformed pattern
 if (.not.tgt) then 
@@ -777,6 +811,9 @@ recursive function getShapeFunction_(self, h, store) result(W)
  !!
  !! note that the interpolation routines sample the original image to the deformed
  !! image so we need to invert that behavior ...
+ !! 
+ !! oddly, the sign of W(3,1) does not need to be inverted ... this likely has
+ !! to do with the way the b-spline interpolation works internally...
 
 IMPLICIT NONE
 

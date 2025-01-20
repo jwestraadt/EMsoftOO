@@ -93,7 +93,7 @@ recordsize = nxy * 4
 
 ! instantiate the DIC class
 ! this also initializes the x and y coordinate arrays
-DIC = DIC_T( nx, ny )
+DIC = DIC_T( nx, ny, normalize = .TRUE. )
 call DIC%setverbose(.FALSE.)
 ! call DIC%setverbose(.TRUE.)
 
@@ -149,6 +149,8 @@ call DIC%setpattern('r', refpat)
 tol = 100 * epsilon(1.0_wp)
 PCx = 0.5_wp ! real(nx/2-1,wp)
 PCy = 0.5_wp ! real(ny/2-1,wp)
+! PCx = real(nx/2-1,wp)
+! PCy = real(ny/2-1,wp)
 DD = 15000.0_wp/50.0_wp 
 
 ! define the border widths nbx and nby for the subregion
@@ -174,7 +176,7 @@ end do
 if (trim(hostname).eq.'Mac-Studio.fios-router.home') then 
     gname = EMsoft%generateFilePath('EMdatapathname','DIC/test/homographies2.data')
 else
-    gname = EMsoft%generateFilePath('EMdatapathname','playarea/DIC/test/homographies2.data')
+    gname = EMsoft%generateFilePath('EMdatapathname','playarea/DIC/test/homographiespix.data')
 end if
 open(unit=dataunit,file=trim(gname),status='unknown',form='unformatted')
 read(dataunit) homographies

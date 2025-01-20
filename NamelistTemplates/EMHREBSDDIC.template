@@ -21,8 +21,13 @@
  maxnumit = 50,
 ! minimum delta-p value at which the iteration ends
  mindeltap = 0.001D0,
+! we use a multiplicative factor to increase the value of the iteration increment; testing 
+! shows that in ideal conditions (simulated patterns), a value of scalingfactor=1.5 can
+! speed up convergence by a factor of 2
+ scalingfactor = 1.5D0,
 ! number of threads (default = 1)
  nthreads = 1,
+! do we need to output a lot of intermediate data? (for debugging purposes only)
  verbose = .FALSE.,
 !
 ! name of experimental pattern file; path relative to EMdatapathname
