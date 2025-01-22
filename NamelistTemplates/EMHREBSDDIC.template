@@ -19,12 +19,20 @@
  nby = 0,
 ! maximum number of iterations of the refinement algorithm
  maxnumit = 50,
-! minimum delta-p value at which the iteration ends
+! minimum delta-p value at which the iteration ends; Ernould recommends 0.001 but that is in
+! units of pixels; our implementation uses normalized coordinates, so the recommended value 
+! must be reduced... 0.000025 was found to give good results on simulated patterns.
  mindeltap = 0.001D0,
 ! we use a multiplicative factor to increase the value of the iteration increment; testing 
 ! shows that in ideal conditions (simulated patterns), a value of scalingfactor=1.5 can
 ! speed up convergence by a factor of 2
  scalingfactor = 1.5D0,
+! some EBSD cameras have a vertical and horizontal band of empty pixels; this needs to be
+! removed before the DIC algorithm can be executed.  The parameter 'cross' has four integers
+! in units of pixels: (xstart, xend, ystart, yend) that define the location of the bands;
+! leave these set to zero if no cross is needed
+ applycross = .FALSE.,
+ cross = 0, 0, 0, 0,
 ! number of threads (default = 1)
  nthreads = 1,
 ! do we need to output a lot of intermediate data? (for debugging purposes only)

@@ -53,6 +53,7 @@ type, public :: DIC_T
     integer(kind=irg)               :: ny         ! pattern y-size
     integer(kind=irg)               :: nxc        ! actual size of x-coordinate array
     integer(kind=irg)               :: nyc        ! actual size of y-coordinate array
+    integer(kind=irg)               :: cross(4)   ! start and end x and y coordinates of dark bands
     real(wp)                        :: rnxi       ! pattern x scale factor
     real(wp)                        :: rnyi       ! pattern y scale factor
     real(wp)                        :: aspectratio! smallest n over largest n
@@ -66,6 +67,7 @@ type, public :: DIC_T
     real(wp)                        :: tol = 100.0_wp * epsilon(1.0_wp) ! tolerance
     logical                         :: verbose = .FALSE.   ! useful for debugging
     logical                         :: normalizedcoordinates = .TRUE.
+    logical                         :: applycross = .FALSE.
 
 
 ! the arrays that are tied to a given reference/target pattern are defined here
@@ -73,6 +75,8 @@ type, public :: DIC_T
     real(wp),allocatable            :: y(:)
     real(wp),allocatable            :: xiX(:)
     real(wp),allocatable            :: xiY(:)
+    integer(kind=irg),allocatable   :: xiXint(:)
+    integer(kind=irg),allocatable   :: xiYint(:)
     real(wp),allocatable            :: XiPrime(:,:)
     real(wp),allocatable            :: refpat(:,:)
     real(wp),allocatable            :: defpat(:,:)
@@ -84,6 +88,7 @@ type, public :: DIC_T
     real(wp),allocatable            :: GradJac(:,:)
     real(wp),allocatable            :: referenceSR(:)
     real(wp),allocatable            :: targetSR(:)
+    real(wp),allocatable            :: aux(:,:)
     real(wp),allocatable            :: refzmn(:)
     real(wp),allocatable            :: tarzmn(:)
     real(wp),allocatable            :: residuals(:)
@@ -141,7 +146,7 @@ end interface DIC_T
 contains
 
 !--------------------------------------------------------------------------
-recursive type(DIC_T) function DIC_constructor( nx, ny, normalize ) result(DIC)
+recursive type(DIC_T) function DIC_constructor( nx, ny, normalize, cross ) result(DIC)
 !DEC$ ATTRIBUTES DLLEXPORT :: DIC_constructor
  !! author: MDG
  !! version: 1.0
@@ -158,11 +163,20 @@ IMPLICIT NONE
 integer(kind=irg), INTENT(IN)               :: nx
 integer(kind=irg), INTENT(IN)               :: ny
 logical,INTENT(IN),OPTIONAL                 :: normalize
+integer(kind=irg),INTENT(IN),OPTIONAL       :: cross(4)
 
 integer(kind=irg)                           :: i, j
 real(wp)                                    :: ratio=1.0_wp 
 
 DIC%normalizedcoordinates = .FALSE.
+
+! do we need to remove a cross-shaped area from the subregion in defineSR ?
+if (present(cross)) then 
+  if (sum(cross).gt.0) then 
+    DIC%cross = cross
+    DIC%applycross = .TRUE.
+  end if 
+end if 
 
 ! set pattern dimensions 
 DIC%nx = nx 
@@ -429,11 +443,24 @@ if (present(grads)) then
     end do
     if (self%verbose) then 
       call Message%printMessage(' getbsplines_::gradient of reference pattern completed')
-      write (*,*) ' getbsplines_::gradx(1:2,1:2) : ', self%gradx(1:2,1:2)
-      write (*,*) ' getbsplines_::grady(1:2,1:2) : ', self%grady(1:2,1:2)
     end if 
-    self%gxSR = reshape( self%gradx(self%nbx:self%nx-self%nbx-1,self%nby:self%ny-self%nby-1), (/ self%NSR /) )
-    self%gySR = reshape( self%grady(self%nbx:self%nx-self%nbx-1,self%nby:self%ny-self%nby-1), (/ self%NSR /) )
+    if (self%applycross.eqv..FALSE.) then 
+      self%gxSR = reshape( self%gradx(self%nbx:self%nx-self%nbx-1,self%nby:self%ny-self%nby-1), (/ self%NSR /) )
+      self%gySR = reshape( self%grady(self%nbx:self%nx-self%nbx-1,self%nby:self%ny-self%nby-1), (/ self%NSR /) )
+    else 
+      do i = 0, self%nxSR-1
+        do j = 0, self%nySR-1
+          self%aux(i,j) = self%gradx(self%xiXint(i),self%xiYint(j))
+        end do 
+      end do 
+      self%gxSR = reshape( self%aux, (/ self%NSR /) )
+      do i = 0, self%nxSR-1
+        do j = 0, self%nySR-1
+          self%aux(i,j) = self%grady(self%xiXint(i),self%xiYint(j))
+        end do 
+      end do 
+      self%gySR = reshape( self%aux, (/ self%NSR /) )
+    end if 
   end if 
 end if 
 
@@ -447,6 +474,8 @@ recursive subroutine defineSR_(self, nbx, nby, PCx, PCy)
  !! date: 12/01/24
  !!
  !! set dimensions and allocate all SR-related arrays
+ !! this optionally includes exclusion of points inside the dark
+ !! horizontal and vertical bands for some cameras (cross) 
 
 use mod_IO 
 
@@ -460,34 +489,74 @@ real(wp),INTENT(IN)             :: PCy
 
 type(IO_T)                      :: Message 
 
-! set the array dimensions for the sub-region
+integer(kind=irg)               :: i, j
+
+! set the array dimensions (nbx, nby) for the outer dimensions of the sub-region
 self%nbx = nbx
 self%nby = nby
-self%nxSR = self%nx-2*nbx
-self%nySR = self%ny-2*nby
-self%NSR = self%nxSR * self%nySR
 
-! allocate and populate relevant arrays
-allocate( self%referenceSR(0:self%NSR-1), self%gxSR(0:self%NSR-1), self%gySR(0:self%NSR-1), & 
-          self%refzmn(0:self%NSR-1), self%tarzmn(0:self%NSR-1) )
-self%referenceSR = reshape( self%refpat(nbx:self%nx-nbx-1,nby:self%ny-nby-1), (/ self%NSR /) )
-if (self%verbose) call Message%printMessage(' defineSR_::referenceSR array allocated')
+! if applycross is set, then we need to correct the dimensions of the subregion
+if (self%applycross.eqv..FALSE.) then 
+  self%nxSR = self%nx-2*nbx
+  self%nySR = self%ny-2*nby
+  self%NSR = self%nxSR * self%nySR
 
+! allocate and populate the reference subregion array
+  allocate( self%referenceSR(0:self%NSR-1) )
+  self%referenceSR = reshape( self%refpat(nbx:self%nx-nbx-1,nby:self%ny-nby-1), (/ self%NSR /) )
+  if (self%verbose) call Message%printMessage(' defineSR_::referenceSR array allocated')
 ! define the coordinate arrays for the sub-region
-allocate( self%xiX(0:self%nxSR-1), self%xiY(0:self%nySR-1) )
-if (self%aspectratio.eq.1.0_wp) then 
-  self%xiX = self%x(nbx:self%nx-nbx-1) - PCx
-  self%xiY = self%y(nby:self%ny-nby-1) - PCy
-else
-  if (self%nx.gt.self%ny) then 
+  allocate( self%xiX(0:self%nxSR-1), self%xiY(0:self%nySR-1) )
+  if (self%aspectratio.eq.1.0_wp) then 
     self%xiX = self%x(nbx:self%nx-nbx-1) - PCx
-    self%xiY = self%y(nby:self%ny-nby-1) - PCy * self%aspectratio
-  else
-    self%xiX = self%x(nbx:self%nx-nbx-1) - PCx * self%aspectratio
     self%xiY = self%y(nby:self%ny-nby-1) - PCy
+  else
+    if (self%nx.gt.self%ny) then 
+      self%xiX = self%x(nbx:self%nx-nbx-1) - PCx
+      self%xiY = self%y(nby:self%ny-nby-1) - PCy * self%aspectratio
+    else
+      self%xiX = self%x(nbx:self%nx-nbx-1) - PCx * self%aspectratio
+      self%xiY = self%y(nby:self%ny-nby-1) - PCy
+    end if
   end if
+else  ! we need to eliminate the pixels inside the vertical and horizontal bands ... 
+  self%nxSR = self%nx-2*nbx-(self%cross(2) - self%cross(1)) 
+  self%nySR = self%ny-2*nby-(self%cross(4) - self%cross(3))
+  self%NSR = self%nxSR * self%nySR
+! first get the subregion x and y coordinate arrays with the bands removed
+! these will be the normalized coordinates  
+  allocate( self%xiX(0:self%nxSR-1), self%xiY(0:self%nySR-1) )
+  self%xiX(0:self%cross(1)-nbx-1) = self%x(nbx:self%cross(1)-1)
+  self%xiX(self%cross(1)-nbx:self%nxSR-1) = self%x(self%cross(2):self%nx-self%nbx-1)
+  self%xiY(0:self%cross(3)-nby-1) = self%y(nby:self%cross(3)-1)
+  self%xiY(self%cross(3)-nby:self%nySR-1) = self%y(self%cross(4):self%ny-self%nby-1)
+! allocate the 1-D arrays needed for the computations
+  allocate( self%referenceSR(0:self%NSR-1), self%aux(0:self%nxSR-1,0:self%nySR-1) )
+  allocate( self%xiXint(0:self%nxSR-1), self%xiYint(0:self%nySR-1))
+  self%xiXint = nint( self%xiX * real(self%nx,wp) )
+  self%xiYint = nint( self%xiY * real(self%ny,wp) )
+! this is the remapping code from full pattern to subregion with bands removed
+  do i = 0, self%nxSR-1
+    do j = 0, self%nySR-1
+      self%aux(i,j) = self%refpat(self%xiXint(i),self%xiYint(j))
+    end do 
+  end do 
+  self%referenceSR = reshape( self%aux, (/ self%NSR /) )
+
+  ! open(unit=40,file='aux.data',status='unknown',form='unformatted')
+  ! write (40) real(aux)
+  ! close(unit=40,status='keep')
+
+  self%xiX = self%xiX - PCx
+  self%xiY = self%xiY - PCy
 end if
+
 if (self%verbose) call Message%printMessage(' defineSR_::xiX, xiY arrays allocated')
+
+! allocate arrays for gradient components and zero mean + normalized arrays
+allocate(  self%gxSR(0:self%NSR-1), self%gySR(0:self%NSR-1), &   
+            self%refzmn(0:self%NSR-1), self%tarzmn(0:self%NSR-1) )
+if (self%verbose) call Message%printMessage(' defineSR_::gradient and zmn arrays allocated')
 
 ! allocate array for the product of the gradient and the Jacobian
 allocate( self%GradJac(0:7,0:self%NSR-1) )
@@ -655,7 +724,18 @@ end if
 if (.not.allocated(self%targetSR)) then 
   allocate( self%targetSR( 0:self%NSR-1 ) )
 end if
-self%targetSR = reshape( self%defpat( self%nbx:self%nx-self%nbx-1, self%nby:self%ny-self%nby-1 ), (/ self%NSR /) )
+
+if (self%applycross.eqv..FALSE.) then 
+  self%targetSR = reshape( self%defpat( self%nbx:self%nx-self%nbx-1, self%nby:self%ny-self%nby-1 ), (/ self%NSR /) )
+else
+! this is the remapping code from full pattern to subregion with bands removed
+  do i = 0, self%nxSR-1
+    do j = 0, self%nySR-1
+      self%aux(i,j) = self%defpat(self%xiXint(i),self%xiYint(j))
+    end do 
+  end do 
+  self%targetSR = reshape( self%aux, (/ self%NSR /) )
+end if
 
 end subroutine applyHomography_
 

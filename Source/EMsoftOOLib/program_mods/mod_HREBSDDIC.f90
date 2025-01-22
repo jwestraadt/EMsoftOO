@@ -49,6 +49,7 @@ type, public :: HREBSDDICNameListType
    integer(kind=irg)    :: nby
    integer(kind=irg)    :: maxnumit
    integer(kind=irg)    :: nthreads
+   integer(kind=irg)    :: cross(4)
    real(kind=sgl)       :: C11
    real(kind=sgl)       :: C12
    real(kind=sgl)       :: C44
@@ -115,7 +116,7 @@ type(DIfile_T)                :: DIFT
 
 call HREBSDDIC%readNameList(nmlfile)
 
-! we also need to read in the namelist fileis from the EMppEBSD and EMDI programs (for now)
+! we also need to read in the namelist file is from the EMppEBSD and EMDI programs (for now)
 ! this file defines where the original patterns are located as well 
 ! as information about their size etc.
 ppEBSD = ppEBSD_T( HREBSDDIC%nml%ppEBSDnml )
@@ -174,6 +175,7 @@ integer(kind=irg)                    :: nbx
 integer(kind=irg)                    :: nby
 integer(kind=irg)                    :: maxnumit
 integer(kind=irg)                    :: nthreads
+integer(kind=irg)                    :: cross(4)
 real(kind=sgl)                       :: C11
 real(kind=sgl)                       :: C12
 real(kind=sgl)                       :: C44
@@ -192,7 +194,7 @@ logical                              :: verbose
 
 namelist / HREBSDDICdata / patx, paty, nthreads, C11, C12, C44, C13, C33, DIfile, DInml, mindeltap, verbose, & 
                            datafile, patternfile, DIfile, ppEBSDnml, crystal, nbx, nby, maxnumit, scalingfactor, &
-                           pixelornormalized
+                           pixelornormalized, cross
 
 patx = 0
 paty = 0
@@ -200,6 +202,7 @@ nbx = 0
 nby = 0
 maxnumit = 50
 nthreads = 1
+cross = (/ 0, 0, 0, 0 /)
 C11 = 276.0
 C12 = 159.0
 C44 = 132.0
@@ -255,6 +258,7 @@ self%nml%nbx = nbx
 self%nml%nby = nby
 self%nml%maxnumit = maxnumit
 self%nml%nthreads = nthreads
+self%nml%cross = cross
 self%nml%C11 = C11
 self%nml%C12 = C12
 self%nml%C44 = C44
@@ -348,6 +352,10 @@ reallist(5) = 'C33'
 reallist(6) = 'mindeltap'
 reallist(7) = 'scalingfactor'
 call HDF%writeNMLreals(io_real, reallist, n_real)
+
+dataset = 'cross'
+hdferr = HDF%writeDatasetIntegerArray(dataset, enl%cross, 4)
+if (hdferr.ne.0) call HDF%error_check('writeHDFNameList: unable to create cross dataset', hdferr)
 
 ! write all the strings
 dataset = 'DIfile' ! SC_DIfile
@@ -569,11 +577,18 @@ sf = enl%scalingfactor
 TID = OMP_GET_THREAD_NUM()
 
 !copy the exptpattern into the thread's DIC class
-DIC = DIC_T( binx, biny, normalize = .TRUE. )
+if (sum(enl%cross).gt.0) then 
+  DIC = DIC_T( binx, biny, normalize = .TRUE., cross=enl%cross )
+else
+  DIC = DIC_T( binx, biny, normalize = .TRUE. )
+end if
 call DIC%setverbose( enl%verbose )
 call DIC%setpattern( 'r', dble(exptpattern) )
 
-! define the border widths nbx and nby for the subregion
+! define the border widths nbx and nby for the subregion;
+! if requested, a cross-shaped area (vertical & horizontal) will
+! be eliminated from the subregion (the DIC algorithm does not depend
+! on the actual shape of the subregion...)
 nbx = enl%nbx
 nby = enl%nby
 call DIC%defineSR( nbx, nby, PCx, PCy) 
@@ -588,6 +603,8 @@ call DIC%applyZMN(doreference=.TRUE.)
 ! compute the Hessian matrix
 call DIC%getHessian(Hessian)
 
+! we'll do a 'fake' run with a null homography to make sure all parameters and 
+! auxiliary arrays are properly defined.
 hpartial = (/ (0.0_wp, i=1,8) /)
 call DIC%applyHomography(hpartial, PCx, PCy)
 
@@ -612,7 +629,7 @@ do ii=1, numpats
   call DIC%getresiduals()
 
 ! loop until max iterations or convergence
-  do jj = 1, enl%maxnumit
+  do jj = 1, enl%maxnumit   ! initialize with the null homography
     if (jj.eq.1) then 
       hpartial = (/ (0.0_wp, i=1,8) /)
       W = DIC%getShapeFunction(hpartial)
@@ -641,6 +658,8 @@ do ii=1, numpats
     io_int(2) = numpats
     call Message%WriteValue(' completed # patterns/total ',io_int,2)
   end if  
+
+! store the results
   hg = DIC%getHomography(W)
   if (jj.eq.enl%maxnumit+1) then  ! zero solution if no convergence is reached
     homographies(1:8,ii) = (/ (0.0_wp, i=1,8) /)
@@ -650,8 +669,9 @@ do ii=1, numpats
   normdp(ii) = dble(ndp)
   residuals(ii) = CIC
   nit(ii) = jj
+
+  ! do some cleanup before the next one...
   call DIC%cleanup()
-  ! call Message%printMessage(' -------------------------- ')
 end do
 !$OMP END DO
 call memth%dealloc(targetpattern, 'targetpattern', TID=TID)

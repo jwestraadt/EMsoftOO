@@ -91,7 +91,7 @@ ny = 480
 
 ! instantiate the DIC class
 ! this also initializes the x and y coordinate arrays
-DIC = DIC_T( nx, ny, normalize = .TRUE. )
+DIC = DIC_T( nx, ny, normalize = .TRUE., cross = (/ 310, 330, 230, 250 /) )
 call DIC%setverbose(.FALSE.)
 ! call DIC%setverbose(.TRUE.)
 
@@ -188,7 +188,7 @@ call DIC%getresiduals( CIC )
 oldnorm = 100.0_wp
 ! simple multiplicative term for the partial solutions
 ! maybe this will speed up convergence a little...
-scalingfactor = 1.5D0  
+scalingfactor = 1.4D0  
 
 ! and here we start the loop 
 do ii=1, maxnumit
@@ -221,7 +221,8 @@ do ii=1, maxnumit
     ! write (*,*) ' norm(deltap) = ', normdp
     ! write (*,*) '------------'
     ! if (normdp.lt.oldnorm) then
-    if (normdp.lt.0.000025D0) then
+    if (normdp.lt.0.0001D0) then
+    ! if (normdp.lt.0.000025D0) then
     ! if (normdp.lt.0.001D0) then
     !     oldnorm = normdp
     !     oldW = W 
