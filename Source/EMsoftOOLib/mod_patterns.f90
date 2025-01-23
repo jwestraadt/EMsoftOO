@@ -166,7 +166,7 @@ end function computeEBSDIQ
 
 !--------------------------------------------------------------------------
 recursive subroutine PreProcessPatterns(EMsoft, HDF, inRAM, nml, binx, biny, masklin, correctsize, totnumexpt, &
-                                        epatterns, exptIQ, log)
+                                        epatterns, exptIQ, log, logparam)
 !DEC$ ATTRIBUTES DLLEXPORT :: PreProcessPatterns
 !! author: MDG
 !! version: 1.0
@@ -205,6 +205,7 @@ real(kind=sgl),INTENT(INOUT),OPTIONAL             :: epatterns(correctsize, totn
 !f2py intent(in,out) ::  epatterns
 real(kind=sgl),INTENT(INOUT),OPTIONAL             :: exptIQ(totnumexpt)
 logical,INTENT(IN),OPTIONAL                       :: log
+integer(kind=irg),INTENT(IN),OPTIONAL             :: logparam
 !f2py intent(in,out) ::  exptIQ
 
 type(IO_T)                                        :: Message
@@ -213,7 +214,7 @@ type(timing_T)                                    :: timer
 
 logical                                           :: ROIselected, f_exists, dolog=.FALSE.
 character(fnlen)                                  :: fname
-integer(kind=irg)                                 :: istat, L, recordsize, io_int(2), patsz, iii, &
+integer(kind=irg)                                 :: istat, L, recordsize, io_int(2), patsz, iii, lp, &
                                                      iiistart, iiiend, jjend, TID, jj, kk, ierr, itype
 integer(HSIZE_T)                                  :: dims3(3), offset3(3)
 integer(kind=irg),parameter                       :: iunitexpt = 41, itmpexpt = 42
@@ -232,8 +233,16 @@ call Message%printMessage(' Preprocessing experimental patterns')
 
 ! standard or log-hipass processing ?
 if (present(log)) then 
-    if (log.eqv..TRUE.) dolog = .TRUE. 
+    if (log.eqv..TRUE.) then 
+        dolog = .TRUE. 
+        if (present(logparam)) then 
+            lp = logparam
+        else
+            lp = 10 
+        end if
+    end if
 end if 
+
 
 if (nml%DIModality.eq.'EBSD') then
   isEBSD = .TRUE.
@@ -418,7 +427,7 @@ prepexperimentalloop: do iii = iiistart,iiiend
             pint = nint(((Pat - mi) / (ma-mi))*255.0)
             Pat = float(adhisteq(nml%nregions,binx,biny,pint))
         else  
-            Pat = loghipass(Pat, 10, binx, biny)
+            Pat = loghipass(Pat, lp, binx, biny)
         end if 
 
 ! convert back to 1D vector

@@ -47,6 +47,7 @@ type, public :: ppEBSDNameListType
  integer(kind=irg)  :: numsy
  integer(kind=irg)  :: nthreads
  integer(kind=irg)  :: nregions
+ integer(kind=irg)  :: logparam
  integer(kind=irg)  :: ROI(4)
  real(kind=dbl)     :: hipassw
  character(3)       :: filtertype
@@ -79,6 +80,7 @@ private
   procedure, pass(self) :: get_numsy_
   procedure, pass(self) :: get_nthreads_
   procedure, pass(self) :: get_nregions_
+  procedure, pass(self) :: get_logparam_
   procedure, pass(self) :: get_ROI_
   procedure, pass(self) :: get_hipassw_
   procedure, pass(self) :: get_filtertype_
@@ -116,6 +118,7 @@ private
   generic, public :: get_numsy => get_numsy_
   generic, public :: get_nthreads => get_nthreads_
   generic, public :: get_nregions => get_nregions_
+  generic, public :: get_logparam => get_logparam_
   generic, public :: get_ROI => get_ROI_
   generic, public :: get_hipassw => get_hipassw_
   generic, public :: get_filtertype => get_filtertype_
@@ -453,6 +456,42 @@ integer(kind=irg), INTENT(IN)   :: inp
 self%nml%nregions = inp
 
 end subroutine set_nregions_
+
+!--------------------------------------------------------------------------
+function get_logparam_(self) result(out)
+!DEC$ ATTRIBUTES DLLEXPORT :: get_logparam_
+!! author: MDG
+!! version: 1.0
+!! date: 01/23/25
+!!
+!! get logparam from the ppEBSD_T class
+
+IMPLICIT NONE
+
+class(ppEBSD_T), INTENT(INOUT)     :: self
+integer(kind=irg)               :: out
+
+out = self%nml%logparam
+
+end function get_logparam_
+
+!--------------------------------------------------------------------------
+subroutine set_logparam_(self,inp)
+!DEC$ ATTRIBUTES DLLEXPORT :: set_logparam_
+!! author: MDG
+!! version: 1.0
+!! date: 01/23/25
+!!
+!! set logparam in the ppEBSD_T class
+
+IMPLICIT NONE
+
+class(ppEBSD_T), INTENT(INOUT)     :: self
+integer(kind=irg), INTENT(IN)   :: inp
+
+self%nml%logparam = inp
+
+end subroutine set_logparam_
 
 !--------------------------------------------------------------------------
 function get_ROI_(self) result(out)
@@ -808,6 +847,7 @@ integer(kind=irg)  :: numsy
 integer(kind=irg)  :: nthreads
 integer(kind=irg)  :: nregions
 integer(kind=irg)  :: ROI(4)
+integer(kind=irg)  :: logparam
 real(kind=dbl)     :: hipassw
 character(1)       :: maskpattern
 character(3)       :: filtertype
@@ -819,7 +859,7 @@ character(fnlen)   :: HDFstrings(10)
 
 ! define the IO namelist to facilitate passing variables to the program.
 namelist  / ppEBSDdata / numsx, numsy, nregions, maskpattern, nthreads, ipf_ht, ipf_wd, exptfile, maskradius, inputtype, &
-                         filtertype, tmpfile, maskfile, HDFstrings, hipassw, ROI 
+                         filtertype, tmpfile, maskfile, HDFstrings, hipassw, ROI, logparam 
 
 ! set the input parameters to default values
  ipf_ht = 100
@@ -829,6 +869,7 @@ namelist  / ppEBSDdata / numsx, numsy, nregions, maskpattern, nthreads, ipf_ht, 
  maskradius = 240
  hipassw = 0.05
  nregions = 10
+ logparam = 10
  numsx = 0
  numsy = 0
  ROI = (/ 0, 0, 0, 0 /)
@@ -871,6 +912,7 @@ self%nml%numsx = numsx
 self%nml%numsy = numsy
 self%nml%nthreads = nthreads
 self%nml%nregions = nregions
+self%nml%logparam = logparam
 self%nml%ROI = ROI
 self%nml%hipassw = hipassw
 self%nml%filtertype = filtertype
@@ -1064,7 +1106,8 @@ if (ppnl%filtertype.eq.'fft') then
   call PreProcessPatterns(EMsoft, HDF, .FALSE., dinl, binx, biny, masklin, correctsize, totnumexpt)
 else
   ! logarithmic high-pass filter only
-  call PreProcessPatterns(EMsoft, HDF, .FALSE., dinl, binx, biny, masklin, correctsize, totnumexpt, log=.TRUE.)
+  call PreProcessPatterns(EMsoft, HDF, .FALSE., dinl, binx, biny, masklin, correctsize, totnumexpt, &
+                          log=.TRUE., logparam=ppnl%logparam)
 end if 
 
 !=====================================================

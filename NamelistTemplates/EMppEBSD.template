@@ -20,6 +20,11 @@
  hipassw = 0.05,
 ! number of regions for adaptive histogram equalization
  nregions = 10,
+! number of pattern shifts to be used for logarithmic high pass filter
+ logparam = 10,
+! filter type to be used ('fft' for EMsoft standard preprocessing with the hipassw and nregions
+! parameters or 'log' for a logarithmic high pass filter)
+ filtertype = 'fft',
 ! pattern dimensions (actual)
  numsx = 640,
  numsy = 480,
