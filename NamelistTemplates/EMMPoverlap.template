@@ -21,15 +21,11 @@
 ! orientation relation vectors:
  gA = 0, 0, 1,
  gB = 0, 0, 1,
- gA2= 0, 0, 1,
  gC = 0, 0, 1,
- gA3= 0, 0, 1,
  gD = 0, 0, 1,
  tA = 1, 0, 0,
  tB = 1, 0, 0,
- tA2= 1, 0, 0,
  tC = 1, 0, 0,
- tA3= 1, 0, 0,
  tD = 1, 0, 0,
 ! the following two parameters can be used to define the orientation of the merged master pattern
 ! with respect to the cartesian crystallographic reference frame
