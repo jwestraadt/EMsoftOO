@@ -1,5 +1,5 @@
-&EBSDoverlapdata
-! template file for the EMEBSDoverlap program
+&MPoverlapdata
+! template file for the EMMPoverlap program
 !
 ! overlap mode  
 !  'full' = generate a complete new master pattern file that can be used for indexing
