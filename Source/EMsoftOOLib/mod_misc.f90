@@ -41,7 +41,7 @@ IMPLICIT NONE
 !> this type is used to define an orientation relation, i.e., two parallel
 !> directions and two parallel planes
 type OrientationRelation
-  real(kind=sgl)                        :: tA(3), tB(3), gA(3), gB(3)
+  real(kind=dbl)                        :: tA(3), tB(3), gA(3), gB(3)
 end type OrientationRelation
 
 
@@ -546,10 +546,11 @@ real(kind=sgl)                           :: TT(3,3)
 
 type(o_T)                                :: o
 type(q_T)                                :: q 
+type(a_T)                                :: a
 
 type(IO_T)                               :: Message
-real(kind=sgl)                           :: r(3), p(3), Ep(3,3), E(3,3), io_real(3), dsm(3,3)
-real(kind=dbl)                           :: dE(3,3)
+real(kind=dbl)                           :: r(3), p(3), Ep(3,3), E(3,3), io_real(3), dsm(3,3)
+real(kind=dbl)                           :: dE(3,3), tol=1.0D-6, s, qu(4)
 integer(kind=irg)                        :: i
 
 call setRotationPrecision('d')
@@ -560,7 +561,7 @@ call setRotationPrecision('d')
  call cellA%NormVec(orel % tA,'d')
  call cellA%CalcCross(orel % tA,r,p,'d','d',0)
  call cellA%NormVec(p,'d')
- dsm = sngl(cellA%getdsm())
+ dsm = cellA%getdsm()
  E(1,1:3)=matmul(dsm, r)
  E(2,1:3)=matmul(dsm, p)
  E(3,1:3)=matmul(dsm, orel % tA)
@@ -578,7 +579,7 @@ call setRotationPrecision('d')
  call cellB%NormVec(orel % tB,'d')
  call cellB%CalcCross(orel % tB,r,p,'d','d',0)
  call cellB%NormVec(p,'d')
- dsm = sngl(cellB%getdsm())
+ dsm = cellB%getdsm()
  Ep(1,1:3)=matmul(dsm, r)
  Ep(2,1:3)=matmul(dsm, p)
  Ep(3,1:3)=matmul(dsm, orel % tB)
@@ -595,9 +596,27 @@ call setRotationPrecision('d')
   io_real(1:3) = TT(i,1:3)
   call Message%WriteValue('', io_real, 3)
  end do
- o = o_T( odinp = dble(TT) )
- q = o%oq()
- call q%q_print(' Quaternion value : ')
+ call Message%printMessage('Is this an orthonormal matrix ?', frm = "(A)")
+ dE = matmul(TT, transpose(TT))
+ do i=1,3
+  io_real(1:3) = dE(i,1:3)
+  call Message%WriteValue('', io_real, 3)
+ end do
+ io_real(1) = dE(1,1)+dE(2,2)+dE(3,3)
+ call Message%WriteValue('   Trace -> ', io_real, 1)
+ if (dE(1,1)+dE(2,2)+dE(3,3)-3.D0.lt.tol) then 
+! fix the normalization of columns
+    call Message%printMessage('Fixing matrix normalization... ', frm = "(A)")
+    do i=1,3
+      s = sqrt(sum(TT(1:3,1)**2))
+      TT(1:3,i) = TT(1:3,i)/s 
+    end do
+    o = o_T( odinp = dble(TT) )
+    q = o%oq()
+    call q%q_print(' Quaternion representation [q0, q1, q2, q3]          -> ')
+    a = q%qa()
+    call a%a_print(' Axis-angle representation [nx, ny, nz, omega (rad)] -> ')
+ end if 
 
  call Message%printMessage(' --- ', frm = "(A)")
 

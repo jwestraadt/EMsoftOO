@@ -342,44 +342,94 @@ if (hdferr.ne.0) call HDF%error_check('writeHDFNameList: unable to create fracD 
 
 ! vectors
 dataset = 'tA'
-hdferr = HDF%writeDatasetFloatArray(dataset, emnl%tA, 3)
+call H5Lexists_f(HDF%getobjectID(),trim(dataset),g_exists, hdferr)
+if (g_exists) then
+  hdferr = HDF%writeDatasetFloatArray(dataset, emnl%tA, 3, overwrite)
+else
+  hdferr = HDF%writeDatasetFloatArray(dataset, emnl%tA, 3)
+end if 
 if (hdferr.ne.0) call HDF%error_check('writeHDFNameList: unable to create tA dataset',hdferr)
 
 dataset = 'tB'
-hdferr = HDF%writeDatasetFloatArray(dataset, emnl%tB, 3)
+call H5Lexists_f(HDF%getobjectID(),trim(dataset),g_exists, hdferr)
+if (g_exists) then
+  hdferr = HDF%writeDatasetFloatArray(dataset, emnl%tB, 3, overwrite)
+else
+  hdferr = HDF%writeDatasetFloatArray(dataset, emnl%tB, 3)
+end if 
 if (hdferr.ne.0) call HDF%error_check('writeHDFNameList: unable to create tB dataset',hdferr)
 
 dataset = 'tC'
-hdferr = HDF%writeDatasetFloatArray(dataset, emnl%tC, 3)
+call H5Lexists_f(HDF%getobjectID(),trim(dataset),g_exists, hdferr)
+if (g_exists) then
+  hdferr = HDF%writeDatasetFloatArray(dataset, emnl%tC, 3, overwrite)
+else
+  hdferr = HDF%writeDatasetFloatArray(dataset, emnl%tC, 3)
+end if 
 if (hdferr.ne.0) call HDF%error_check('writeHDFNameList: unable to create tC dataset',hdferr)
 
 dataset = 'tD'
-hdferr = HDF%writeDatasetFloatArray(dataset, emnl%tD, 3)
+call H5Lexists_f(HDF%getobjectID(),trim(dataset),g_exists, hdferr)
+if (g_exists) then
+  hdferr = HDF%writeDatasetFloatArray(dataset, emnl%tD, 3, overwrite)
+else
+  hdferr = HDF%writeDatasetFloatArray(dataset, emnl%tD, 3)
+end if 
 if (hdferr.ne.0) call HDF%error_check('writeHDFNameList: unable to create tD dataset',hdferr)
 
 
 dataset = 'gA'
-hdferr = HDF%writeDatasetFloatArray(dataset, emnl%gA, 3)
+call H5Lexists_f(HDF%getobjectID(),trim(dataset),g_exists, hdferr)
+if (g_exists) then
+  hdferr = HDF%writeDatasetFloatArray(dataset, emnl%gA, 3, overwrite)
+else
+  hdferr = HDF%writeDatasetFloatArray(dataset, emnl%gA, 3)
+end if 
 if (hdferr.ne.0) call HDF%error_check('writeHDFNameList: unable to create gA dataset',hdferr)
 
 dataset = 'gB'
-hdferr = HDF%writeDatasetFloatArray(dataset, emnl%gB, 3)
+call H5Lexists_f(HDF%getobjectID(),trim(dataset),g_exists, hdferr)
+if (g_exists) then
+  hdferr = HDF%writeDatasetFloatArray(dataset, emnl%gB, 3, overwrite)
+else
+  hdferr = HDF%writeDatasetFloatArray(dataset, emnl%gB, 3)
+end if 
 if (hdferr.ne.0) call HDF%error_check('writeHDFNameList: unable to create gB dataset',hdferr)
 
 dataset = 'gC'
-hdferr = HDF%writeDatasetFloatArray(dataset, emnl%gC, 3)
+call H5Lexists_f(HDF%getobjectID(),trim(dataset),g_exists, hdferr)
+if (g_exists) then
+  hdferr = HDF%writeDatasetFloatArray(dataset, emnl%gC, 3, overwrite)
+else
+  hdferr = HDF%writeDatasetFloatArray(dataset, emnl%gC, 3)
+end if 
 if (hdferr.ne.0) call HDF%error_check('writeHDFNameList: unable to create gC dataset',hdferr)
 
 dataset = 'gD'
-hdferr = HDF%writeDatasetFloatArray(dataset, emnl%gD, 3)
+call H5Lexists_f(HDF%getobjectID(),trim(dataset),g_exists, hdferr)
+if (g_exists) then
+  hdferr = HDF%writeDatasetFloatArray(dataset, emnl%gD, 3, overwrite)
+else
+  hdferr = HDF%writeDatasetFloatArray(dataset, emnl%gD, 3)
+end if 
 if (hdferr.ne.0) call HDF%error_check('writeHDFNameList: unable to create gD dataset',hdferr)
 
 dataset = 'PatternAxisA'
-hdferr = HDF%writeDatasetIntegerArray(dataset, emnl%PatternAxisA, 3)
+call H5Lexists_f(HDF%getobjectID(),trim(dataset),g_exists, hdferr)
+if (g_exists) then
+  hdferr = HDF%writeDatasetIntegerArray(dataset, emnl%PatternAxisA, 3, overwrite)
+else
+  hdferr = HDF%writeDatasetIntegerArray(dataset, emnl%PatternAxisA, 3)
+end if 
 if (hdferr.ne.0) call HDF%error_check('writeHDFNameList: unable to create PatternAxisA dataset',hdferr)
 
 dataset = 'HorizontalAxisA'
-hdferr = HDF%writeDatasetIntegerArray(dataset, emnl%HorizontalAxisA, 3)
+call H5Lexists_f(HDF%getobjectID(),trim(dataset),g_exists, hdferr)
+if (g_exists) then
+  hdferr = HDF%writeDatasetIntegerArray(dataset, emnl%HorizontalAxisA, 3, overwrite)
+else
+  hdferr = HDF%writeDatasetIntegerArray(dataset, emnl%HorizontalAxisA, 3)
+end if 
 if (hdferr.ne.0) call HDF%error_check('writeHDFNameList: unable to create HorizontalAxisA dataset',hdferr)
 
 dataset = 'masterfileA'
@@ -518,7 +568,7 @@ integer(kind=irg),parameter            :: numfrac = 21
 integer(kind=irg)                      :: paxA(3)
 integer(kind=irg)                      :: haxA(3)
 real(kind=sgl)                         :: PP(3), HH(3), CCm(3)
-logical                                :: verbose, iv, overwrite, isEBSD, isECP, isTKD
+logical                                :: verbose, iv, overwrite=.TRUE., isEBSD, isECP, isTKD, g_exists
 character(6)                           :: sqorheA, sqorheB, sqorheC, sqorheD
 character(fnlen)                       :: outstr, datafile, xtalnameA, xtalnameB, xtalnameC, xtalnameD, nmldeffile
 type(DynType),save                     :: DynA, DynB, DynC, DynD
@@ -780,10 +830,10 @@ if (sum(enl%gB*enl%tB).ne.0.0) then
 end if
 verbose = .TRUE.
 
-orelAB%tA = enl%tA
-orelAB%tB = enl%tB
-orelAB%gA = enl%gA
-orelAB%gB = enl%gB
+orelAB%tA = dble(enl%tA)
+orelAB%tB = dble(enl%tB)
+orelAB%gA = dble(enl%gA)
+orelAB%gB = dble(enl%gB)
 TT = ComputeOR(orelAB, cellA, cellB, 'AB')
 TTAB = transpose(matmul( cellA%getrsm(), matmul( TT, transpose(cellB%getdsm()) )))
 
@@ -807,10 +857,10 @@ if (numvariants.gt.1) then
   if (sum(enl%gC*enl%tC).ne.0.0) then
     call Message%printError('MPoverlap','gC and tC must be orthogonal !!!')
   end if
-  orelAC%tA = enl%tA
-  orelAC%tB = enl%tC
-  orelAC%gA = enl%gA
-  orelAC%gB = enl%gC
+  orelAC%tA = dble(enl%tA)
+  orelAC%tB = dble(enl%tC)
+  orelAC%gA = dble(enl%gA)
+  orelAC%gB = dble(enl%gC)
   TT = ComputeOR(orelAC, cellA, cellC, 'AB')
   TTAC = transpose(matmul( cellA%getrsm(), matmul( TT, transpose(cellC%getdsm()) )))
   om2 = om
@@ -819,10 +869,10 @@ if (numvariants.gt.1) then
     if (sum(enl%gD*enl%tD).ne.0.0) then
       call Message%printError('MPoverlap','gD and tD must be orthogonal !!!')
     end if
-    orelAD%tA = enl%tA
-    orelAD%tB = enl%tD
-    orelAD%gA = enl%gA
-    orelAD%gB = enl%gD
+    orelAD%tA = dble(enl%tA)
+    orelAD%tB = dble(enl%tD)
+    orelAD%gA = dble(enl%gA)
+    orelAD%gB = dble(enl%gD)
     TT = ComputeOR(orelAD, cellA, cellD, 'AB')
     TTAD = transpose(matmul( cellA%getrsm(), matmul( TT, transpose(cellD%getdsm()) )))
     om3 = om
@@ -956,8 +1006,6 @@ if (trim(enl%overlapmode).eq.'series') then
 
   call Message%printMessage(' completed LC conversion')
 
-write (*,*) 'maxvals : ', maxval(master), maxval(masterLC), maxval(masterSP)
-
   ! finally, create simple HDF5 file with only the overlap master array in it
   ! Create a new file using the default properties.
   datafile = EMsoft%generateFilePath('EMdatapathname',trim(enl%datafile))
@@ -965,13 +1013,28 @@ write (*,*) 'maxvals : ', maxval(master), maxval(masterLC), maxval(masterSP)
 
   ! create datasets
   dataset = 'MasterLambertSquare'
-  hdferr = HDF%writeDatasetFloatArray(dataset, master, 2*npx+1, 2*npx+1, numfrac)
+  call H5Lexists_f(HDF%getobjectID(),trim(dataset),g_exists, hdferr)
+    if (g_exists) then
+      hdferr = HDF%writeDatasetFloatArray(dataset, master, 2*npx+1, 2*npx+1, numfrac, overwrite)
+    else
+      hdferr = HDF%writeDatasetFloatArray(dataset, master, 2*npx+1, 2*npx+1, numfrac)
+    end if 
 
   dataset = 'MasterLambertCircle'
-  hdferr = HDF%writeDatasetFloatArray(dataset, masterLC, 2*npx+1, 2*npx+1, numfrac)
+  call H5Lexists_f(HDF%getobjectID(),trim(dataset),g_exists, hdferr)
+    if (g_exists) then
+      hdferr = HDF%writeDatasetFloatArray(dataset, masterLC, 2*npx+1, 2*npx+1, numfrac, overwrite)
+    else
+      hdferr = HDF%writeDatasetFloatArray(dataset, masterLC, 2*npx+1, 2*npx+1, numfrac)
+    end if
 
   dataset = 'MasterStereographic'
-  hdferr = HDF%writeDatasetFloatArray(dataset, masterSP, 2*npx+1, 2*npx+1, numfrac)
+  call H5Lexists_f(HDF%getobjectID(),trim(dataset),g_exists, hdferr)
+    if (g_exists) then
+      hdferr = HDF%writeDatasetFloatArray(dataset, masterSP, 2*npx+1, 2*npx+1, numfrac, overwrite)
+    else
+      hdferr = HDF%writeDatasetFloatArray(dataset, masterSP, 2*npx+1, 2*npx+1, numfrac)
+    end if 
 
   call HDF%popall()
 
@@ -1125,11 +1188,21 @@ if (enl%newpgnum.ne.-1) then
 
 ! write the PointGroupNumber data set
   dataset = 'PointGroupNumber'
-    hdferr = HDF%writeDataSetInteger(dataset, enl%newpgnum)
+    call H5Lexists_f(HDF%getobjectID(),trim(dataset),g_exists, hdferr)
+    if (g_exists) then
+      hdferr = HDF%writeDataSetInteger(dataset, enl%newpgnum, overwrite)
+    else
+      hdferr = HDF%writeDataSetInteger(dataset, enl%newpgnum)
+    end if
 
 ! write the SpaceGroupNumber data set
   dataset = SC_SpaceGroupNumber
-    hdferr = HDF%writeDataSetInteger(dataset, SGPG(enl%newpgnum))
+    call H5Lexists_f(HDF%getobjectID(),trim(dataset),g_exists, hdferr)
+    if (g_exists) then
+      hdferr = HDF%writeDataSetInteger(dataset, SGPG(enl%newpgnum), overwrite)
+    else
+      hdferr = HDF%writeDataSetInteger(dataset, SGPG(enl%newpgnum))
+    end if 
 
   call HDF%pop()
 end if
@@ -1144,10 +1217,20 @@ dataset = SC_mLPNH
   dims4 = (/  2*npx+1, 2*npx+1, sA(3), sA(4) /)
   cnt4 = (/ 2*npx+1, 2*npx+1, sA(3), sA(4) /)
   offset4 = (/ 0, 0, 0, 0 /)
-  hdferr = HDF%writeHyperslabFloatArray(dataset, masterNH, dims4, offset4, cnt4)
+  call H5Lexists_f(HDF%getobjectID(),trim(dataset),g_exists, hdferr)
+  if (g_exists) then
+    hdferr = HDF%writeHyperslabFloatArray(dataset, masterNH, dims4, offset4, cnt4, overwrite)
+  else
+    hdferr = HDF%writeHyperslabFloatArray(dataset, masterNH, dims4, offset4, cnt4)
+  end if
 
 dataset = SC_mLPSH
-  hdferr = HDF%writeHyperslabFloatArray(dataset, masterSH, dims4, offset4, cnt4)
+  call H5Lexists_f(HDF%getobjectID(),trim(dataset),g_exists, hdferr)
+  if (g_exists) then
+    hdferr = HDF%writeHyperslabFloatArray(dataset, masterSH, dims4, offset4, cnt4, overwrite)
+  else
+    hdferr = HDF%writeHyperslabFloatArray(dataset, masterSH, dims4, offset4, cnt4)
+  end if
 
   deallocate(masterNH, masterSH)
 
@@ -1155,10 +1238,20 @@ dataset = SC_masterSPNH
   dims3 = (/  2*npx+1, 2*npx+1, sA(3) /)
   cnt3 = (/ 2*npx+1, 2*npx+1, sA(3) /)
   offset3 = (/ 0, 0, 0 /)
-  hdferr = HDF%writeHyperslabFloatArray(dataset, SPNH, dims3, offset3, cnt3)
+  call H5Lexists_f(HDF%getobjectID(),trim(dataset),g_exists, hdferr)
+  if (g_exists) then
+    hdferr = HDF%writeHyperslabFloatArray(dataset, SPNH, dims3, offset3, cnt3, overwrite)
+  else
+    hdferr = HDF%writeHyperslabFloatArray(dataset, SPNH, dims3, offset3, cnt3)
+  end if
 
 dataset = SC_masterSPSH
-  hdferr = HDF%writeHyperslabFloatArray(dataset, SPSH, dims3, offset3, cnt3)
+  call H5Lexists_f(HDF%getobjectID(),trim(dataset),g_exists, hdferr)
+  if (g_exists) then
+    hdferr = HDF%writeHyperslabFloatArray(dataset, SPSH, dims3, offset3, cnt3, overwrite)
+  else
+    hdferr = HDF%writeHyperslabFloatArray(dataset, SPSH, dims3, offset3, cnt3)
+  end if
 
   deallocate(SPNH, SPSH)
 
@@ -1168,7 +1261,12 @@ dataset = SC_masterSPSH
 ! and, at the top level of the file, add a string that states that this is a modified master pattern file
 dataset = SC_READMEFIRST
   line2(1) = 'Caution: This master pattern file was generated by the EMMPoverlap program!  See the NMLparameters group. '
-  hdferr = HDF%writeDatasetStringArray(dataset, line2, 1)
+  call H5Lexists_f(HDF%getobjectID(),trim(dataset),g_exists, hdferr)
+  if (g_exists) then
+    hdferr = HDF%writeDatasetStringArray(dataset, line2, 1, overwrite)
+  else
+    hdferr = HDF%writeDatasetStringArray(dataset, line2, 1)
+  end if
 
   call HDF%popall()
 
