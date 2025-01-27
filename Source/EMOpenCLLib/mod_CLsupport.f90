@@ -178,7 +178,9 @@ IMPLICIT NONE
       integer(c_int32_t),allocatable            :: num_GPUdevices(:)
       logical,allocatable                       :: noCPUdevices(:)
       logical,allocatable                       :: noGPUdevices(:)
-
+! general error status 
+      integer(c_int32_t)                        :: CL_SUCCESS = 0
+      
     contains
       private
         procedure, pass(self) :: error_check_
