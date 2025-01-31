@@ -1101,6 +1101,8 @@ dinl%HDFstrings = ppnl%HDFstrings
 dinl%nregions = ppnl%nregions
 dinl%DIModality = 'EBSD'
 
+HDF = HDF_T() 
+
 if (ppnl%filtertype.eq.'fft') then 
 ! standard hipass and adaptive histogram equalization pre-processing step
   call PreProcessPatterns(EMsoft, HDF, .FALSE., dinl, binx, biny, masklin, correctsize, totnumexpt)

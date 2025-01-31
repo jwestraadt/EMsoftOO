@@ -175,6 +175,8 @@ if (present(cross)) then
   if (sum(cross).gt.0) then 
     DIC%cross = cross
     DIC%applycross = .TRUE.
+  else 
+    DIC%applycross = .FALSE.
   end if 
 end if 
 
@@ -285,8 +287,6 @@ self%verbose = v
 
 if (v.eqv..TRUE.) then 
   call Message%printMessage(' DIC_T class verbosity turned on')
-else 
-  call Message%printMessage(' DIC_T class verbosity turned off')
 end if 
 
 end subroutine setverbose_
@@ -419,12 +419,14 @@ if (present(verify)) then
        end do
     end do
     ! check max error against tolerance
-    io_real(1) = dble(errmax)
-    call Message%WriteValue(' getbsplines_::max b-spline reconstruction error of reference pattern:', io_real, 1) 
-    if (errmax >= self%tol) then
+    if (self%verbose) then 
+      io_real(1) = dble(errmax)
+      call Message%WriteValue(' getbsplines_::max b-spline reconstruction error of reference pattern:', io_real, 1) 
+      if (errmax >= self%tol) then
         call Message%printMessage(' ** reference reconstruction test failed ** ')
-    else
+      else
         call Message%printMessage(' ** reference reconstruction test passed ** ')
+      end if
     end if
   end if 
 end if 
@@ -533,8 +535,13 @@ else  ! we need to eliminate the pixels inside the vertical and horizontal bands
 ! allocate the 1-D arrays needed for the computations
   allocate( self%referenceSR(0:self%NSR-1), self%aux(0:self%nxSR-1,0:self%nySR-1) )
   allocate( self%xiXint(0:self%nxSR-1), self%xiYint(0:self%nySR-1))
-  self%xiXint = nint( self%xiX * real(self%nx,wp) )
-  self%xiYint = nint( self%xiY * real(self%ny,wp) )
+  if (self%normalizedcoordinates.eqv..TRUE.) then 
+    self%xiXint = nint( self%xiX * real(self%nx,wp) )
+    self%xiYint = nint( self%xiY * real(self%ny,wp) )
+  else
+    self%xiXint = nint( self%xiX )
+    self%xiYint = nint( self%xiY )
+  end if
 ! this is the remapping code from full pattern to subregion with bands removed
   do i = 0, self%nxSR-1
     do j = 0, self%nySR-1
@@ -959,13 +966,14 @@ recursive function homography2Fe_(self, h, PC, DD) result(W)
  !! convert a homography to a reduced deformation tensor (Fe-hat in Ernould papers)
 
 class(DIC_T),INTENT(INOUT)  :: self
-real(wp), INTENT(IN)        :: h(0:7)
+real(wp), INTENT(INOUT)     :: h(0:7)
 real(wp), INTENT(IN)        :: PC(0:1)
 real(wp), INTENT(IN)        :: DD
 real(wp)                    :: W(3,3)
 
 real(wp)                    :: beta0, Fe11, Fe12, Fe13, Fe21, Fe22, Fe23, Fe31, Fe32, Fe33
 
+! h = -h 
 ! h11, h12, h13, h21, h22, h23, h31, h32
 !  0    1    2    3    4    5    6    7
 

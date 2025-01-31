@@ -91,7 +91,8 @@ ny = 480
 
 ! instantiate the DIC class
 ! this also initializes the x and y coordinate arrays
-DIC = DIC_T( nx, ny, normalize = .TRUE., cross = (/ 310, 330, 230, 250 /) )
+! DIC = DIC_T( nx, ny, normalize = .FALSE.) !, cross = (/ 310, 330, 230, 250 /) )
+DIC = DIC_T( nx, ny, normalize = .TRUE., cross = (/ 0, 0, 0, 0 /) )
 call DIC%setverbose(.FALSE.)
 ! call DIC%setverbose(.TRUE.)
 
@@ -185,10 +186,9 @@ call DIC%getresiduals( CIC )
 ! in a more general implementation we might initialize them to the 
 ! values for one of the nearest neighbor patterns
 
-oldnorm = 100.0_wp
 ! simple multiplicative term for the partial solutions
 ! maybe this will speed up convergence a little...
-scalingfactor = 1.4D0  
+scalingfactor = 1.45D0  
 
 ! and here we start the loop 
 do ii=1, maxnumit
@@ -216,18 +216,10 @@ do ii=1, maxnumit
     W = W / W(3,3)
     hg = DIC%getHomography(W)
     hpartial = reshape(SOL, (/8/)) * scalingfactor
-    ! write (*,*) '------------'
-    ! write (*,*) hg
-    ! write (*,*) ' norm(deltap) = ', normdp
-    ! write (*,*) '------------'
-    ! if (normdp.lt.oldnorm) then
-    if (normdp.lt.0.0001D0) then
-    ! if (normdp.lt.0.000025D0) then
+
+    ! if (normdp.lt.0.0005D0) then
+    if (normdp.lt.0.000025D0) then
     ! if (normdp.lt.0.001D0) then
-    !     oldnorm = normdp
-    !     oldW = W 
-    ! else
-        ! W = oldW
         EXIT
     end if
     ! call Message%printMessage(' ---------------------- ')
