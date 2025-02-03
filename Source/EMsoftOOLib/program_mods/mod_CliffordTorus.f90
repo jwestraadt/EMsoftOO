@@ -52,6 +52,7 @@ type, public :: CliffordTorusNameListType
   character(fnlen)        :: anglefile
   character(fnlen)        :: sqtfile
   character(fnlen)        :: zpfile 
+  character(1)            :: background
 end type CliffordTorusNameListType
 
 ! class definition
@@ -87,6 +88,8 @@ private
   procedure, pass(self) :: getsqtfile_
   procedure, pass(self) :: setzpfile_
   procedure, pass(self) :: getzpfile_
+  procedure, pass(self) :: setbackground_
+  procedure, pass(self) :: getbackground_
   procedure, pass(self) :: projectqtoCT_
   procedure, pass(self) :: convertqtoSquareTorus_
   procedure, pass(self) :: overlayRFZ_
@@ -121,6 +124,8 @@ private
   generic, public :: getsqtfile => getsqtfile_
   generic, public :: setzpfile => setzpfile_
   generic, public :: getzpfile => getzpfile_
+  generic, public :: setbackground => setbackground_
+  generic, public :: getbackground => getbackground_
   generic, public :: projectqtoCT => projectqtoCT_
   generic, public :: convertqtoSquareTorus => convertqtoSquareTorus_
   generic, public :: createZonePlate => createZonePlate_
@@ -209,9 +214,10 @@ character(fnlen)        :: hdffile
 character(fnlen)        :: anglefile
 character(fnlen)        :: sqtfile
 character(fnlen)        :: zpfile 
+character(1)            :: background
 
 namelist  / CliffordTorus / reducetoRFZ, symmetrize, shownegativeq0, n, pgnum, anglefile, sqtfile, &
-                            zpfile, doRiesz, overlayRFZ, logarithmic, hdffile
+                            zpfile, doRiesz, overlayRFZ, logarithmic, hdffile, background
 
 ! set the input parameters to default values
 anglefile = 'undefined' 
@@ -226,6 +232,7 @@ pgnum = 32
 hdffile = 'undefined'
 sqtfile = 'undefined'
 zpfile = 'undefined'
+background = 'b'
 
 if (present(initonly)) then
   if (initonly) skipread = .TRUE.
@@ -259,6 +266,7 @@ self%nml%n = n
 self%nml%pgnum = pgnum
 self%nml%sqtfile = sqtfile
 self%nml%zpfile = zpfile
+self%nml%background = background
 
 end subroutine readNameList_
 
@@ -675,6 +683,42 @@ character(fnlen)                   :: out
 out = trim(self%nml%zpfile)
 
 end function getzpfile_
+
+!--------------------------------------------------------------------------
+subroutine setbackground_(self,inp)
+!DEC$ ATTRIBUTES DLLEXPORT :: setbackground_
+!! author: MDG
+!! version: 1.0
+!! date: 12/28/22
+!!
+!! set background in the CliffordTorus_T class
+
+IMPLICIT NONE
+
+class(CliffordTorus_T), INTENT(INOUT)     :: self
+character(1), INTENT(IN)                  :: inp
+
+self%nml%background = inp
+
+end subroutine setbackground_
+
+!--------------------------------------------------------------------------
+function getbackground_(self) result(out)
+!DEC$ ATTRIBUTES DLLEXPORT :: getbackground_
+!! author: MDG
+!! version: 1.0
+!! date: 12/28/22
+!!
+!! get background from the CliffordTorus_T class
+
+IMPLICIT NONE
+
+class(CliffordTorus_T), INTENT(INOUT)     :: self
+character(1)                              :: out
+
+out = self%nml%background
+
+end function getbackground_
 
 !--------------------------------------------------------------------------
 recursive subroutine computeRieszEnergy_(self, SO, listmode)
@@ -1097,6 +1141,8 @@ nn = self%nml%n
 ss = 0.25D0 * dble(self%nml%n) / 500.D0    ! initial plots were made on a 1001x1001 grid
 kk = 40.D0 * dble(self%nml%n) / 500.D0
 
+ss = ss * 0.25D0
+
 ! compute the arc-tangent coordinates by projecting the Clifford torus onto a square
 do i=1,cnt 
    qq = qu(1:4,i)
@@ -1309,6 +1355,11 @@ do j=1,num
   TIFF_image(k,num+1-j) = int(r(w+i,w+j))
   TIFF_image(k+1,num+1-j) = int(g(w+i,w+j))
   TIFF_image(k+2,num+1-j) = int(b(w+i,w+j))
+  if (self%nml%background.eq.'w') then 
+    if (sum(TIFF_image(k:k+2,num+1-j)).eq.0) then 
+      TIFF_image(k:k+2,num+1-j) = -1_int8
+    end if 
+  end if 
  end do
 end do
 
@@ -1372,7 +1423,7 @@ character(fnlen)                :: vizname, fname, dataset, groupname
 ! output image size
 nn = self%nml%n
 num = 2*nn+1
-w = 5
+w = 5 
 offset = w+(num-1)/2
 ss = 0.25D0 * dble(self%nml%n) / 500.D0    ! initial plots were made on a 1001x1001 grid
 kk = 40.D0 * dble(self%nml%n) / 500.D0

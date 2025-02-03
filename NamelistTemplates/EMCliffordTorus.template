@@ -23,6 +23,8 @@
  shownegativeq0 = 0,
 ! use logarithmic intensity for square torus plot (not for the zone plate)
  logarithmic = 0,
+! the default background color is black (b), but sometimes a white (w) background provides a better map
+ background = 'b',
 ! compute the Riesz energies and compare to the optimal energies ? [this can take a while ...]
  doRiesz = 0,
 ! size of the output image (2n+1 x 2n+1)
