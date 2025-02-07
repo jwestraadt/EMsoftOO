@@ -85,7 +85,7 @@ endif
 
 ; ok, we're good, so let's start reading the data sets
 group1_id = H5G_OPEN(file_id,'NMLparameters')
-MasterNameLists = ['','EBSDMasterNameList','TKDMasterNameList']
+MasterNameLists = ['','EBSDMasterNameList','TKDmasterNameList']
 ; first the parsed namelist parameters for the EBSD master pattern portion
 group2_id = H5G_OPEN(group1_id,MasterNameLists[mpfiletype])
 
@@ -103,7 +103,7 @@ H5D_close,dset_id
 H5G_close,group2_id
 
 ; then the parsed entries for the Monte Carlo portion
-MCCLNameLists = ['','MCCLNameList','MCCLfoilNameList']
+MCCLNameLists = ['','MCCLNameList','MCCLNameList']
 group2_id = H5G_OPEN(group1_id,MCCLNameLists[mpfiletype])
 
 dset_id = H5D_OPEN(group2_id,'xtalname')
@@ -146,11 +146,14 @@ depthstep = H5D_READ(dset_id)
 depthstep = depthstep[0]
 H5D_close,dset_id
 
-dset_id = H5D_OPEN(group2_id,'sig')
-MCsig = H5D_READ(dset_id)
-MCsig = MCsig[0]
-Efitdata.detMCsig = MCsig
-H5D_close,dset_id
+;dset_id = H5D_OPEN(group2_id,'sig')
+;MCsig = H5D_READ(dset_id)
+;MCsig = MCsig[0]
+;Efitdata.detMCsig = MCsig
+;H5D_close,dset_id
+
+; temporary fix for TKD files
+Efitdata.detMCsig = -15.0
 
 dset_id = H5D_OPEN(group2_id,'omega')
 MComega = H5D_READ(dset_id)
@@ -199,7 +202,7 @@ H5G_close,group2_id
 
 Core_Print,'   -> Master Pattern data read'
 
-mcnames = ['','EMData/MCOpenCL','EMData/MCfoil']
+mcnames = ['','EMData/MCOpenCL','EMData/MCOpenCL']
 group2_id = H5G_OPEN(file_id,mcnames[mpfiletype])
 
 dset_id = H5D_OPEN(group2_id,'numEbins')

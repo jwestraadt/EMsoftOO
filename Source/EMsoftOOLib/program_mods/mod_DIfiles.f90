@@ -994,7 +994,7 @@ call HDF%pop()
 
 ! and write the DIModality string at the top level (only present for EMsoft 6.X versions)
 dataset = SC_DIModality
-line2(1) = emnl%DIModality
+line2(1) = self%getModality() 
 hdferr = HDF%writeDatasetStringArray(dataset, line2, 1)
 if (hdferr.ne.0) call HDF%error_check('writeHDFNameList: unable to create DIModality dataset', hdferr)
 

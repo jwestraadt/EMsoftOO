@@ -1417,7 +1417,7 @@ fname = EMsoft%generateFilePath('EMdatapathname', enl%anglefile)
 call SO%getOrientationsfromFile(fname)
 ! next, we reduce these orientations to the RFZ or MacKenzie cell
 if (enl%MacKenzieCell.eq.0) then
-  call SO%ReducelisttoRFZ(Pm)
+  if (enl%reducetoRFZ.eq.1) call SO%ReducelisttoRFZ(Pm)
 else
   call SO%ReducelisttoMFZ(SG)  ! this requires the full crystal point group
 end if
@@ -1624,8 +1624,8 @@ if (enl%mrcmode.eq.'off') then
     write (dataunit4,"(' scale <',F10.6,',',F10.6,',',F10.6,' > }')") (/ 2.0, 2.0, 2.0 /)
 ! and close the file
     call PoVst%closeFile()
-    call Message%printMessage('PoVray rendering script stored in '//trim(outname)//'-sp.pov')
-    df3name = trim(EMsoft%generateFilePath('EMdatapathname', enl%df3file))//'-sp.df3'
+    call Message%printMessage('PoVray rendering script stored in '//trim(outname)//'-st.pov')
+    df3name = trim(EMsoft%generateFilePath('EMdatapathname', enl%df3file))//'-st.df3'
     call PoVst%write_DF3file(df3name, spvol, (/ enl%nx, enl%ny, enl%nz /), enl%scalingmode)
   end if
 
