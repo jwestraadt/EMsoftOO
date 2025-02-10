@@ -642,7 +642,11 @@ biny = enl%exptnumsy
 L = binx * biny
 recordsize = 4 * L
 patsz = L
-totnumexpt = enl%ipf_wd*enl%ipf_ht
+if (sum(enl%ROI).eq.0) then 
+  totnumexpt = enl%ipf_wd*enl%ipf_ht
+else
+  totnumexpt = enl%ROI(3)*enl%ROI(4)
+end if
 
 ! make sure that correctsize is a multiple of 16; if not, make it so
 ! (probably not necessary in this program but kep in place for consistency)
@@ -890,9 +894,11 @@ call Message%printMessage(' DIC analysis complete')
 !=========================================
 call Message%printMessage(' starting detector geometry correction')
 
-homographies(2:4,:) = -homographies(2:4,:)
-homographies(6,:) = -homographies(6,:)
-homographies(8,:) = -homographies(8,:)
+! homographies(2:4,:) = -homographies(2:4,:)
+! homographies(6,:) = -homographies(6,:)
+! homographies(8,:) = -homographies(8,:)
+
+homographies = -homographies 
 
 ! first we need the pattern geometry for each pattern 
 ! since we're using normalized coordinates, these are 
@@ -906,28 +912,40 @@ allocate( delta(2,numpats), deltaDD(numpats), correctedhomographies(8, numpats),
 ! values are in units of pixels, and the y-direction is opposite to the one used
 ! in the DIC implementation; converting these to normalized coordinates [0,1]
 ! we have the following relations:
-patcentx = 0.5D0 + enl%xpc / dble(binx)
-patcenty = 0.5D0 - enl%ypc / dble(biny)
+patcentx = 0.5D0 + enl%xpc ! / dble(binx)
+patcenty = 0.5D0 - enl%ypc ! / dble(biny)
 
 ! step sizes in normalized units; they are in microns in the DI file
-stepx = enl%StepX / dble( enl%delta * binx )
-stepy = enl%StepY / dble( enl%delta * biny )
+stepx = enl%StepX / dble( enl%delta ) ! * binx )
+stepy = enl%StepY / dble( enl%delta ) ! * biny )
 
 ! L and step size in normalized coordinates [ angle sigma needs to be imported !!! ]
-Dref = enl%L / dble( enl%delta * binx )
+Dref = enl%L / dble( enl%delta ) ! * binx )
 deltaD = -stepy * sin( (enl%thetac+90.D0-70.D0) * dtor )
 
 ! DD and PC arrays
 cnt = 1
-do j=0,enl%ipf_ht-1
-  do i=0,enl%ipf_wd-1
-    deltaDD(cnt) =   (dble(j)-enl%refpatpos(2)) * deltaD !  + Dref for the full value
-    delta(1:2,cnt) = (/ (dble(i)-enl%refpatpos(1)) * stepx, & ! + patcentx
-                        (dble(j)-enl%refpatpos(2)) * stepy /) ! + patcenty
-    alpha(cnt) = (Dref-deltaDD(cnt)) / Dref
-    cnt = cnt+1
+if (sum(enl%ROI).eq.0) then
+  do j=0,enl%ipf_ht-1
+    do i=0,enl%ipf_wd-1
+      deltaDD(cnt) =   (dble(j)-enl%refpatpos(2)) * deltaD !  + Dref for the full value
+      delta(1:2,cnt) = (/ (dble(i)-enl%refpatpos(1)) * stepx, & ! + patcentx
+                          (dble(j)-enl%refpatpos(2)) * stepy /) ! + patcenty
+      alpha(cnt) = (Dref-deltaDD(cnt)) / Dref
+      cnt = cnt+1
+    end do 
   end do 
-end do 
+else
+  do j=0,enl%ROI(4)-1
+    do i=0,enl%ROI(3)-1
+      deltaDD(cnt) =   (dble(j)-enl%refpatpos(2)) * deltaD !  + Dref for the full value
+      delta(1:2,cnt) = (/ (dble(i)-enl%refpatpos(1)) * stepx, & ! + patcentx
+                          (dble(j)-enl%refpatpos(2)) * stepy /) ! + patcenty
+      alpha(cnt) = (Dref-deltaDD(cnt)) / Dref
+      cnt = cnt+1
+    end do 
+  end do 
+end if
 
 ! next we do the actual homography corrections ... 
 ! in terms of the parameters used in Ernould Chapter 2, section 3.3.2, PC[1:2,*] is equivalent 

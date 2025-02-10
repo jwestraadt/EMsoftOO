@@ -675,7 +675,7 @@ else
 end if
 
 ! convert to shape function
-W = self%getShapeFunction(h)
+W =  self%getShapeFunction(h)
 
 ! determine the XiPrime coordinates so that we can apply the deformation by
 ! means of the evaluate method in the bspline class
@@ -897,8 +897,6 @@ recursive function getShapeFunction_(self, h, store) result(W)
  !! note that the interpolation routines sample the original image to the deformed
  !! image so we need to invert that behavior ...
  !! 
- !! oddly, the sign of W(3,1) does not need to be inverted ... this likely has
- !! to do with the way the b-spline interpolation works internally...
 
 IMPLICIT NONE
 
@@ -914,8 +912,18 @@ W(3,3) = 1.0_wp
 W(1,2:3) = -h(2:3)
 W(2,1) = -h(4)
 W(2,3) = -h(6)
-W(3,1) = h(7)
+W(3,1) = -h(7)
 W(3,2) = -h(8)
+
+! W(1,1) = 1.0_wp + h(1)
+! W(2,2) = 1.0_wp + h(5)
+! W(3,3) = 1.0_wp
+
+! W(1,2:3) = h(2:3)
+! W(2,1) = h(4)
+! W(2,3) = h(6)
+! W(3,1) = -h(7)
+! W(3,2) = h(8)
 
 if (present(store)) then 
   if (store.eqv..TRUE.) then 
@@ -946,7 +954,9 @@ real(wp), INTENT(IN)            :: W(3,3)
 logical, INTENT(IN), OPTIONAL   :: store
 real(wp)                        :: h(8)
 
-h = (/ 1.0_wp/W(1,1)-1.0_wp, -W(1,2), -W(1,3), -W(2,1), 1.0_wp/W(2,2)-1.0_wp, -W(2,3), W(3,1), -W(3,2) /)
+h = (/ 1.0_wp/W(1,1)-1.0_wp, -W(1,2), -W(1,3), -W(2,1), 1.0_wp/W(2,2)-1.0_wp, -W(2,3),-W(3,1), -W(3,2) /)
+
+! h = (/ W(1,1)-1.0_wp, W(1,2), W(1,3), W(2,1), W(2,2)-1.0_wp, W(2,3), -W(3,1), W(3,2) /)
 
 if (present(store)) then 
   if (store.eqv..TRUE.) then 

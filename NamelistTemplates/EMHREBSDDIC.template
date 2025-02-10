@@ -83,7 +83,7 @@
  nbx = 0,
  nby = 0,
 ! use 'pixel' or 'normalized' coordinates ?
- pixelornormalized = 'pixel',
+ pixelornormalized = 'normalized',
 ! maximum number of iterations of the refinement algorithm
  maxnumit = 50,
 ! minimum delta-p value at which the iteration ends; Ernould recommends 0.001 but that is in
