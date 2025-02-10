@@ -742,8 +742,9 @@ call mem%alloc(exptpattern, (/ binx,biny /), 'exptpattern', 0.0 )
 open(unit=dataunit,file=trim(gname),&
      status='unknown',form='unformatted',access='direct',recl=recordsize,iostat=ierr)
 if (sum(enl%ROI).ne.0) then 
+! these are now offsets into the reduced pre-processed file !!!
   offset = enl%paty * enl%ROI(3) + enl%patx + 1
-  numpats = (enl%ROI(3)-enl%ROI(1)+1) * (enl%ROI(4)-enl%ROI(2)+1)
+  numpats = enl%ROI(3) * enl%ROI(4)
 else
   offset = enl%paty * enl%ipf_wd + enl%patx + 1
   numpats = enl%ipf_wd * enl%ipf_ht
