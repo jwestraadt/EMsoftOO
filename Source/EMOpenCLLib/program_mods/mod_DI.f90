@@ -209,7 +209,7 @@ real(kind=dbl),parameter                            :: nAmpere = 6.241D+18   ! C
 integer(kind=irg)                                   :: Ne,Nd,L,totnumexpt,numdictsingle,numexptsingle,imght,imgwd,nnk,numE,&
                                                        recordsize, fratio, cratio, fratioE, cratioE, iii, itmpexpt, hdferr, &
                                                        nsig, numk, recordsize_correct, patsz, tickstart, tickstart2, tock, &
-                                                       npy, sz(3), jjj, endpat, remainder, nsteps, itmpexpt2, Lnew, &
+                                                       npx, npy, sz(3), jjj, endpat, remainder, nsteps, itmpexpt2, Lnew, &
                                                        correctsize_new, recordsize_correct_new
 integer(kind=8)                                     :: size_in_bytes_dict,size_in_bytes_expt, Nres
 real(kind=sgl),pointer                              :: dict(:), T0dict(:)
@@ -265,8 +265,9 @@ integer(kind=irg)                                   :: nix,niy,nixp,niyp
 real(kind=sgl)                                      :: euler(3)
 integer(kind=irg)                                   :: indx
 integer(kind=irg)                                   :: correctsize
-logical                                             :: f_exists, init, ROIselected, Clinked, cancelled, isTKD = .FALSE., &
-                                                       isEBSD = .FALSE., isECP = .FALSE., switchwfoff, PCA=.FALSE.
+logical                                             :: f_exists, init, ROIselected, Clinked, cancelled, isTKD = .FALSE.,  &
+                                                       isOverlap = .FALSE., isEBSD = .FALSE., isECP = .FALSE., switchwfoff, &
+                                                       PCA=.FALSE.
 
 integer(kind=irg)                                   :: ipar(10)
 
@@ -288,7 +289,7 @@ real(kind=sgl),allocatable                          :: YYYY(:,:)
 ! convert the input strings from C to fortran format
 nmldeffile = trim(fstringify(Cnmldeffile))
 progname = trim(fstringify(Cprogname))
-progdesc = 'Indexing of EBSD/ECP/TKD patterns using a dynamically calculated pattern dictionary'
+progdesc = 'Indexing of EBSD/ECP/TKD/Overlap patterns using a dynamically calculated pattern dictionary'
 
 ! open the HDF interface
 call openFortranHDFInterface()
@@ -357,7 +358,9 @@ if (trim(MPFT%getModality()).eq.'EBSD') then
     isTKD = .TRUE.
     else if (trim(MPFT%getModality()).eq.'ECP') then
       isECP = .TRUE.
-    end if
+     else if (trim(MPFT%getModality()).eq.'Overlap') then
+        isOverlap = .TRUE.
+      end if
 
 ! get the maximum number of available threads and check against
 ! the requested number   
@@ -373,6 +376,7 @@ if (trim(dinl%indexingmode).eq.'dynamic') then
     call MCFT%readMCfile(HDF, HDFnames, getAccume=.TRUE.)
     mcnl = MCFT%getnml()
     xtalname = trim(mcnl%xtalname)
+    call Message%printMessage(' xtal file name : '//trim(xtalname))
 
     ! 2. read the master pattern file
     if (isTKD.eqv..TRUE.) then
@@ -390,11 +394,23 @@ if (trim(dinl%indexingmode).eq.'dynamic') then
       call HDFnames%set_NMLlist(SC_ECPmasterNameList)
       call HDFnames%set_NMLfilename(SC_ECPmasterNML)
     end if
+    if (isOverlap.eqv..TRUE.) then
+      call HDFnames%set_ProgramData(SC_MPoverlap)
+      call HDFnames%set_NMLlist(SC_MPoverlapNameList)
+      call HDFnames%set_NMLfilename(SC_MPoverlapNML)
+  ! call HDFnames%set_NMLparameters(SC_MPoverlapNameList)
+    end if
     call HDFnames%set_Variable(SC_MCOpenCL)
 
     fname = EMsoft%generateFilePath('EMdatapathname',trim(dinl%masterfile))
     call MPFT%setFileName(fname)
     call MPFT%readMPfile(HDF, HDFnames, mpnl, getmLPNH=.TRUE., getmLPSH=.TRUE.)
+
+    if (mpnl%npx.eq.0) then 
+      sz = shape(MPFT%MPDT%mLPNH)
+      mpnl%npx = (sz(1)-1)/2
+    end if
+
 
 ! set the HDFnames for the current program (same for all modalities)
     call HDFnames%set_ProgramData(SC_EMDI)
@@ -405,7 +421,7 @@ if (trim(dinl%indexingmode).eq.'dynamic') then
 ! crystallographic data in it, so we read that here instead of assuming
 ! that the actual .xtal file exists on this system ...
     call cell%setFileName(xtalname)
-    call cell%readDataHDF(SG, EMsoft, useXtalName=fname)
+    call cell%readDataHDF(SG, EMsoft) ! , useXtalName=fname)
 ! extract the point group number
     pgnum = SG%getPGnumber()
     io_int = pgnum
@@ -413,7 +429,7 @@ if (trim(dinl%indexingmode).eq.'dynamic') then
 
     ! 3. for EBSD/TKD copy a few parameters from dinl to enl
     ! and generate the detector arrays
-    if ( (isEBSD.eqv..TRUE.) .or. (isTKD.eqv..TRUE.)) then
+    if ( (isEBSD.eqv..TRUE.) .or. (isTKD.eqv..TRUE.) .or. (isOverlap.eqv..TRUE.) ) then
       binx = dinl%exptnumsx/dinl%binning
       biny = dinl%exptnumsy/dinl%binning
       bindx = 1.0/float(dinl%binning)**2
@@ -439,6 +455,9 @@ if (trim(dinl%indexingmode).eq.'dynamic') then
         call EBSD%GenerateDetector(MCFT, verbose, isTKD)
       end if
       if (isEBSD.eqv..TRUE.) then
+        call EBSD%GenerateDetector(MCFT, verbose)
+      end if
+      if (isOverlap.eqv..TRUE.) then
         call EBSD%GenerateDetector(MCFT, verbose)
       end if
     else  ! this must be an ECP indexing run so we initialize the appropriate detector arrays
@@ -777,16 +796,17 @@ end if
 ! init a bunch of parameters
 !====================================
 ! allocate the square-Lambert arrays
-npy = mpnl%npx
+npx = mpnl%npx
+npy = npx
 if (trim(dinl%indexingmode).eq.'dynamic') then
   if (isECP.eqv..TRUE.) then
-    call mem%alloc(mLPNH2D, (/ mpnl%npx,npy /), 'mLPNH2D', startdims = (/ -mpnl%npx,-npy /))
-    call mem%alloc(mLPSH2D, (/ mpnl%npx,npy /), 'mLPSH2D', startdims = (/ -mpnl%npx,-npy /))
+    call mem%alloc(mLPNH2D, (/ npx,npy /), 'mLPNH2D', startdims = (/ -npx,-npy /))
+    call mem%alloc(mLPSH2D, (/ npx,npy /), 'mLPSH2D', startdims = (/ -npx,-npy /))
     mLPNH2D = sum(MPDT%mLPNH,3)
     mLPSH2D = sum(MPDT%mLPSH,3)
   else
-    call mem%alloc(mLPNH, (/ mpnl%npx,npy,MCDT%numEbins /), 'mLPNH', startdims= (/ -mpnl%npx,-npy,1 /))
-    call mem%alloc(mLPSH, (/ mpnl%npx,npy,MCDT%numEbins /), 'mLPSH', startdims= (/ -mpnl%npx,-npy,1 /))
+    call mem%alloc(mLPNH, (/ npx,npy,MCDT%numEbins /), 'mLPNH', startdims= (/ -npx,-npy,1 /))
+    call mem%alloc(mLPSH, (/ npx,npy,MCDT%numEbins /), 'mLPSH', startdims= (/ -npx,-npy,1 /))
     call mem%alloc(accum_e_MC, (/ MCDT%numEbins,dinl%numsx,dinl%numsy /), 'accum_e_MC')
     accum_e_MC = det%accum_e_detector
     mLPNH = MPDT%mLPNH

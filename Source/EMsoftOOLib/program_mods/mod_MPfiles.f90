@@ -44,7 +44,7 @@ IMPLICIT NONE
 private
 
 type, public :: SEMmasterNameListType
-  integer(kind=irg) :: npx
+  integer(kind=irg) :: npx = 0
   integer(kind=irg) :: nthreads
   real(kind=sgl)    :: dmin
   character(3)      :: Notify
