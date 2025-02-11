@@ -562,7 +562,7 @@ type(MCfile_T)                         :: MCFTA, MCFTB, MCFTC, MCFTD
 type(MPfile_T)                         :: MPFTA, MPFTB, MPFTC, MPFTD
 type(OrientationRelation)              :: orelAB, orelAC, orelAD
 
-integer(kind=irg)                      :: istat, ierr, i, j, ii, hdferr, npx, npy, numvariants, io_int(4)
+integer(kind=irg)                      :: istat, ierr, i, j, ii, hdferr, npx, npy, numvariants, io_int(4), interp
 integer(kind=irg),allocatable          :: sA(:), sB(:), sC(:), sD(:)
 integer(kind=irg),parameter            :: numfrac = 21
 integer(kind=irg)                      :: paxA(3)
@@ -821,6 +821,8 @@ end if
 ! end if
 
 ! check the OR for orthogonality
+! this is a dot product between a direction and a plane normal so we
+! do not need a metric tensor at all ...
 if (sum(enl%gA*enl%tA).ne.0.0) then
   call Message%printError('MPoverlap','gA and tA must be orthogonal !!!')
 end if
@@ -834,8 +836,8 @@ orelAB%tA = dble(enl%tA)
 orelAB%tB = dble(enl%tB)
 orelAB%gA = dble(enl%gA)
 orelAB%gB = dble(enl%gB)
-TT = ComputeOR(orelAB, cellA, cellB, 'AB')
-TTAB = transpose(matmul( cellA%getrsm(), matmul( TT, transpose(cellB%getdsm()) )))
+TTAB = ComputeOR(orelAB, cellA, cellB, 'AB')
+! TTAB = transpose(matmul( cellA%getrsm(), matmul( TT, transpose(cellB%getdsm()) )))
 
 ! convert the vectors to the standard cartesian frame for structure A
 call cellA%TransSpace(float(paxA), PP, 'd', 'c')
@@ -852,7 +854,6 @@ om(2,1:3) = CCm(1:3)
 om(3,1:3) = PP(1:3)
 om = transpose(om)
 
-
 if (numvariants.gt.1) then
   if (sum(enl%gC*enl%tC).ne.0.0) then
     call Message%printError('MPoverlap','gC and tC must be orthogonal !!!')
@@ -861,8 +862,8 @@ if (numvariants.gt.1) then
   orelAC%tB = dble(enl%tC)
   orelAC%gA = dble(enl%gA)
   orelAC%gB = dble(enl%gC)
-  TT = ComputeOR(orelAC, cellA, cellC, 'AB')
-  TTAC = transpose(matmul( cellA%getrsm(), matmul( TT, transpose(cellC%getdsm()) )))
+  TTAC = ComputeOR(orelAC, cellA, cellC, 'AB')
+  ! TTAC = transpose(matmul( cellA%getrsm(), matmul( TT, transpose(cellC%getdsm()) )))
   om2 = om
 
   if (numvariants.gt.2) then
@@ -873,12 +874,25 @@ if (numvariants.gt.1) then
     orelAD%tB = dble(enl%tD)
     orelAD%gA = dble(enl%gA)
     orelAD%gB = dble(enl%gD)
-    TT = ComputeOR(orelAD, cellA, cellD, 'AB')
-    TTAD = transpose(matmul( cellA%getrsm(), matmul( TT, transpose(cellD%getdsm()) )))
+    TTAD = ComputeOR(orelAD, cellA, cellD, 'AB')
+    ! TTAD = transpose(matmul( cellA%getrsm(), matmul( TT, transpose(cellD%getdsm()) )))
     om3 = om
 
   end if
 end if
+
+! it sometimes happens with TKD master patterns that an entire energy level contains no intensities
+! we intercept that here by makeing sure that interp points to the highest energy level that has 
+! non-zero intensities in it...
+  i = sA(3)
+  if (sum(MPFTA%MPDT%mLPNH(:,:,i)).ne.0.0) then 
+    interp = sA(3)
+  else
+    do while(sum(MPFTA%MPDT%mLPNH(:,:,i)).eq.0.0) 
+      i=i-1
+    end do 
+    interp = i
+  end if
 
 !=============================
 !=============================
@@ -937,20 +951,20 @@ if (trim(enl%overlapmode).eq.'series') then
 ! normalize these direction cosines (they are already in a cartesian reference frame!)
       txyz1 = txyz1/sqrt(sum(txyz1*txyz1))
 ! and interpolate the masterB pattern
-      cA = InterpolateMaster(xyz1, MPFTA%MPDT%mLPNH, sA)
-      cB = InterpolateMaster(txyz1, MPFTB%MPDT%mLPNH, sB)
+      cA = InterpolateMaster(xyz1, MPFTA%MPDT%mLPNH, sA, interp)
+      cB = InterpolateMaster(txyz1, MPFTB%MPDT%mLPNH, sB, interp)
       if (numvariants.gt.1) then
         xyz2 = matmul(om2, xyz)
         call cellA%NormVec(xyz2, 'c')
         txyz2 = matmul(TTAC, xyz2)
         txyz2 = txyz2/sqrt(sum(txyz2*txyz2))
-        cC = InterpolateMaster(txyz2, MPFTC%MPDT%mLPNH, sC)
+        cC = InterpolateMaster(txyz2, MPFTC%MPDT%mLPNH, sC, interp)
         if (numvariants.gt.2) then
           xyz3 = matmul(om3, xyz)
           call cellA%NormVec(xyz3, 'c')
           txyz3 = matmul(TTAD, xyz3)
           txyz3 = txyz3/sqrt(sum(txyz3*txyz3))
-          cD = InterpolateMaster(txyz3, MPFTD%MPDT%mLPNH, sD)
+          cD = InterpolateMaster(txyz3, MPFTD%MPDT%mLPNH, sD, interp)
         end if
       end if
 
@@ -1282,7 +1296,7 @@ end associate
 end subroutine MPoverlap_
 
 !--------------------------------------------------------------------------
-function InterpolateMaster(dc, mLPNH, s) result(res)
+function InterpolateMaster(dc, mLPNH, s, ival) result(res)
 !DEC$ ATTRIBUTES DLLEXPORT :: InterpolateMaster
   !! author: MDG
   !! version: 1.0
@@ -1297,11 +1311,15 @@ IMPLICIT NONE
 real(kind=dbl),INTENT(INOUT)            :: dc(3)
 integer(kind=irg),INTENT(IN)            :: s(3)
 real(kind=sgl),INTENT(IN)               :: mLPNH(-s(1):s(1),-s(2):s(2), 1:s(3))
+integer(kind=irg),INTENT(IN),OPTIONAL   :: ival
 real(kind=sgl)                          :: res
 
 type(Lambert_T)                         :: L
-integer(kind=irg)                       :: nix, niy, nixp, niyp, istat, npx, ierr
+integer(kind=irg)                       :: nix, niy, nixp, niyp, istat, npx, ierr, interp
 real(kind=sgl)                          :: xy(2), dx, dy, dxm, dym, scl, tmp
+
+interp = s(3)
+if (present(ival)) interp = ival 
 
 npx = s(1)
 if (dc(3).lt.0.0) dc = -dc
@@ -1326,8 +1344,8 @@ if (istat.eq.0) then
   dxm = 1.0 - dx
   dym = 1.0 - dy
 
-  res = mLPNH(nix,niy,s(3))*dxm*dym + mLPNH(nixp,niy,s(3))*dx*dym + &
-        mLPNH(nix,niyp,s(3))*dxm*dy + mLPNH(nixp,niyp,s(3))*dx*dy
+  res = mLPNH(nix,niy,interp)*dxm*dym + mLPNH(nixp,niy,interp)*dx*dym + &
+        mLPNH(nix,niyp,interp)*dxm*dy + mLPNH(nixp,niyp,interp)*dx*dy
 end if
 
 end function InterpolateMaster
