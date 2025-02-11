@@ -411,7 +411,6 @@ if (trim(dinl%indexingmode).eq.'dynamic') then
       mpnl%npx = (sz(1)-1)/2
     end if
 
-
 ! set the HDFnames for the current program (same for all modalities)
     call HDFnames%set_ProgramData(SC_EMDI)
     call HDFnames%set_NMLlist(SC_EMDINameList)
@@ -813,6 +812,7 @@ if (trim(dinl%indexingmode).eq.'dynamic') then
     mLPSH = MPDT%mLPSH
   end if
 end if
+
 
 !=====================================================
 ! SAMPLING OF RODRIGUES FUNDAMENTAL ZONE
@@ -1452,7 +1452,7 @@ dictionaryloop: do ii = 1,cratio+1
          ro = r_T( rdinp = dble(FZarray(1:4,(ii-1)*Nd+pp)) )
          quat = ro%rq()
          qu = Quaternion_T( qd = quat%q_copyd() )
-         if ( (isEBSD.eqv..TRUE.) .or. (isTKD.eqv..TRUE.) ) then
+         if ( (isEBSD.eqv..TRUE.) .or. (isTKD.eqv..TRUE.) .or. (isOverlap.eqv..TRUE.) ) then
            call EBSD%CalcEBSDPatternSingleFull(jpar,qu,accum_e_MC,mLPNH,mLPSH,EBSD%det%rgx,&
                                                EBSD%det%rgy,EBSD%det%rgz,binned,Emin,Emax,mask,prefactor)
          else  ! ECP modality
