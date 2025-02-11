@@ -884,6 +884,7 @@ end if
 ! it sometimes happens with TKD master patterns that an entire energy level contains no intensities
 ! we intercept that here by makeing sure that interp points to the highest energy level that has 
 ! non-zero intensities in it...
+if (trim(enl%overlapmode).eq.'series') then
   i = sA(3)
   if (sum(MPFTA%MPDT%mLPNH(:,:,i)).ne.0.0) then 
     interp = sA(3)
@@ -893,6 +894,7 @@ end if
     end do 
     interp = i
   end if
+end if
 
 !=============================
 !=============================
