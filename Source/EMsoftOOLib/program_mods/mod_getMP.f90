@@ -342,7 +342,7 @@ type(Lambert_T)                         :: L
 type(SEMmasterNameListType)             :: mpnl
 
 character(fnlen)                        :: fname, modality, TIFF_filename1, TIFF_filename2, TIFF_filename3
-integer(kind=irg)                       :: i, j, ierr, n, d, TIFF_nx, TIFF_ny
+integer(kind=irg)                       :: i, j, ierr, n, d, TIFF_nx, TIFF_ny, sz(3)
 real(kind=sgl),allocatable              :: mLPNH(:,:), mLPSH(:,:), weights(:), masterSPNH(:,:), masterSPSH(:,:), ratio(:,:)
 real(kind=sgl)                          :: avNH, avSH, mi, ma, xyzs(3)
 real(kind=dbl)                          :: xyz(3), Radius
@@ -395,6 +395,12 @@ if (trim(modality).eq.'ECP') then
   call HDFnames%set_NMLlist(SC_ECPmasterNameList)
   call HDFnames%set_NMLfilename(SC_ECPmasterNML)
 end if
+if (trim(modality).eq.'Overlap') then
+  call HDFnames%set_ProgramData(SC_MPoverlap)
+  call HDFnames%set_NMLlist(SC_MPoverlapNameList)
+  call HDFnames%set_NMLfilename(SC_MPoverlapNML)
+  ! call HDFnames%set_NMLparameters(SC_MPoverlapNameList)
+end if
 call HDFnames%set_Variable(SC_MCOpenCL)
 
 fname = EMsoft%generateFilePath('EMdatapathname',trim(enl%masterfile))
@@ -414,7 +420,9 @@ do i = 1, n
 enddo
 weights = weights / sum(weights) ! this is currently wieghted over the full square Lambert
 
-d = mpnl%npx
+sz = shape(MPDT%mLPNH)
+write (*,*) 'shape() : ', sz, n 
+d = (sz(1)-1)/2
 allocate(mLPNH(-d:d,-d:d))
 allocate(mLPSH(-d:d,-d:d))
 mLPNH = 0.D0
