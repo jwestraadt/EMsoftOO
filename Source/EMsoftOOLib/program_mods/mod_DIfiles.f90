@@ -831,6 +831,11 @@ select case(trim(modality))
     n_int = 24
     n_real = 20
     allocate( io_int(n_int), intlist(n_int), io_real(n_real), reallist(n_real) )
+  case('Overlap')
+    isEBSD = .TRUE.
+    n_int = 24
+    n_real = 20
+    allocate( io_int(n_int), intlist(n_int), io_real(n_real), reallist(n_real) )
   case default
     call Message%printError('writeHDFNameList', 'unknown name list type requested')
 end select

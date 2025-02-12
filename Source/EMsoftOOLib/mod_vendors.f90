@@ -1388,7 +1388,8 @@ character(fnlen)                                    :: ctfname, xtalname, modali
 character                                           :: TAB = CHAR(9)
 character(fnlen)                                    :: str1,str2,str3,str4,str5,str6,str7,str8,str9,str10
 real(kind=sgl)                                      :: euler(3), eu, mi, ma
-logical                                             :: donotuseindexarray, isEBSD=.FALSE., isTKD=.FALSE., isECP=.FALSE.
+logical                                             :: donotuseindexarray, isEBSD=.FALSE., isTKD=.FALSE., isECP=.FALSE., &
+                                                       isOverlap = .FALSE.
 real(kind=dbl)                                      :: cellparams(6), a, b, c
 integer(kind=irg),allocatable                       :: osm(:), iq(:)
 
@@ -1408,6 +1409,8 @@ select case(modality)
     isTKD = .TRUE.
   case('ECP')
     isECP = .TRUE.
+  case('Overlap')
+    isOverlap = .TRUE.
   case default
     call Message%printError('ctf_writeFile_', 'unknown name list type requested')
 end select
@@ -1660,7 +1663,8 @@ character                                           :: TAB = CHAR(9)
 character(2)                                        :: TSLsymmetry
 real(kind=sgl)                                      :: euler(3), s, BSval
 real(kind=dbl)                                      :: cellparams(6), a, b, c
-logical                                             :: donotuseindexarray, isEBSD=.FALSE., isTKD=.FALSE., isECP=.FALSE.
+logical                                             :: donotuseindexarray, isEBSD=.FALSE., isTKD=.FALSE., isECP=.FALSE., &
+                                                       isOverlap = .FALSE.
 
 donotuseindexarray = .FALSE.
 if (present(noindex)) then
@@ -1678,6 +1682,8 @@ select case(modality)
     isTKD = .TRUE.
   case('ECP')
     isECP = .TRUE.
+  case('Overlap')
+    isOverlap = .TRUE.
   case default
     call Message%printError('ang_writeFile', 'unknown name list type requested')
 end select
@@ -1882,7 +1888,8 @@ character                                           :: TAB = CHAR(9)
 character(fnlen)                                    :: str1,str2,str3,str4,str5,str6,str7,str8,str9,str10
 character(1)                                        :: np
 real(kind=sgl)                                      :: euler(3), eu, mi, ma
-logical                                             :: donotuseindexarray, isEBSD=.FALSE., isTKD=.FALSE., isECP=.FALSE.
+logical                                             :: donotuseindexarray, isEBSD=.FALSE., isTKD=.FALSE., isECP=.FALSE., &
+                                                       isOverlap = .FALSE.
 real(kind=dbl)                                      :: cellparams(6)
 integer(kind=irg),allocatable                       :: osm(:), iq(:)
 real(kind=sgl),allocatable                          :: osmr(:)
@@ -1896,6 +1903,8 @@ select case(modality)
     isTKD = .TRUE.
   case('ECP')
     isECP = .TRUE.
+  case('Overlap')
+    isOverlap = .TRUE.
   case default
     call Message%printError('ctfmerge_writeFile_', 'unknown name list type requested')
 end select
@@ -2091,7 +2100,8 @@ character(2)                                        :: TSLsymmetry
 character(1)                                        :: np
 real(kind=sgl)                                      :: euler(3), s, BSval
 real(kind=dbl)                                      :: cellparams(6)
-logical                                             :: donotuseindexarray, isEBSD=.FALSE., isTKD=.FALSE., isECP=.FALSE.
+logical                                             :: donotuseindexarray, isEBSD=.FALSE., isTKD=.FALSE., isECP=.FALSE., &
+                                                       isOverlap = .FALSE.
 
 modality = trim(self%get_Modality())
 
@@ -2102,6 +2112,8 @@ select case(modality)
     isTKD = .TRUE.
   case('ECP')
     isECP = .TRUE.
+  case('Overlap')
+    isOverlap = .TRUE.
   case default
     call Message%printError('angmerge_writeFile_', 'unknown name list type requested')
 end select

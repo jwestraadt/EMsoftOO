@@ -577,7 +577,7 @@ real(kind=sgl)                         :: dmin, voltage, TTAB(3,3), io_real(3), 
                                           TTAC(3,3), TTAD(3,3), cC, cD, om2(3,3), om3(3,3), fother(numfrac), &
                                           fracA, TT(3,3)
 real(kind=dbl)                         :: edge, xy(2), xyz(3), txyz(3), txy(2), txyz1(3), txyz2(3), txyz3(3), xyz1(3), xyz2(3), &
-                                          xyz3(3), Radius, dc(3)
+                                          xyz3(3), Radius, dc(3), io_dble(3)
 real(kind=sgl),allocatable             :: master(:,:,:), masterLC(:,:,:), masterSP(:,:,:), masterNH(:,:,:,:), &
                                           masterSH(:,:,:,:), ccA(:), ccB(:), ccC(:), ccD(:), SPNH(:,:,:), SPSH(:,:,:)
 character(fnlen,kind=c_char)           :: line2(1)
@@ -881,8 +881,17 @@ if (numvariants.gt.1) then
   end if
 end if
 
+call Message%printMessage(' ')
+call Message%printMessage(' rotation matrix for axes change: ')
+do i=1,3
+  io_dble(1:3) = om(i,1:3)
+  call Message%WriteValue('',io_dble,3)
+end do
+call Message%printMessage(' ')
+
+
 ! it sometimes happens with TKD master patterns that an entire energy level contains no intensities
-! we intercept that here by makeing sure that interp points to the highest energy level that has 
+! we intercept that here by making sure that interp points to the highest energy level that has 
 ! non-zero intensities in it...
 if (trim(enl%overlapmode).eq.'series') then
   i = sA(3)
