@@ -1348,7 +1348,7 @@ groupname = 'Scan 1'
 if (trim(Modality).eq.'EBSD') groupname = SC_EBSD
 if (trim(Modality).eq.'TKD') groupname = SC_TKD
 if (trim(Modality).eq.'ECP') groupname = SC_ECP
-if (trim(Modality).eq.'Overlap') groupname = 'Scan 1' ! SC_Overlap
+if (trim(Modality).eq.'Overlap') groupname = SC_Overlap
     hdferr = HDF%openGroup(groupname)
 groupname = 'Header'
     hdferr = HDF%openGroup(groupname)
@@ -1785,6 +1785,7 @@ Modality = self%getModality()
 if (trim(Modality).eq.'EBSD') groupname = SC_EBSD
 if (trim(Modality).eq.'TKD') groupname = SC_TKD
 if (trim(Modality).eq.'ECP') groupname = SC_ECP
+if (trim(Modality).eq.'Overlap') groupname = SC_Overlap
   hdferr = HDF%createGroup(groupname)
   if (hdferr.ne.0) call HDF%error_check('h5_writeFile:Error opening group EBSD/TKD/ECP', hdferr)
 

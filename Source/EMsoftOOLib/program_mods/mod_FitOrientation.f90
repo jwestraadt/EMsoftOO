@@ -2221,7 +2221,18 @@ call HDF%pop()
 ! open the Scan 1/EBSD/Data group
 groupname = 'Scan 1'
 hdferr = HDF%openGroup(groupname)
-groupname = SC_EBSD
+if (isEBSD.eqv..TRUE.) then
+  groupname = SC_EBSD
+end if
+if (isTKD.eqv..TRUE.) then
+  groupname = SC_TKD
+end if
+if (isECP.eqv..TRUE.) then
+  groupname = SC_ECP
+end if
+if (isOverlap.eqv..TRUE.) then
+  groupname = SC_Overlap
+end if
 hdferr = HDF%openGroup(groupname)
 groupname = SC_Data
 hdferr = HDF%openGroup(groupname)
