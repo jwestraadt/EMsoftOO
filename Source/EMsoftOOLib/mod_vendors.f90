@@ -790,7 +790,7 @@ select case (self%itype)
 !  DOES NOT flip the pattern upside down !
       do jj=kkstart,kkend
         read(self%funit,rec=(liii-1)*lwd + jj) imageexpt
-        exppatarray((jj-kkstart)*patsz+1:(jj-1)*patsz+L) = imageexpt(1:L)
+        exppatarray((jj-kkstart)*patsz+1:(jj-kkstart)*patsz+L) = imageexpt(1:L)
       end do
 
     case(2,3)  ! "TSLup1", TSLup2"

@@ -1348,6 +1348,7 @@ groupname = 'Scan 1'
 if (trim(Modality).eq.'EBSD') groupname = SC_EBSD
 if (trim(Modality).eq.'TKD') groupname = SC_TKD
 if (trim(Modality).eq.'ECP') groupname = SC_ECP
+if (trim(Modality).eq.'Overlap') groupname = 'Scan 1' ! SC_Overlap
     hdferr = HDF%openGroup(groupname)
 groupname = 'Header'
     hdferr = HDF%openGroup(groupname)

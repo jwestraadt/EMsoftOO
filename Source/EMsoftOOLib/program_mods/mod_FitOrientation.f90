@@ -1133,7 +1133,7 @@ integer(kind=irg),parameter             :: MAXFUN = 10000
 logical                                 :: verbose
 
 logical                                 :: f_exists, init, g_exists, overwrite, isEBSD=.FALSE., isTKD=.FALSE., &
-                                           isECP=.FALSE., switchwfoff, set2zero=.FALSE.
+                                           isECP=.FALSE., switchwfoff, set2zero=.FALSE., isOverlap = .FALSE.
 integer(kind=irg),parameter             :: iunitexpt = 41, itmpexpt = 42
 integer(kind=irg)                       :: binx, biny, recordsize, pos(2), nsig, numk, FZt, FZo, status 
 real(kind=sgl),allocatable              :: tmpimageexpt(:), EBSDPattern(:,:), mask(:,:), masklin(:), imageexpt(:)
@@ -1215,6 +1215,8 @@ if (trim(modalityname).eq.'unknown') then
   modalityname = trim(ronl%modality)
 end if
 
+call Message%printMessage('   -> detected '//trim(modalityname)//' modality')
+
 HDFnames = HDFnames_T()
 
 call HDFnames%set_NMLfiles(SC_NMLfiles)
@@ -1231,7 +1233,7 @@ memth = memory_T( nt = ronl%nthreads )
 !====================================
 ! read the relevant fields from the dot product HDF5 file
 !====================================
-if ( (trim(modalityname) .eq. 'EBSD').or.(trim(modalityname) .eq. 'TKD') )  then
+if ( (trim(modalityname) .eq. 'EBSD').or.(trim(modalityname) .eq. 'TKD').or.(trim(modalityname) .eq. 'Overlap') )  then
   if ( (ronl%matchdepth.eq.1).or.(trim(ronl%method).eq.'SUB') ) then 
     if (trim(ronl%newdotproductfile).eq.'undefined') then 
       call DIFT%readDotProductFile(EMsoft, HDF, HDFnames, DIfile, hdferr, &
@@ -1355,6 +1357,8 @@ else if (trim(MPFT%getModality()).eq.'TKD') then
   isTKD = .TRUE.
 else if (trim(MPFT%getModality()).eq.'ECP') then
   isECP = .TRUE.
+else if (trim(MPFT%getModality()).eq.'Overlap') then
+  isOverlap = .TRUE.
   end if
 
 ! 1. read the Monte Carlo data file
@@ -1383,11 +1387,20 @@ if (isECP.eqv..TRUE.) then
   call HDFnames%set_NMLlist(SC_ECPmasterNameList)
   call HDFnames%set_NMLfilename(SC_ECPmasterNML)
 end if
+if (isOverlap.eqv..TRUE.) then
+  call HDFnames%set_ProgramData(SC_MPoverlap)
+  call HDFnames%set_NMLlist(SC_MPoverlapNameList)
+  call HDFnames%set_NMLfilename(SC_MPoverlapNML)
+end if
 call HDFnames%set_Variable(SC_MCOpenCL)
 
 fname = EMsoft%generateFilePath('EMdatapathname',trim(dinl%masterfile))
 call MPFT%setFileName(fname)
 call MPFT%readMPfile(HDF, HDFnames, mpnl, getmLPNH=.TRUE., getmLPSH=.TRUE.)
+
+! the following is a place holder but needs to be fixed in the readMPfile routine
+! when dealing with an overlap master pattern ... [MDG, 2/13/25]
+if (mpnl%npx.eq.0) mpnl%npx = 500 
 
 ! set the HDFnames for the current program (same for all modalities)
 call HDFnames%set_ProgramData(SC_EMDI)
@@ -1398,7 +1411,7 @@ call HDFnames%set_NMLfilename(SC_EMDI)
 ! crystallographic data in it, so we read that here instead of assuming
 ! that the actual .xtal file exists on this system ...
 call cell%setFileName(xtalname)
-call cell%readDataHDF(SG, EMsoft, useXtalName=fname)
+call cell%readDataHDF(SG, EMsoft) !, useXtalName=fname)
 ! extract the point group number
 pgnum = SG%getPGnumber()
 io_int = pgnum
@@ -1406,7 +1419,7 @@ call Message%WriteValue(' Setting point group number to ',io_int,1)
 
 ! 3. for EBSD/TKD copy a few parameters from dinl to enl
 ! and then generate the detector arrays
-if ( (isEBSD.eqv..TRUE.) .or. (isTKD.eqv..TRUE.)) then
+if ( (isEBSD.eqv..TRUE.) .or. (isTKD.eqv..TRUE.) .or. (isOverlap.eqv..TRUE.)) then
   call mem%alloc(det%rgx, (/ dinl%numsx,dinl%numsy /), 'det%rgx', 0.0)
   call mem%alloc(det%rgy, (/ dinl%numsx,dinl%numsy /), 'det%rgy', 0.0)
   call mem%alloc(det%rgz, (/ dinl%numsx,dinl%numsy /), 'det%rgz', 0.0)
@@ -1424,7 +1437,7 @@ if ( (isEBSD.eqv..TRUE.) .or. (isTKD.eqv..TRUE.)) then
   if (isTKD.eqv..TRUE.) then
     call EBSD%GenerateDetector(MCFT, verbose, isTKD)
   end if
-  if (isEBSD.eqv..TRUE.) then
+  if ( (isEBSD.eqv..TRUE.).or.(isOverlap.eqv..TRUE.) ) then
     call EBSD%GenerateDetector(MCFT, verbose)
   end if
 else  ! this must be an ECP indexing run so we initialize the appropriate detector arrays

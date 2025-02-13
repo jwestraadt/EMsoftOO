@@ -2641,14 +2641,21 @@ hdferr = me%openGroup(groupname)
 call me%error_check('readDataHDF:HDF_openGroup:'//trim(groupname), hdferr)
 
 dataset = SC_CrystalSystem
-call me%readDatasetInteger(dataset, hdferr, xtal_system)
-call SG%setSpaceGroupXtalSystem(xtal_system)
-self%xtal_system = xtal_system
-call me%error_check('readDataHDF:readDatasetInteger:'//trim(dataset), hdferr)
+call H5Lexists_f(me%getobjectID(),trim(dataset),d_exists, hdferr)
+if (d_exists) then
+  call me%readDatasetInteger(dataset, hdferr, xtal_system)
+  call SG%setSpaceGroupXtalSystem(xtal_system)
+  self%xtal_system = xtal_system
+  call me%error_check('readDataHDF:readDatasetInteger:'//trim(dataset), hdferr)
+end if
+
 
 dataset = SC_LatticeParameters
-call me%readDatasetDoubleArray(dataset, dims, hdferr, cellparams)
-call me%error_check('readDataHDF:readDatasetDoubleArray:'//trim(dataset), hdferr)
+call H5Lexists_f(me%getobjectID(),trim(dataset),d_exists, hdferr)
+if (d_exists) then
+  call me%readDatasetDoubleArray(dataset, dims, hdferr, cellparams)
+  call me%error_check('readDataHDF:readDatasetDoubleArray:'//trim(dataset), hdferr)
+end if
 
 self%a = cellparams(1)
 self%b = cellparams(2)
