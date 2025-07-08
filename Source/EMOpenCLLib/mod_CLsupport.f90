@@ -540,7 +540,7 @@ if (skipCPU.eqv..FALSE.) then
     ! CL_DEVICE_MAX_WORK_GROUP_SIZE
         err = clGetDeviceInfo(device_ids(i), CL_DEVICE_MAX_WORK_GROUP_SIZE, zero_size, C_LOC(device_mwgs), temp_size)
         err = clGetDeviceInfo(device_ids(i), CL_DEVICE_MAX_WORK_GROUP_SIZE, temp_size, C_LOC(device_mwgs), temp_size)
-        call error_check_(self, 'CLquery_platform_info:clGetDeviceInfo:device_mwgs',err)
+        ! call error_check_(self, 'CLquery_platform_info:clGetDeviceInfo:device_mwgs',err)
         self%d_CPUmwgs(p_id, i) = device_mwgs
 
     ! CL_DEVICE_MAX_WORK_ITEM_SIZES
