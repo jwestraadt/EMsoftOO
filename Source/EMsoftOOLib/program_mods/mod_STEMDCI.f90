@@ -228,6 +228,7 @@ real(kind=sgl)    :: dmin
 character(4)      :: progmode
 character(3)      :: dispmode
 character(fnlen)  :: outname
+character(fnlen)  :: output
 character(fnlen)  :: dispfile
 character(fnlen)  :: xtalname
 character(fnlen)  :: STEMnmlfile
@@ -235,7 +236,7 @@ character(fnlen)  :: defectjsonfile
 
 ! define the IO namelist to facilitate passing variables to the program.
 namelist / STEMDCIdata / nthreads, voltage, progmode, xtalname, kk, lauec, STEMnmlfile, &
-                         outname, defectjsonfile, dispmode, dispfile, dinfo, t_interval, DF_L, &
+                         outname, output, defectjsonfile, dispmode, dispfile, dinfo, t_interval, DF_L, &
                          DF_npix, DF_npiy, DF_slice, dmin
 
 ! SET INPUT PARAMETERS TO DEFAULT VALUES (EXCEPT XTALNAME, WHICH MUST BE PRESENT)
@@ -248,6 +249,7 @@ lauec = (/ 0.0, 0.0 /)
 STEMnmlfile = 'undefined'
 defectjsonfile = 'undefined'
 outname = 'undefined'
+output = 'undefined'
 dispfile = 'undefined'
 dispmode = 'not'
 dinfo = 0 ! 1 is verbose
@@ -265,6 +267,10 @@ if (.not.skipread) then
   close(UNIT=dataunit,STATUS='keep')
 
 ! check for required entries
+  if (trim(outname).eq.'undefined' .and. trim(output).ne.'undefined') then
+    outname = output
+  end if
+
   if (trim(xtalname).eq.'undefined') then
     call Message%printError('STEMDCI:',' crystal structure file name is undefined in '//nmlfile)
   end if
