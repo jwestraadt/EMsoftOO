@@ -2074,10 +2074,11 @@ character(3)                  :: filenum
 character(11)                 :: dstr
 character(15)                 :: tstrb
 character(15)                 :: tstre
-integer(kind=irg)             :: numim, imnum, hdferr
+integer(kind=irg)             :: numim, imnum, hdferr, io_int(2), progress_step
 real(kind=sgl),allocatable    :: wvalues(:)
 logical                       :: isallowed
 real(kind=dbl)                :: eps = 1.0D-6
+real(kind=sgl),parameter      :: denom_eps = 1.0E-6
 real(kind=sgl)                :: wstep, io_real(1), mimi, mama
 
 ! declare variables for use in object oriented image module
@@ -2138,8 +2139,14 @@ integer(int8), allocatable    :: output_image(:,:)
  LPIEZO = 0
  LQ=2
  LLQ=1 
- NNN=ICOL
- NNNN=30+10*LQ 
+NNN=ICOL
+NNNN=30+10*LQ 
+if (IROW.le.1) then
+  call Message%printError('HHComputeImages',' IROW must be larger than 1 ')
+end if
+if (ICOL.le.0) then
+  call Message%printError('HHComputeImages',' ICOL must be larger than 0 ')
+end if
 
 ! copy namelist entries to appropriate variables
 
@@ -2409,13 +2416,19 @@ call Message%WriteValue(' Absorption ratio         ',io_real, 1)
  SFN2=MT%TLFN(2)/Z
  SFN3=MT%TLFN(3)/Z
 !
- if (FN(3).le.0.0) then
+if (FN(3).le.denom_eps) then
   call Message%printError('HHComputeImages',' Line direction parallel to surface ')
  end if
  FNBM=SFN1*SBM1+SFN2*SBM2+SFN3*SBM3
  if (FNBM.le.0.0) then 
   call Message%printError('HHComputeImages',' Foil normal and beam not acute ')
  end if 
+ if (ABS(BM(2)).le.denom_eps) then
+  call Message%printError('HHComputeImages',' BM(2) is near zero; unstable line/surface geometry ')
+ end if
+ if (ABS(FNX(2)).le.denom_eps) then
+  call Message%printError('HHComputeImages',' FNX(2) is near zero; unstable fault/surface geometry ')
+ end if
 
 !***********************************************************************
 !*       Computation of image size and positions of dislocations       *
@@ -2659,11 +2672,17 @@ call Message%WriteValue(' Absorption ratio         ',io_real, 1)
  else
   EXT4=EXT1+2*EXT2
  end if
- EXTRA=AMAX1(EXT1,EXT2,EXT3,EXT4)
- FRACTI=(FINISH-START)/THICK 
- DIVISO=BM(3)/BM(2)-FNX(3)/FNX(2)
- DELT=cPi*FRACTI*(THBM+EXTRA)/FLOAT(NNN)
- WL=((THICK*BM(2)/FN(3))+EXTRA/DIVISO)*FRACTI
+EXTRA=AMAX1(EXT1,EXT2,EXT3,EXT4)
+if (ABS(THICK).le.denom_eps) then
+  call Message%printError('HHComputeImages',' THICK must be non-zero ')
+end if
+FRACTI=(FINISH-START)/THICK 
+DIVISO=BM(3)/BM(2)-FNX(3)/FNX(2)
+if (ABS(DIVISO).le.denom_eps) then
+  call Message%printError('HHComputeImages',' DIVISO near zero; singular beam/foil geometry ')
+end if
+DELT=cPi*FRACTI*(THBM+EXTRA)/FLOAT(NNN)
+WL=((THICK*BM(2)/FN(3))+EXTRA/DIVISO)*FRACTI
  DELW=0.7650*cPi*WL/FLOAT(IROW-1)
  DELL=DELW/2.0+0.00000001
  MRD%CN(20)=cPi*PT/2.0
@@ -2726,6 +2745,7 @@ do imnum=1,hhnl%wnum
  io_real(1) = MRD%CN(17)
  MRD%KOUNT = 0
  call Message%WriteValue(' starting image computation for w ', io_real,1)
+ progress_step = MAX(1, IROW/10)
 
 ! 
 !********************************************************************** 
@@ -2746,6 +2766,10 @@ do imnum=1,hhnl%wnum
 !  This is a very long do-loop;  could be rewritten with function
 !  and subroutine calls... and really should be parallelized using OpenMP
  do JC=1,IROW
+  if ((MOD(JC,progress_step).eq.0).or.(JC.eq.1).or.(JC.eq.IROW)) then
+   io_int = (/ JC, IROW /)
+   call Message%WriteValue('    row progress ', io_int, 2, "(A,I6,' / ',I6)")
+  end if
 
   MRD%CN(19)=(FLOAT(JC)-FLOAT(IROW/2)-0.5)*DELW
   MOVE=0
