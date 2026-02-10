@@ -2767,8 +2767,7 @@ do imnum=1,hhnl%wnum
 !  and subroutine calls... and really should be parallelized using OpenMP
  do JC=1,IROW
   if ((MOD(JC,progress_step).eq.0).or.(JC.eq.1).or.(JC.eq.IROW)) then
-   io_int = (/ JC, IROW /)
-   call Message%WriteValue('    row progress ', io_int, 2, "(A,I6,' / ',I6)")
+   write(6,"(A,I6,' / ',I6)") '    row progress ', JC, IROW
   end if
 
   MRD%CN(19)=(FLOAT(JC)-FLOAT(IROW/2)-0.5)*DELW
