@@ -605,8 +605,11 @@ character(fnlen),INTENT(IN)               :: progname
 type(HDF_T)                               :: HDF
 
 integer(kind=irg)                         :: irow, icol, imnum, hdferr, i
-character(fnlen)                          :: groupname, dataset, hhfile, nmlname
+character(fnlen)                          :: groupname, dataset, hhfile, nmlname, attributename, scale_method
 character(3)                              :: lnum
+real(kind=sgl)                            :: bfmin, bfmax, dfmin, dfmax, bfrange, dfrange
+real(kind=sgl)                            :: scaledrange(2), bflimits(2), dflimits(2)
+real(kind=sgl), allocatable               :: BFscaled(:,:,:), DFscaled(:,:,:)
 
 irow = hhnl%IROW
 icol = hhnl%ICOL
@@ -642,13 +645,80 @@ groupname = 'LegendFiles'
 groupname = SC_EMdata
   hdferr = HDF%createGroup(groupname)
 
-dataset = 'BF'
+allocate(BFscaled(hhnl%ICOL, hhnl%IROW, hhnl%wnum))
+allocate(DFscaled(hhnl%ICOL, hhnl%IROW, hhnl%wnum))
+
+BFscaled = BF
+DFscaled = DF
+
+bfmin = minval(BF)
+bfmax = maxval(BF)
+dfmin = minval(DF)
+dfmax = maxval(DF)
+
+bflimits = (/ bfmin, bfmax /)
+dflimits = (/ dfmin, dfmax /)
+scaledrange = (/ 0.0_sgl, 1.0_sgl /)
+
+bfrange = bfmax - bfmin
+if (bfrange.gt.0.0_sgl) then
+  BFscaled = max(0.0_sgl, min(1.0_sgl, (BF - bfmin) / bfrange))
+else
+  BFscaled = 0.0_sgl
+end if
+
+dfrange = dfmax - dfmin
+if (dfrange.gt.0.0_sgl) then
+  DFscaled = max(0.0_sgl, min(1.0_sgl, (DF - dfmin) / dfrange))
+else
+  DFscaled = 0.0_sgl
+end if
+
+! Optional viewer-stability anchors (per frame)
+if ((hhnl%ICOL.ge.1).and.(hhnl%IROW.ge.2)) then
+  BFscaled(1,1,:) = 0.0_sgl
+  BFscaled(1,2,:) = 1.0_sgl
+  DFscaled(1,1,:) = 0.0_sgl
+  DFscaled(1,2,:) = 1.0_sgl
+end if
+
+! Preserve raw stacks as written by the simulation
+dataset = 'BF_raw'
 hdferr = HDF%writeDatasetFloatArray(dataset, BF, hhnl%ICOL, hhnl%IROW, hhnl%wnum)
+if (hdferr.ne.0) call HDF%error_check('writeHH4_HDFfile: unable to create BF_raw dataset',hdferr)
+
+dataset = 'DF_raw'
+hdferr = HDF%writeDatasetFloatArray(dataset, DF, hhnl%ICOL, hhnl%IROW, hhnl%wnum)
+if (hdferr.ne.0) call HDF%error_check('writeHH4_HDFfile: unable to create DF_raw dataset',hdferr)
+
+! Write globally scaled stacks to the canonical dataset names
+dataset = 'BF'
+hdferr = HDF%writeDatasetFloatArray(dataset, BFscaled, hhnl%ICOL, hhnl%IROW, hhnl%wnum)
 if (hdferr.ne.0) call HDF%error_check('writeHH4_HDFfile: unable to create BF dataset',hdferr)
 
 dataset = 'DF'
-hdferr = HDF%writeDatasetFloatArray(dataset, DF, hhnl%ICOL, hhnl%IROW, hhnl%wnum)
+hdferr = HDF%writeDatasetFloatArray(dataset, DFscaled, hhnl%ICOL, hhnl%IROW, hhnl%wnum)
 if (hdferr.ne.0) call HDF%error_check('writeHH4_HDFfile: unable to create DF dataset',hdferr)
+
+! Add scaling metadata in the EMData group
+scale_method = 'global_minmax_linear'
+attributename = 'scale_method'
+hdferr = HDF%addStringAttributeToGroup(attributename, scale_method)
+if (hdferr.ne.0) call HDF%error_check('writeHH4_HDFfile: unable to add scale_method attribute',hdferr)
+
+dataset = 'BF_scale_minmax'
+hdferr = HDF%writeDatasetFloatArray(dataset, bflimits, 2)
+if (hdferr.ne.0) call HDF%error_check('writeHH4_HDFfile: unable to create BF_scale_minmax dataset',hdferr)
+
+dataset = 'DF_scale_minmax'
+hdferr = HDF%writeDatasetFloatArray(dataset, dflimits, 2)
+if (hdferr.ne.0) call HDF%error_check('writeHH4_HDFfile: unable to create DF_scale_minmax dataset',hdferr)
+
+dataset = 'scaled_range'
+hdferr = HDF%writeDatasetFloatArray(dataset, scaledrange, 2)
+if (hdferr.ne.0) call HDF%error_check('writeHH4_HDFfile: unable to create scaled_range dataset',hdferr)
+
+deallocate(BFscaled, DFscaled)
 
 ! close the file 
 call HDF%popall()
