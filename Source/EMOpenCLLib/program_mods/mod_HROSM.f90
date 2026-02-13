@@ -393,7 +393,7 @@ real(kind=sgl), allocatable             :: mainOSM(:,:), OSMmap(:,:), mainEuler(
 real(kind=sgl)                          :: mi, ma, memoryNeeded, io_real(1)
 real(kind=sgl),allocatable              :: rodarray(:,:,:), maineu(:,:)
 real(kind=sgl),allocatable              :: resultmain(:,:)
-real(kind=sgl),allocatable              :: maxGROD(:)
+real(kind=sgl),allocatable              :: maxGROD(:), maxGRODloc(:)
 real(kind=dbl)                          :: ad(4)
 type(FZpointd),pointer                  :: FZlist, FZtmp
 
@@ -521,20 +521,30 @@ call tmp%QSym_Init(DIFT%DIDT%pgnum, sym)
 allocate(maxGROD(cluster%nGrains))
 maxGROD = 0.0
 call Message%printMessage(' Checking maximum GROD per grain against misorientation ball radius ...')
-do ir = 1, cluster%ipf_ht
-  do ic = 1, cluster%ipf_wd
-    gid = cluster%grainID(ic,ir)
-    if ((gid.gt.0).and.(cluster%kappa(gid).ne.-1.0)) then
-      qu = q_T( qdinp = cluster%avor(1:4,gid) )
-      ii = (ir-1)*cluster%ipf_wd + ic
-      eu = e_T( edinp = dble(DIFT%DIDT%RefinedEulerAngles(1:3,ii)) )
-      qupix = eu%eq()
-      call SO%getDisorientation(sym, qu, qupix, ax, fix1=.TRUE.)
-      ad = ax%a_copyd()
-      maxGROD(gid) = max(maxGROD(gid), real(ad(4) * rtod, kind=sgl))
-    end if
+!$OMP PARALLEL DEFAULT(SHARED) PRIVATE(ir, ic, gid, ii, qu, eu, qupix, ax, ad, maxGRODloc)
+  allocate(maxGRODloc(cluster%nGrains))
+  maxGRODloc = 0.0
+!$OMP DO COLLAPSE(2) SCHEDULE(static)
+  do ir = 1, cluster%ipf_ht
+    do ic = 1, cluster%ipf_wd
+      gid = cluster%grainID(ic,ir)
+      if ((gid.gt.0).and.(cluster%kappa(gid).ne.-1.0)) then
+        qu = q_T( qdinp = cluster%avor(1:4,gid) )
+        ii = (ir-1)*cluster%ipf_wd + ic
+        eu = e_T( edinp = dble(DIFT%DIDT%RefinedEulerAngles(1:3,ii)) )
+        qupix = eu%eq()
+        call SO%getDisorientation(sym, qu, qupix, ax, fix1=.TRUE.)
+        ad = ax%a_copyd()
+        maxGRODloc(gid) = max(maxGRODloc(gid), real(ad(4) * rtod, kind=sgl))
+      end if
+    end do
   end do
-end do
+!$OMP END DO
+!$OMP CRITICAL(HROSM_GROD_MERGE)
+  maxGROD = max(maxGROD, maxGRODloc)
+!$OMP END CRITICAL(HROSM_GROD_MERGE)
+  deallocate(maxGRODloc)
+!$OMP END PARALLEL
 
 do i = 1, cluster%nGrains
   if ((cluster%kappa(i).ne.-1.0).and.(maxGROD(i).gt.osmnl%misorang)) then
