@@ -89,6 +89,7 @@ use mod_dirstats
 use mod_quaternions
 use mod_so3
 use mod_rotations
+use omp_lib
 
 IMPLICIT NONE
 
@@ -101,20 +102,22 @@ integer(kind=irg), INTENT(IN)   :: numIter
 logical,INTENT(IN),OPTIONAL     :: debug
 
 type(IO_T)                      :: Message 
-type(QuaternionArray_T)         :: qAR, QA
+type(QuaternionArray_T)         :: qAR
 type(Quaternion_T)              :: muhat, quat
 type(r_T)                       :: rod 
 type(q_T)                       :: qu
 type(e_T)                       :: eu
 type(DirStat_T)                 :: dictVMF
+type(DirStat_T), allocatable    :: dictVMFthr(:)
 
-integer(kind=irg)               :: nt, ix, iy, i, j, k, io_int(2), seed, icnt, values(8)
+integer(kind=irg)               :: nt, ix, iy, i, j, k, io_int(2), seed, icnt, values(8), nthreads, tid, seedloc
 integer(kind=irg),allocatable   :: grainIDs(:)
 real(kind=dbl)                  :: kappahat
 real(kind=sgl)                  :: ma
 
 character(fnlen)                :: outname
 character(3)                    :: filenum
+character(3)                    :: DStype
 
 associate(nml=>DIFT%nml)
 
@@ -227,6 +230,7 @@ allocate( cluster%avor(4,cluster%nGrains), cluster%kappa(cluster%nGrains) )
 if (trim(orav).eq.'center') then 
   open(dataunit,file='center.txt',status='unknown',form='formatted')
   write (dataunit,"(I5)") cluster%nGrains
+!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(i,ix,iy,j,eu,qu) SCHEDULE(DYNAMIC)
   do i=1,cluster%nGrains
     ix = cluster%grainROI(1,i) + cluster%grainROI(3,i)/2
     iy = cluster%grainROI(2,i) + cluster%grainROI(4,i)/2
@@ -235,6 +239,10 @@ if (trim(orav).eq.'center') then
     qu = eu%eq()
     cluster%avor(1:4,i) = qu%q_copyd()
     cluster%kappa(i) = 1.D0
+  end do 
+!$OMP END PARALLEL DO
+  do i=1,cluster%nGrains
+    qu = q_T( qdinp = cluster%avor(1:4,i) )
     write (dataunit,"(4(F10.6,','),F14.6,',',I5)") qu%q_copyd(), cluster%kappa(i), cluster%npixels(i)
   end do 
   close(dataunit,status='keep')
@@ -244,27 +252,37 @@ else
   ! initialize the von Mises-Fisher or Watson distribution code
   if (trim(orav).eq.'averageVMF') then 
     call Message%WriteValue(' Initializing von Mises-Fisher distribution for point group # ',io_int,1)
-    dictVMF = DirStat_T( DStype='VMF', PGnum = DIFT%DIDT%pgnum)
-    open(dataunit,file='VMF.txt',status='unknown',form='formatted')
-    write (dataunit,"(I5)") cluster%nGrains
+    DStype = 'VMF'
   else
     if (trim(orav).eq.'averageWAT') then 
       call Message%WriteValue(' Initializing Watson distribution for point group # ',io_int,1)
-      dictVMF = DirStat_T( DStype='WAT', PGnum = DIFT%DIDT%pgnum)
-      open(dataunit,file='WAT.txt',status='unknown',form='formatted')
-      write (dataunit,"(I5)") cluster%nGrains
+      DStype = 'WAT'
    else
       call Message%printError('cluster_constructor: ', 'unknown orientation averaging procedure') 
     end if
   end if 
 
+  dictVMF = DirStat_T( DStype=DStype, PGnum = DIFT%DIDT%pgnum)
   call dictVMF%setNumEM(numEM)
   call dictVMF%setNumIter(numIter)
 
-  ! for each grain, set up the orientation array
+  ! create one directional-statistics object per OpenMP thread
+  nthreads = OMP_get_max_threads()
+  if (nthreads.lt.1) nthreads = 1
+  allocate(dictVMFthr(nthreads))
+  do i=1,nthreads
+    dictVMFthr(i) = dictVMF
+    call dictVMFthr(i)%setNumEM(numEM)
+    call dictVMFthr(i)%setNumIter(numIter)
+  end do
+
+  ! for each grain, set up the orientation array and perform the averaging
   call date_and_time(values=values)
   seed = values(8)
 
+!$OMP PARALLEL DEFAULT(SHARED) PRIVATE(j,icnt,qAR,iy,ix,k,eu,qu,quat,muhat,kappahat,tid,seedloc,filenum,outname)
+  tid = OMP_GET_THREAD_NUM()+1
+!$OMP DO SCHEDULE(DYNAMIC)
   do j = 1, cluster%nGrains
     icnt = 1
     qAR = QuaternionArray_T( n=cluster%npixels(j), s='d' )
@@ -285,16 +303,19 @@ else
       if (debug.eqv..TRUE.) then 
         write (filenum,"(I3.3)") j
         outname = 'qu_grain_'//filenum//'.txt'
+!$OMP CRITICAL(cluster_debug_io)
         call Message%printMessage(' writing orientations to '//trim(outname))
         call qAR%writeArraytoFile(outname)
+!$OMP END CRITICAL(cluster_debug_io)
       end if 
     end if 
 
   ! pass these orientations to the dictVMF class  
-    call dictVMF%setQuatArray( qAR )
+    call dictVMFthr(tid)%setQuatArray( qAR )
   ! and perform the averaging step
+    seedloc = seed + j + 104729 * tid
     muhat = Quaternion_T( qd=(/ 1.D0, 0.D0, 0.D0,0.D0 /) )
-    call dictVMF%EMforDS( seed, muhat, kappahat, verbose=.TRUE. )
+    call dictVMFthr(tid)%EMforDS( seedloc, muhat, kappahat, verbose=.FALSE. )
     if (kappahat.gt.5.D0) then   ! we only keep the orientations if Watson converged
   ! store muhat in the cluster%avor array 
       cluster%avor(1:4, j) = muhat%get_quatd()
@@ -304,11 +325,22 @@ else
       cluster%kappa(j) = -1.D0
     end if
 
-    qu = q_T( qdinp = cluster%avor(1:4,j) )
-    write (dataunit,"(4(F10.6,','),F14.6,',',I5)") qu%q_copyd(), cluster%kappa(j), cluster%npixels(j)
-
   ! and get rid of the orientation array
     call qAR%deleteArray()
+  end do
+!$OMP END DO
+!$OMP END PARALLEL
+  deallocate(dictVMFthr)
+
+  if (trim(orav).eq.'averageVMF') then
+    open(dataunit,file='VMF.txt',status='unknown',form='formatted')
+  else
+    open(dataunit,file='WAT.txt',status='unknown',form='formatted')
+  end if
+  write (dataunit,"(I5)") cluster%nGrains
+  do j=1,cluster%nGrains
+    qu = q_T( qdinp = cluster%avor(1:4,j) )
+    write (dataunit,"(4(F10.6,','),F14.6,',',I5)") qu%q_copyd(), cluster%kappa(j), cluster%npixels(j)
   end do
   close(dataunit,status='keep')
 end if

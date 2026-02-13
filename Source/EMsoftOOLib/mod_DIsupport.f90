@@ -383,86 +383,81 @@ type(e_T)                         :: ea1, ea2
 type(QuaternionArray_T)           :: Pm, dummy
 type(so3_T)                       :: SO
 
-real(kind=dbl),allocatable        :: localkam(:)
-real(kind=dbl),allocatable        :: lstore(:,:), pstore(:,:)
-real(kind=dbl)                    :: cp(3), lp(3)
-integer(kind=irg)                 :: ii, jj, iii
-real(kind=dbl)                    :: dp, a(4)
+real(kind=dbl),allocatable        :: hmis(:,:), vmis(:,:)
+real(kind=dbl)                    :: a(4), sumv
+integer(kind=irg)                 :: ii, jj, i1, i2, nnb
 
 kam = 0.0
 
-allocate(lstore(3,ipf_wd), pstore(3,ipf_wd), localkam(numeu))
-
-localkam = 0.0
-lstore = 0
-pstore = 0
-cp = 0
-lp = 0
+allocate(hmis(max(ipf_wd-1,1), ipf_ht), vmis(ipf_wd, max(ipf_ht-1,1)))
+hmis = 0.D0
+vmis = 0.D0
 
 ! set up the correct symmetry variables
 call dummy%QSym_Init(pgnum, Pm)
 
-! we'll do this computation on the 1D array, in the same way
-! as the ADP (Average Dot Product) routine.
-do iii = 1,numeu
-    ii = mod(iii,ipf_wd)
-    if (ii.eq.0) ii = ipf_wd
-    jj = iii/ipf_wd+1
-! do we need to copy pstore into lstore ?
-    if ((ii.eq.1).and.(jj.gt.1)) lstore = pstore
-! determine to which kam entries we need to add the next disorientation value
-    if (ii.eq.1) then
-      cp = eulers(1:3,iii)
-      pstore(1:3,ii) = cp
-    else
-      lp = cp
-      cp = eulers(1:3,iii)
-      pstore(1:3,ii) = cp
-      ea1 = e_T( edinp = dble(lp) )
-      ea2 = e_T( edinp = dble(cp) )
+! compute horizontal neighbor disorientation angles
+if (ipf_wd.gt.1) then
+!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ii,jj,i1,i2,ea1,ea2,disax,a) SCHEDULE(DYNAMIC)
+  do jj=1,ipf_ht
+    do ii=1,ipf_wd-1
+      i1 = ipf_wd*(jj-1) + ii
+      i2 = i1 + 1
+      ea1 = e_T( edinp = dble(eulers(1:3,i1)) )
+      ea2 = e_T( edinp = dble(eulers(1:3,i2)) )
       call SO%getDisorientation(Pm, ea1, ea2, disax)
       a = disax%a_copyd()
-      localkam(iii-1) = localkam(iii-1) + a(4)
-      localkam(iii) = localkam(iii) + a(4)
+      hmis(ii,jj) = a(4)
+    end do
+  end do
+!$OMP END PARALLEL DO
+end if
+
+! compute vertical neighbor disorientation angles
+if (ipf_ht.gt.1) then
+!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ii,jj,i1,i2,ea1,ea2,disax,a) SCHEDULE(DYNAMIC)
+  do jj=1,ipf_ht-1
+    do ii=1,ipf_wd
+      i1 = ipf_wd*(jj-1) + ii
+      i2 = i1 + ipf_wd
+      ea1 = e_T( edinp = dble(eulers(1:3,i1)) )
+      ea2 = e_T( edinp = dble(eulers(1:3,i2)) )
+      call SO%getDisorientation(Pm, ea1, ea2, disax)
+      a = disax%a_copyd()
+      vmis(ii,jj) = a(4)
+    end do
+  end do
+!$OMP END PARALLEL DO
+end if
+
+! combine neighboring pair angles into a per-pixel KAM value
+!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ii,jj,sumv,nnb) SCHEDULE(DYNAMIC)
+do jj=1,ipf_ht
+  do ii=1,ipf_wd
+    sumv = 0.D0
+    nnb = 0
+    if (ii.gt.1) then
+      sumv = sumv + hmis(ii-1,jj)
+      nnb = nnb + 1
+    end if
+    if (ii.lt.ipf_wd) then
+      sumv = sumv + hmis(ii,jj)
+      nnb = nnb + 1
     end if
     if (jj.gt.1) then
-      ea1 = e_T( edinp = dble(lstore(1:3,ii)) )
-      ea2 = e_T( edinp = dble(cp) )
-      call SO%getDisorientation(Pm, ea1, ea2, disax)
-      a = disax%a_copyd()
-      localkam(iii-ipf_wd+1) = localkam(iii-ipf_wd+1) + a(4)
-      localkam(iii) = localkam(iii) + a(4)
+      sumv = sumv + vmis(ii,jj-1)
+      nnb = nnb + 1
     end if
-end do
-
-! correct the kam values depending on inside, edge, or corner pixels
-! divide by 4
-localkam = localkam*0.25
-
-! correct the straight segments
-localkam(2:ipf_wd-1) = localkam(2:ipf_wd-1) * 4.0/3.0
-localkam(numeu-ipf_wd+2:numeu-1) = localkam(numeu-ipf_wd+2:numeu-1) * 4.0/3.0
-do jj=1,ipf_ht-2
-  localkam(ipf_wd*jj+1) = localkam(ipf_wd*jj+1) * 4.0/3.0
-end do
-do jj=2,ipf_ht-1
-  localkam(ipf_wd*jj) = localkam(ipf_wd*jj) * 4.0/3.0
-end do
-
-! and the corners
-localkam(1) = localkam(1) * 4.0
-localkam(ipf_wd) = localkam(ipf_wd) * 2.0
-localkam(numeu) = localkam(numeu) * 2.0
-localkam(numeu-ipf_wd+1) = localkam(numeu-ipf_wd+1) * 4.0/3.0
-
-! and we deallocate the auxiliary variables
-deallocate(lstore,pstore)
-
-do ii=1,ipf_wd
-  do jj=1,ipf_ht
-    kam(ii,jj) = sngl(localkam(ipf_wd*(jj-1)+ii))
+    if (jj.lt.ipf_ht) then
+      sumv = sumv + vmis(ii,jj)
+      nnb = nnb + 1
+    end if
+    if (nnb.gt.0) kam(ii,jj) = real(sumv/dble(nnb), kind=sgl)
   end do
 end do
+!$OMP END PARALLEL DO
+
+deallocate(hmis, vmis)
 
 end subroutine getKAMMap
 
