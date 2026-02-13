@@ -370,8 +370,10 @@ type(Cluster_T)                         :: cluster
 type(Quaternion_T)                      :: quat
 type(QuaternionArray_T)                 :: sym, tmp, qAR
 type(q_T)                               :: qu 
+type(q_T)                               :: qupix
 type(e_T)                               :: eu
 type(r_T)                               :: ro  
+type(a_T)                               :: ax
 type(so3_T)                             :: SO
 type(memory_T)                          :: mem
 type(Timing_T)                          :: timer
@@ -386,11 +388,13 @@ character(15)                           :: tstrb
 character(15)                           :: tstre
 character(2)                            :: listmode
 integer(kind=irg)                       :: hdferr, io_int(2), nSamples, binx, biny, bindx, i, ir, ic, ROI(4), icnt, nt, &
-                                           FZcnt, ii, ROIoffset(2)
+                                           FZcnt, ii, gid, ROIoffset(2)
 real(kind=sgl), allocatable             :: mainOSM(:,:), OSMmap(:,:), mainEuler(:,:,:), mainResult(:,:)  
 real(kind=sgl)                          :: mi, ma, memoryNeeded, io_real(1)
 real(kind=sgl),allocatable              :: rodarray(:,:,:), maineu(:,:)
 real(kind=sgl),allocatable              :: resultmain(:,:)
+real(kind=sgl),allocatable              :: maxGROD(:)
+real(kind=dbl)                          :: ad(4)
 type(FZpointd),pointer                  :: FZlist, FZtmp
 
 logical                                 :: verbose=.FALSE., f_exists, inRAM
@@ -510,6 +514,38 @@ call Message%WriteValue(' Number of grains found : ', io_int, 1)
 ! call Message%printMessage(' Average grain orientations computed')
 ! io_int(1) = count(cluster%kappa.eq.-1.D0)
 ! call Message%WriteValue(' Number of non-converged average orientations : ', io_int, 1)
+
+! compute max GROD per grain and issue a warning if it exceeds the misorientation ball radius
+SO = so3_T( DIFT%DIDT%pgnum )
+call tmp%QSym_Init(DIFT%DIDT%pgnum, sym)
+allocate(maxGROD(cluster%nGrains))
+maxGROD = 0.0
+call Message%printMessage(' Checking maximum GROD per grain against misorientation ball radius ...')
+do ir = 1, cluster%ipf_ht
+  do ic = 1, cluster%ipf_wd
+    gid = cluster%grainID(ic,ir)
+    if ((gid.gt.0).and.(cluster%kappa(gid).ne.-1.0)) then
+      qu = q_T( qdinp = cluster%avor(1:4,gid) )
+      ii = (ir-1)*cluster%ipf_wd + ic
+      eu = e_T( edinp = dble(DIFT%DIDT%RefinedEulerAngles(1:3,ii)) )
+      qupix = eu%eq()
+      call SO%getDisorientation(sym, qu, qupix, ax, fix1=.TRUE.)
+      ad = ax%a_copyd()
+      maxGROD(gid) = max(maxGROD(gid), real(ad(4) * rtod, kind=sgl))
+    end if
+  end do
+end do
+
+do i = 1, cluster%nGrains
+  if ((cluster%kappa(i).ne.-1.0).and.(maxGROD(i).gt.osmnl%misorang)) then
+    io_int(1) = i
+    call Message%WriteValue(' WARNING: grain # with max GROD outside current misorientation ball: ', io_int, 1)
+    io_real(1) = maxGROD(i)
+    call Message%WriteValue('   max GROD [deg] = ', io_real, 1)
+    io_real(1) = osmnl%misorang
+    call Message%WriteValue('   misorientation ball radius [deg] = ', io_real, 1)
+  end if
+end do
 
 ! 4.  loop over all grains
 ! Since the DI step is parallel with GPU support, we need to do this grain by grain
@@ -711,6 +747,9 @@ dataset = 'avor'
 dataset = 'kappa'
     hdferr = HDF%writeDatasetDoubleArray(dataset, cluster%kappa, cluster%nGrains)
 
+dataset = 'maxGROD'
+    hdferr = HDF%writeDatasetFloatArray(dataset, maxGROD, cluster%nGrains)
+
 dataset = 'kam'
     hdferr = HDF%writeDatasetFloatArray(dataset, cluster%kam, cluster%ipf_wd, cluster%ipf_ht)
 
@@ -728,6 +767,7 @@ dataset = 'newCI'
 ! =====================================================
 
 call HDF%popall()
+deallocate(maxGROD)
 
 
 ! 6. if requested, also produce a tiff file with the mainOSM array
@@ -755,8 +795,6 @@ if (trim(osmnl%IPFmap).ne.'undefined') then
   IPF = IPF_T()
   allocate(maineu(3,nt))
   maineu = reshape(mainEuler,(/ 3, nt /))
-
-  call tmp%QSym_Init(DIFT%DIDT%pgnum, sym)
 
 ! here we initialize the parameters of the IPF class; we will take a default file name 
 ! of IPFmapfile = 'IPFprefix_IPFZmap.tiff' with the current data path pre-pended.
