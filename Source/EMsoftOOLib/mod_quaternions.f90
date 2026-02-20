@@ -367,6 +367,8 @@ IMPLICIT NONE
       procedure, pass(self) :: insertQuatintoArray
       procedure, pass(self) :: QSym_Init_
       procedure, pass(self) :: getQnumber_
+      procedure, pass(self) :: getnthreads_
+      procedure, pass(self) :: getprecision_
       procedure, pass(self) :: deleteArray_
       procedure, pass(self) :: writeArraytoFile_
 
@@ -386,11 +388,12 @@ IMPLICIT NONE
       generic, public :: insertQuatinArray => insertQuatintoArray
       generic, public :: QSym_Init => QSym_Init_
       generic, public :: getQnumber => getQnumber_
+      generic, public :: getnthreads => getnthreads_
+      generic, public :: getprecision => getprecision_
       generic, public :: deleteArray => deleteArray_
       generic, public :: writeArraytoFile => writeArraytoFile_
 
   end type QuaternionArray_T
-
 
 ! next we define the quaternion 3D array class; this doesn't need as many methods
 ! as the regular one, just inserting in and extracting from the array
@@ -658,7 +661,7 @@ if (allocated(self%qd)) deallocate(self%qd)
 end subroutine Quaternion3DArray_destructor
 
 !--------------------------------------------------------------------------
-recursive subroutine quatprint(self)
+recursive subroutine quatprint(self, str)
 !DEC$ ATTRIBUTES DLLEXPORT :: quatprint
   !! author: MDG
   !! version: 1.0
@@ -671,9 +674,11 @@ use mod_io
 IMPLICIT NONE
 
   class(Quaternion_T),intent(in)    :: self
-   !! input quaternion
+  character(*),INTENT(IN),OPTIONAL  :: str
 
   type(IO_T)                        :: Message
+
+  if (present(str)) call Message%printMessage( trim(str), frm='(A,$)' )
 
   if (self%s.eq.'s') then
     call Message % WriteValue('', self%q, 4, frm="('(',4f12.6,'); precision: '$)")
@@ -826,7 +831,7 @@ self%mud(3,1:3) = mu3
 end subroutine setsimplecticd
 
 !--------------------------------------------------------------------------
-recursive subroutine quatarrayprint(self, listN)
+recursive subroutine quatarrayprint(self, listN, redir)
 !DEC$ ATTRIBUTES DLLEXPORT :: quatarrayprint
   !! author: MDG 
   !! version: 1.0 
@@ -841,6 +846,7 @@ IMPLICIT NONE
   class(QuaternionArray_T),intent(in)   :: self
    !! input quaternion 
   integer(kind=irg),INTENT(IN),OPTIONAL :: listN
+  integer(kind=irg),INTENT(IN),OPTIONAL :: redir
 
   type(IO_T)                            :: Message 
   integer(kind=irg)                     :: i, n
@@ -851,13 +857,25 @@ IMPLICIT NONE
     n = self%n 
   end if
   if (self%s.eq.'s') then 
-    do i=1,n
-      call Message % WriteValue('', self%q(:,i), 4, frm="('(',4f12.6,')')")
-    end do
+    if (present(redir)) then 
+      do i=1,n
+        call Message % WriteValue('', self%q(:,i), 4, frm="('(',4f12.6,')')", redirect = redir)
+      end do
+    else
+      do i=1,n
+        call Message % WriteValue('', self%q(:,i), 4, frm="('(',4f12.6,')')")
+      end do
+    end if
   else 
-    do i=1,n
-      call Message % WriteValue('', self%qd(:,i), 4, frm="('(',4f20.14,')')")
-    end do
+    if (present(redir)) then 
+      do i=1,n
+        call Message % WriteValue('', self%qd(:,i), 4, frm="('(',4f20.14,')')", redirect = redir)
+      end do
+    else
+      do i=1,n
+        call Message % WriteValue('', self%qd(:,i), 4, frm="('(',4f20.14,')')")
+      end do
+    end if
   end if 
 
 end subroutine quatarrayprint
@@ -2549,7 +2567,7 @@ real(kind=dbl), allocatable               :: Pm(:,:)
 ! first get the number of the rotational point group that corresponds to the crystal point group
 prot = PGrot(pgnum)
 ! possible values for prot are: (/1,3,6,9,12,16,18,21,24,28,30/)
-! corresponding to the point groups 1, 2, 222, 4, 422, 3, 32, 6, 622, 23, 432 and 532 respectively
+! corresponding to the point groups 1, 2, 222, 4, 422, 3, 32, 6, 622, 23, 432, 532, 32R, and 222R respectively
 
 !------------
 ! IMPORTANT NOTE: the original von Mises-Fischer (VMF) approach requires that q and -q are considered to
@@ -2700,6 +2718,24 @@ select case (prot)
                   Pm(1:4,i+1) = SYM_Qsymop(1:4,129+i)
                 end do
 
+        case(37,39) ! 312 and -31m  [this is 32 rotated by 30°; also -62m]
+                allocate(Pm(4,6))
+                Pm(1:4,1) = SYM_Qsymop(1:4,1)
+                Nqsym = 6
+                Pm(1:4,2) = SYM_Qsymop(1:4,26)
+                Pm(1:4,3) = SYM_Qsymop(1:4,28)
+                Pm(1:4,4) = SYM_Qsymop(1:4,31)
+                Pm(1:4,5) = SYM_Qsymop(1:4,33)
+                Pm(1:4,6) = SYM_Qsymop(1:4,35)
+
+        case(40)         ! this is -4m2 which is a rotated 222 (45°)
+                allocate(Pm(4,4))
+                Pm(1:4,1) = SYM_Qsymop(1:4,1)
+                Pm(1:4,2) = SYM_Qsymop(1:4,11)
+                Pm(1:4,3) = SYM_Qsymop(1:4,12)
+                Pm(1:4,4) = SYM_Qsymop(1:4,4)
+                Nqsym = 4
+
         case default    ! this should never happen ...
                 write (*,*) 'requested rotational point group ', prot
                 call Message%printError('QSym_Init','unknown rotational point group number')
@@ -2727,6 +2763,42 @@ integer(kind=irg)                         :: num
 num = self%n
 
 end function getQnumber_
+
+!--------------------------------------------------------------------------
+recursive function getnthreads_(self) result(num)
+!DEC$ ATTRIBUTES DLLEXPORT :: getnthreads_
+  !! author: MDG
+  !! version: 1.0
+  !! date: 07/17/25
+  !!
+  !! returns the number of quaternions in the QuaternionArray_T class
+
+IMPLICIT NONE
+
+class(QuaternionArray_T), INTENT(INOUT)   :: self
+integer(kind=irg)                         :: num
+
+num = self%nthreads
+
+end function getnthreads_
+
+!--------------------------------------------------------------------------
+recursive function getprecision_(self) result(s)
+!DEC$ ATTRIBUTES DLLEXPORT :: getprecision_
+  !! author: MDG
+  !! version: 1.0
+  !! date: 07/17/25
+  !!
+  !! returns the precision of the quaternions in the QuaternionArray_T class
+
+IMPLICIT NONE
+
+class(QuaternionArray_T), INTENT(INOUT)   :: self
+character(1)                              :: s
+
+s = self%s
+
+end function getprecision_
 
 !--------------------------------------------------------------------------
 recursive function get3DQnumber_(self) result(num)
