@@ -1205,6 +1205,7 @@ npix = DF_npix
 npiy = DF_npiy
 DF_slice = self%getDF_slice()
 dmin = self%getdmin()
+lauec = self%getlauec()
 DynFN = float(enl%kk)
 
 ! set the defect parameters
@@ -1438,7 +1439,7 @@ if ((self%nml%dispmode.eq.'new').or.(self%nml%dispmode.eq.'not')) then
 
 !!$OMP DO SCHEDULE (GUIDED)
   ! write(*,*) TID,': starting Do Schedule'
-  do i=1,DF_npix  
+do i=1,DF_npix  
     do j=1,DF_npiy
       defects%DF_R = 0.0
 ! compute the displacement vectors DF_R for all points in the column
@@ -1458,7 +1459,11 @@ if ((self%nml%dispmode.eq.'new').or.(self%nml%dispmode.eq.'not')) then
         disparray(1:2,1:defects%DF_nums,i,j) = imatvals(1:2,1:defects%DF_nums)
      end do ! k loop
    end do
-!  if ((mod(i,t_interval).eq.0).and.(TID.eq.0)) call Time_remaining(TT,i,defects%DF_npix)
+   if ((mod(i,max(1,t_interval)).eq.0).and.(TID.eq.0)) then
+     io_int(1) = i
+     io_int(2) = DF_npix
+     call Message%WriteValue('   displacement columns completed: ', io_int, 2, "(I6,'/',I6)")
+   end if
 end do
 !!$OMP END DO 
 ! if (TID.eq.0) call Time_stop(TT,defects%DF_npix*defects%DF_npiy)
