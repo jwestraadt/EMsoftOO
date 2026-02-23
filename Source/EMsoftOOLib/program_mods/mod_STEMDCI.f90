@@ -220,6 +220,7 @@ integer(kind=irg) :: dinfo
 integer(kind=irg) :: nthreads
 integer(kind=irg) :: t_interval
 integer(kind=irg) :: kk(3)
+integer(kind=irg) :: nmlerr
 real(kind=sgl)    :: voltage
 real(kind=sgl)    :: lauec(2)
 real(kind=sgl)    :: DF_L
@@ -233,6 +234,8 @@ character(fnlen)  :: dispfile
 character(fnlen)  :: xtalname
 character(fnlen)  :: STEMnmlfile
 character(fnlen)  :: defectjsonfile
+character(512)    :: iomsg
+logical           :: legacyreadok
 
 ! define the IO namelist to facilitate passing variables to the program.
 namelist / STEMDCIdata / nthreads, voltage, progmode, xtalname, kk, lauec, STEMnmlfile, &
@@ -263,8 +266,16 @@ dmin = 0.03
 if (.not.skipread) then
 ! read the namelist file
   open(UNIT=dataunit,FILE=trim(nmlfile),DELIM='apostrophe',STATUS='old')
-  read(UNIT=dataunit,NML=STEMDCIdata)
+  read(UNIT=dataunit,NML=STEMDCIdata,IOSTAT=nmlerr,IOMSG=iomsg)
   close(UNIT=dataunit,STATUS='keep')
+
+  if (nmlerr.ne.0) then
+    legacyreadok = .FALSE.
+    call readLegacyNamelist_(legacyreadok)
+    if (.not.legacyreadok) then
+      call Message%printError('STEMDCI:',' unable to parse '//trim(nmlfile)//' : '//trim(iomsg))
+    end if
+  end if
 
 ! check for required entries
   if (trim(outname).eq.'undefined' .and. trim(output).ne.'undefined') then
@@ -310,6 +321,25 @@ self%nml%DF_npix = DF_npix
 self%nml%DF_npiy = DF_npiy
 self%nml%DF_slice = DF_slice
 self%nml%dmin = dmin
+
+contains
+
+subroutine readLegacyNamelist_(ok)
+  logical, intent(out) :: ok
+  integer(kind=irg)    :: output
+  integer(kind=irg)    :: nmlerr_legacy
+  character(512)       :: iomsg_legacy
+  namelist / STEMDCIdata / nthreads, voltage, progmode, xtalname, kk, lauec, STEMnmlfile, &
+                           outname, output, defectjsonfile, dispmode, dispfile, dinfo, t_interval, DF_L, &
+                           DF_npix, DF_npiy, DF_slice, dmin
+
+  ok = .FALSE.
+  output = 6
+  open(UNIT=dataunit,FILE=trim(nmlfile),DELIM='apostrophe',STATUS='old')
+  read(UNIT=dataunit,NML=STEMDCIdata,IOSTAT=nmlerr_legacy,IOMSG=iomsg_legacy)
+  close(UNIT=dataunit,STATUS='keep')
+  if (nmlerr_legacy.eq.0) ok = .TRUE.
+end subroutine readLegacyNamelist_
 
 end subroutine readNameList_
 
