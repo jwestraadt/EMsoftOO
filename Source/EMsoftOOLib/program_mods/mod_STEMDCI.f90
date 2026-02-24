@@ -1147,7 +1147,7 @@ integer(kind=irg),parameter      :: numdd=180
 real(kind=sgl)                   :: glen,exer,arg,thick, X(2), dmin, kk(3), &
                                     lauec(2), g3(3), gdotR,att,xgp,DF_gf(3), &
                                     DM(2,2), DD, H,FNr(3),ll(3),lpg(3),gplen,LC3, c(3), gx(3), gy(3), &
-                                    sgdenom, gac(3), gbc(3),zmax, beamdiv, ktmax, io_real(2), kt, qx, qy
+                                    sgdenom, gac(3), gbc(3),zmax, beamdiv, ktmax, io_real(2), kt, qx, qy, lc3arg
 character(fnlen)                 :: dataname,sgname,dispfile,xtalname,foilnmlfile, STEMnmlfile
 character(4)                     :: dispmode, progmode
 character(11)                    :: dstr
@@ -1270,6 +1270,7 @@ gvec = gvectors_T()
 
 call kvec%set_mapmode('Conical')
 call kvec%set_kinp( dble(enl%kk) )
+numsval = 1
 
 if (enl%progmode.ne.'EM') then
   call Message%printMessage('Progmode = '//enl%progmode)
@@ -1361,7 +1362,7 @@ call Message%WriteValue('Normal absorption length : ', io_real, 1, "(F10.5/)")
 
 ! Set up the excitation errors for EM illumination mode;
 ! distance between consecutive HOLZ layers in nm-1
-if (progmode.eq.'EM') then  
+if (trim(enl%progmode).eq.'EM') then  
   H = 1.0/cell%CalcLength(float(enl%kk),'d')
 ! g3 basis vector, properly scaled
   call cell%CalcCross(float(ga),float(gb),g3,'r','r',1)
@@ -1379,14 +1380,20 @@ if (progmode.eq.'EM') then
    glen = cell%CalcLength(float(rltmpa%hkl),'r')
    if (glen.eq.0.0) then
     DHWMz(ir,ir) = czero
-   else  ! compute the excitation error
-    ll = lauec(1)*ga + lauec(2)*gb   ! Laue center vector
-    lpg = ll + rltmpa%hkl                ! Laue + g
-    gplen = cell%CalcLength(lpg,'r')
-    LC3 = sqrt(1.0-lambda**2*(cell%CalcLength(ll,'r')**2))   ! to ensure proper normalization of wave vector
-    if (gplen.eq.0.0) then
-      exer=-lambda*cell%CalcDot(float(rltmpa%hkl),ll+lpg,'r')/2.0*LC3*cos(cell%CalcAngle(dble(enl%kk),defects%foil%F,'d'))        
-    else
+    else  ! compute the excitation error
+     ll = lauec(1)*ga + lauec(2)*gb   ! Laue center vector
+     lpg = ll + rltmpa%hkl                ! Laue + g
+     gplen = cell%CalcLength(lpg,'r')
+     lc3arg = 1.0-lambda**2*(cell%CalcLength(ll,'r')**2)
+     if (lc3arg.le.0.0) then
+       write(instring,"('Invalid lauec: 1-lambda^2|ll|^2 = ',ES12.4,' (lauec = ',F10.4,',',F10.4,')')") &
+                    lc3arg, lauec(1), lauec(2)
+       call Message%printError('STEMDCI:',trim(instring))
+     end if
+     LC3 = sqrt(lc3arg)   ! to ensure proper normalization of wave vector
+     if (gplen.eq.0.0) then
+       exer=-lambda*cell%CalcDot(float(rltmpa%hkl),ll+lpg,'r')/2.0*LC3*cos(cell%CalcAngle(dble(enl%kk),defects%foil%F,'d'))        
+     else
       sgdenom=2.0*LC3*cos(cell%CalcAngle(dble(enl%kk),defects%foil%F,'d'))-2.0*lambda*gplen*cos(cell%CalcAngle(lpg,FNr,'r'))
       exer=-(lambda*cell%CalcDot(float(rltmpa%hkl),ll+lpg,'r')-2.0*LC3*cell%CalcDot(g3,lpg,'r'))/sgdenom
     end if
