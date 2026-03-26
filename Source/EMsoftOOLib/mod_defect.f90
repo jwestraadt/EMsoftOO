@@ -708,11 +708,11 @@ else
         !   str = '   Foil normal F = '
         !   self%foil%F = JSONgetDoubleVector(child2,nc3,str,v)
         ! end if
-! foil q vector ! must be set in the calling program
-        ! if (name.eq.'foilq') then
-        !   str = '   Foil q-vector = '
-        !   self%foil%q = JSONgetDoubleVector(child2,nc3,str,v)
-        ! end if
+! foil q vector; if present, override the calling-program default.
+        if (name.eq.'foilq') then
+          str = '   Foil q-vector = '
+          self%foil%q = JSONgetDoubleVector(child2,nc3,str,v)
+        end if
 ! foil alP tilt
         if (name.eq.'foilalP') then
           str = '   Foil alP tilt = '
