@@ -21,9 +21,10 @@ def _find_library():
 
     # Search order:
     # 1. EMSOFTOO_LIB environment variable (file path or directory)
-    # 2. Same directory as this file
-    # 3. ../lib relative to this file
-    # 4. Standard library paths (let ctypes search)
+    # 2. EMsoftLibraryLocation from EMsoftConfig.json
+    # 3. Same directory as this file
+    # 4. ../lib relative to this file
+    # 5. Standard library paths (let ctypes search)
     search_paths = []
 
     env_path = os.environ.get('EMSOFTOO_LIB')
@@ -33,6 +34,15 @@ def _find_library():
             search_paths.append(env_path)
         elif os.path.isdir(env_path):
             search_paths.append(os.path.join(env_path, libname))
+
+    # Fall back to the path recorded in EMsoftConfig.json
+    try:
+        from emsoft.config import get_lib_dir
+        lib_dir = get_lib_dir()
+        if lib_dir is not None:
+            search_paths.append(str(lib_dir / libname))
+    except Exception:
+        pass
 
     this_dir = os.path.dirname(os.path.abspath(__file__))
     search_paths.append(os.path.join(this_dir, libname))
@@ -58,9 +68,11 @@ def _find_library():
     except OSError:
         searched = '\n  '.join(search_paths) if search_paths else '(none)'
         raise OSError(
-            f"Could not find {libname}. Set the EMSOFTOO_LIB environment variable\n"
-            f"to the full path of the shared library or the directory containing it.\n"
-            f"Example: setenv EMSOFTOO_LIB /path/to/EMsoftOOBuild/Release/lib/{libname}\n"
+            f"Could not find {libname}.\n"
+            f"Either set the EMSOFTOO_LIB environment variable to the full path of the\n"
+            f"shared library or its directory, or set 'EMsoftLibraryLocation' in\n"
+            f"~/.config/EMsoft/EMsoftConfig.json (run EMsoftinit to create it).\n"
+            f"Example (PowerShell): $env:EMSOFTOO_LIB = 'C:\\...\\build-ifx-release\\Bin\\{libname}'\n"
             f"Searched:\n  {searched}"
         )
 

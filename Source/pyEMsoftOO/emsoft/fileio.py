@@ -9,6 +9,8 @@ Requires: h5py (pip install h5py)
 
 import numpy as np
 
+from emsoft.config import resolve_xtal, resolve_data
+
 try:
     import h5py
     HAS_H5PY = True
@@ -17,13 +19,13 @@ except ImportError:
 
 # Crystal system names (EMsoftOO convention: 1-7)
 CRYSTAL_SYSTEM_NAMES = {
-    1: 'Triclinic',
-    2: 'Monoclinic',
+    1: 'Cubic',
+    2: 'Tetragonal',
     3: 'Orthorhombic',
-    4: 'Tetragonal',
+    4: 'Hexagonal',
     5: 'Trigonal',
-    6: 'Hexagonal',
-    7: 'Cubic',
+    6: 'Monoclinic',
+    7: 'Triclinic',
 }
 
 # Element symbols indexed by atomic number
@@ -64,7 +66,10 @@ def read_xtal(filename):
     Parameters
     ----------
     filename : str
-        Path to the .xtal file.
+        Path to the .xtal file, or a bare material name (e.g. ``"Ni"``).
+        Bare names are resolved against ``EMXtalFolderpathname`` in
+        ``~/.config/EMsoft/EMsoftConfig.json``; the ``.xtal`` extension
+        is added automatically when absent.
 
     Returns
     -------
@@ -89,20 +94,21 @@ def read_xtal(filename):
             Space group setting (1 or 2).
     """
     _require_h5py()
+    filename = resolve_xtal(filename)
 
     with h5py.File(filename, 'r') as f:
         cd = f['CrystalData']
 
         data = {}
         data['lattice_parameters'] = cd['LatticeParameters'][()]
-        data['space_group_number'] = int(cd['SpaceGroupNumber'][()])
-        data['crystal_system'] = int(cd['CrystalSystem'][()])
+        data['space_group_number'] = int(cd['SpaceGroupNumber'][()].flat[0])
+        data['crystal_system'] = int(cd['CrystalSystem'][()].flat[0])
         data['crystal_system_name'] = CRYSTAL_SYSTEM_NAMES.get(
             data['crystal_system'], 'Unknown')
-        data['n_atom_types'] = int(cd['Natomtypes'][()])
+        data['n_atom_types'] = int(cd['Natomtypes'][()].flat[0])
         data['atom_types'] = cd['Atomtypes'][()]
-        data['atom_data'] = cd['AtomData'][()]
-        data['setting'] = int(cd['SpaceGroupSetting'][()])
+        data['atom_data'] = cd['AtomData'][()].T
+        data['setting'] = int(cd['SpaceGroupSetting'][()].flat[0])
 
         data['source'] = _read_string(cd['Source']) if 'Source' in cd else ''
 
@@ -115,7 +121,10 @@ def read_master_pattern(filename):
     Parameters
     ----------
     filename : str
-        Path to the master pattern .h5 file.
+        Path to the master pattern ``.h5`` file, or a bare name (e.g.
+        ``"Ni-master-20kV"``).  Bare names are resolved against
+        ``EMdatapathname`` in ``~/.config/EMsoft/EMsoftConfig.json``;
+        ``.h5`` / ``.hdf5`` extensions are tried automatically.
 
     Returns
     -------
@@ -140,6 +149,7 @@ def read_master_pattern(filename):
     map between grid coordinates and sphere directions.
     """
     _require_h5py()
+    filename = resolve_data(filename)
 
     data = {}
 
@@ -174,7 +184,7 @@ def read_master_pattern(filename):
                 if key in nml:
                     nl = nml[key]
                     if 'npx' in nl:
-                        data['npx'] = int(nl['npx'][()])
+                        data['npx'] = int(nl['npx'][()].flat[0])
                     if 'energyfile' in nl:
                         data['xtal_name'] = _read_string(nl['energyfile'])
                     break
@@ -186,7 +196,7 @@ def read_master_pattern(filename):
                 if key in nml:
                     mcnl = nml[key]
                     if 'EkeV' in mcnl:
-                        data['voltage'] = float(mcnl['EkeV'][()])
+                        data['voltage'] = float(mcnl['EkeV'][()].flat[0])
                     break
 
     return data
