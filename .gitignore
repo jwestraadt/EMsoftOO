@@ -10,5 +10,9 @@ patches/
 resources/EMSphInx.wisdom
 *.egg-info/
 .ipynb_checkpoints/
+Source/pyEMsoftOO/docs/_build/
+Source/pyEMsoftOO/docs/generated/
+Source/pyEMsoftOO/uv.lock
+**/__pycache__/
 .claude/
 Claude/
