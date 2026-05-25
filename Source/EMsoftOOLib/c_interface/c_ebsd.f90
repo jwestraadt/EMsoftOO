@@ -51,6 +51,7 @@ contains
 !--------------------------------------------------------------------------
 subroutine c_ebsd_compute_detector(numsx, numsy, xpc, ypc, delta, thetac, &
     omega, L, rgx, rgy, rgz) bind(c, name='emsoft_ebsd_compute_detector')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_ebsd_compute_detector
   !! Compute detector direction cosines for each pixel.
   !! Call once per detector geometry, then reuse for all orientations.
   !!
@@ -70,14 +71,14 @@ subroutine c_ebsd_compute_detector(numsx, numsy, xpc, ypc, delta, thetac, &
   real(kind=dbl)                     :: dc(3), scin, alp, ca, sa, pcx, pcy
   real(kind=dbl)                     :: Ls, x, y, z, rr
 
-  ! Detector tilt angle
-  alp = 0.5D0 * cPi - (thetac - omega) * dtor
+  ! Effective detector angle: alp = 90° - (sigma - thetac)
+  ! omega here carries the sample tilt sigma (typically ~70° for EBSD)
+  alp = 0.5D0 * cPi - (omega - thetac) * dtor
   ca = dcos(alp)
   sa = dsin(alp)
 
-  ! Pixel coordinates relative to pattern center
-  ! L is in microns (delta is in microns), convert consistently
-  Ls = L * 1000.D0  ! convert mm to microns
+  ! L arrives in mm (Python divides µm value by 1000 before calling here)
+  Ls = L * 1000.D0  ! convert mm to µm to match delta (µm)
 
   do j = 1, numsy
     do i = 1, numsx
@@ -103,6 +104,7 @@ end subroutine c_ebsd_compute_detector
 !--------------------------------------------------------------------------
 subroutine c_ebsd_compute_pattern(numsx, numsy, npx, rgx, rgy, rgz, &
     mLPNH, mLPSH, quat, pattern) bind(c, name='emsoft_ebsd_compute_pattern')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_ebsd_compute_pattern
   !! Compute a single EBSD pattern by interpolating the master pattern.
   !!
   !! For each detector pixel, the direction cosine is rotated by the
@@ -123,9 +125,11 @@ subroutine c_ebsd_compute_pattern(numsx, numsy, npx, rgx, rgy, rgz, &
 
   type(Quaternion_T)                 :: qu
   integer(kind=irg)                  :: i, j, nix, niy, nixp, niyp, npxi
-  real(kind=dbl)                     :: dc(3), dcr(3), rr, scl
+  real(kind=dbl)                     :: dc(3), dcr(3), rr, scl, q
   real(kind=dbl)                     :: dx, dy, dxm, dym, xy(2)
-  real(kind=dbl)                     :: sq2pi
+  ! Lambert projection constants — Callahan & De Graef (2013)
+  real(kind=dbl), parameter          :: sPi2  = 0.886226925452758D0  ! sqrt(pi)/2
+  real(kind=dbl), parameter          :: sPio2 = 1.253314137315500D0  ! sqrt(pi/2)
   integer(kind=irg)                  :: ierr
 
   ! Set up quaternion for rotation
@@ -133,7 +137,6 @@ subroutine c_ebsd_compute_pattern(numsx, numsy, npx, rgx, rgy, rgz, &
 
   ! Scale factor for Lambert indexing
   scl = dble(npx)
-  sq2pi = dsqrt(cPi * 0.5D0)
   npxi = npx + 1  ! 1-based index offset (array goes from 1 to 2*npx+1)
 
   do j = 1, numsy
@@ -148,7 +151,8 @@ subroutine c_ebsd_compute_pattern(numsx, numsy, npx, rgx, rgy, rgz, &
       rr = dsqrt(dcr(1)**2 + dcr(2)**2 + dcr(3)**2)
       dcr = dcr / rr
 
-      ! Lambert projection: sphere to square
+      ! Modified Lambert sphere-to-square projection (Callahan & De Graef 2013)
+      ! Result xy is in [-1,1]^2; uses |z| so hemisphere is selected separately below.
       if (dabs(dcr(3)) .ge. 1.D0) then
         ! At a pole
         nix = 0
@@ -160,13 +164,14 @@ subroutine c_ebsd_compute_pattern(numsx, numsy, npx, rgx, rgy, rgz, &
         dxm = 1.D0
         dym = 1.D0
       else
-        ! Compute Lambert square coordinates
         if (dabs(dcr(2)) .le. dabs(dcr(1))) then
-          xy(1) = dsign(1.D0, dcr(1)) * dsqrt(2.D0 * (1.D0 - dabs(dcr(3)))) / sq2pi
-          xy(2) = xy(1) * datan2(dcr(2), dcr(1)) / (cPi * 0.25D0)
+          q     = dsign(1.D0, dcr(1)) * dsqrt(2.D0 * (1.D0 - dabs(dcr(3))))
+          xy(1) = q * sPi2 / sPio2
+          xy(2) = q * datan(dcr(2) / dcr(1)) / (sPi2 * sPio2)
         else
-          xy(2) = dsign(1.D0, dcr(2)) * dsqrt(2.D0 * (1.D0 - dabs(dcr(3)))) / sq2pi
-          xy(1) = xy(2) * datan2(dcr(1), dcr(2)) / (cPi * 0.25D0)
+          q     = dsign(1.D0, dcr(2)) * dsqrt(2.D0 * (1.D0 - dabs(dcr(3))))
+          xy(2) = q * sPi2 / sPio2
+          xy(1) = q * datan(dcr(1) / dcr(2)) / (sPi2 * sPio2)
         end if
 
         ! Scale to grid indices
@@ -212,6 +217,7 @@ end subroutine c_ebsd_compute_pattern
 subroutine c_ebsd_compute_patterns(numsx, numsy, npx, rgx, rgy, rgz, &
     mLPNH, mLPSH, quats, nquats, patterns) &
     bind(c, name='emsoft_ebsd_compute_patterns')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_ebsd_compute_patterns
   !! Compute multiple EBSD patterns for an array of orientations.
   !! patterns must be pre-allocated to (numsx, numsy, nquats).
   integer(c_int), value, INTENT(IN)  :: numsx, numsy, npx, nquats

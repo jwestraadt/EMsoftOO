@@ -50,6 +50,7 @@ contains
 !--------------------------------------------------------------------------
 
 function c_so3_create(pgnum) result(handle) bind(c, name='emsoft_so3_create')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_so3_create
   !! Create a so3_T for the given point group number (1-32).
   integer(c_int), value, INTENT(IN) :: pgnum
   type(c_ptr)                        :: handle
@@ -63,6 +64,7 @@ end function c_so3_create
 
 !--------------------------------------------------------------------------
 subroutine c_so3_destroy(handle) bind(c, name='emsoft_so3_destroy')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_so3_destroy
   type(c_ptr), value, INTENT(IN) :: handle
   type(so3_T), pointer           :: obj
 
@@ -77,6 +79,7 @@ end subroutine c_so3_destroy
 
 subroutine c_so3_get_fz_type_order(handle, fztype, fzorder) &
     bind(c, name='emsoft_so3_get_fz_type_order')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_so3_get_fz_type_order
   !! Get the fundamental zone type and order.
   !! Types: 0=none, 1=cyclic, 2=dihedral, 3=tetrahedral, 4=octahedral
   type(c_ptr), value, INTENT(IN) :: handle
@@ -95,6 +98,7 @@ end subroutine c_so3_get_fz_type_order
 
 function c_so3_is_inside_fz(handle, rod) result(inside) &
     bind(c, name='emsoft_so3_is_inside_fz')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_so3_is_inside_fz
   !! Test if a Rodrigues vector [n1, n2, n3, tan(angle/2)] is inside the
   !! fundamental zone for this point group.
   type(c_ptr), value, INTENT(IN) :: handle
@@ -116,6 +120,7 @@ end function c_so3_is_inside_fz
 
 subroutine c_so3_mackenzie(handle, nsteps, misor, mk) &
     bind(c, name='emsoft_so3_mackenzie')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_so3_mackenzie
   !! Compute the theoretical MacKenzie misorientation distribution.
   !! misor(0:nsteps) contains angle values in radians.
   !! mk(0:nsteps) is filled with the distribution values.

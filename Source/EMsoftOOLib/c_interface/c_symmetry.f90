@@ -49,6 +49,7 @@ contains
 !--------------------------------------------------------------------------
 
 function c_sg_create(sgnum) result(handle) bind(c, name='emsoft_sg_create')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_sg_create
   !! Create a SpaceGroup_T from a space group number (1-230).
   !! Generates the symmetry matrices including point group operators.
   integer(c_int), value, INTENT(IN) :: sgnum
@@ -63,6 +64,7 @@ end function c_sg_create
 
 !--------------------------------------------------------------------------
 subroutine c_sg_destroy(handle) bind(c, name='emsoft_sg_destroy')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_sg_destroy
   type(c_ptr), value, INTENT(IN) :: handle
   type(SpaceGroup_T), pointer    :: obj
 
@@ -76,6 +78,7 @@ end subroutine c_sg_destroy
 !--------------------------------------------------------------------------
 
 function c_sg_get_number(handle) result(n) bind(c, name='emsoft_sg_get_number')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_sg_get_number
   type(c_ptr), value, INTENT(IN) :: handle
   integer(c_int)                 :: n
   type(SpaceGroup_T), pointer    :: obj
@@ -87,6 +90,7 @@ end function c_sg_get_number
 
 !--------------------------------------------------------------------------
 function c_sg_get_order(handle) result(n) bind(c, name='emsoft_sg_get_order')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_sg_get_order
   !! Get the order of the space group (number of symmetry operations).
   type(c_ptr), value, INTENT(IN) :: handle
   integer(c_int)                 :: n
@@ -99,6 +103,7 @@ end function c_sg_get_order
 
 !--------------------------------------------------------------------------
 function c_sg_get_matnum(handle) result(n) bind(c, name='emsoft_sg_get_matnum')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_sg_get_matnum
   !! Get the number of symmetry matrices.
   type(c_ptr), value, INTENT(IN) :: handle
   integer(c_int)                 :: n
@@ -111,6 +116,7 @@ end function c_sg_get_matnum
 
 !--------------------------------------------------------------------------
 function c_sg_get_numpt(handle) result(n) bind(c, name='emsoft_sg_get_numpt')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_sg_get_numpt
   !! Get the number of point group operators.
   type(c_ptr), value, INTENT(IN) :: handle
   integer(c_int)                 :: n
@@ -123,6 +129,7 @@ end function c_sg_get_numpt
 
 !--------------------------------------------------------------------------
 function c_sg_get_xtal_system(handle) result(n) bind(c, name='emsoft_sg_get_xtal_system')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_sg_get_xtal_system
   !! Get crystal system number (1-7).
   type(c_ptr), value, INTENT(IN) :: handle
   integer(c_int)                 :: n
@@ -135,6 +142,7 @@ end function c_sg_get_xtal_system
 
 !--------------------------------------------------------------------------
 function c_sg_get_centro(handle) result(c) bind(c, name='emsoft_sg_get_centro')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_sg_get_centro
   !! Check if the space group is centrosymmetric.
   type(c_ptr), value, INTENT(IN) :: handle
   logical(c_bool)                :: c
@@ -147,6 +155,7 @@ end function c_sg_get_centro
 
 !--------------------------------------------------------------------------
 function c_sg_get_symmorphic(handle) result(s) bind(c, name='emsoft_sg_get_symmorphic')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_sg_get_symmorphic
   !! Check if the space group is symmorphic.
   type(c_ptr), value, INTENT(IN) :: handle
   logical(c_bool)                :: s
@@ -159,6 +168,7 @@ end function c_sg_get_symmorphic
 
 !--------------------------------------------------------------------------
 function c_sg_is_g_allowed(handle, g) result(allowed) bind(c, name='emsoft_sg_is_g_allowed')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_sg_is_g_allowed
   !! Check if a reflection g = [h, k, l] is allowed (not extinct).
   type(c_ptr), value, INTENT(IN) :: handle
   integer(c_int), INTENT(IN)    :: g(3)
@@ -176,6 +186,7 @@ end function c_sg_is_g_allowed
 
 subroutine c_sg_calc_orbit(handle, site, n, ctmp, maxn) &
     bind(c, name='emsoft_sg_calc_orbit')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_sg_calc_orbit
   !! Compute the orbit of a position. Returns n equivalent positions in ctmp.
   !! ctmp must be pre-allocated to at least (maxn, 3).
   type(c_ptr), value, INTENT(IN)    :: handle
@@ -201,6 +212,7 @@ end subroutine c_sg_calc_orbit
 !--------------------------------------------------------------------------
 subroutine c_sg_calc_star(handle, kk, n, stmp, space, maxn) &
     bind(c, name='emsoft_sg_calc_star')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_sg_calc_star
   !! Compute the star of a reciprocal/direct vector.
   !! stmp must be pre-allocated to at least (maxn, 3).
   type(c_ptr), value, INTENT(IN)       :: handle
@@ -227,6 +239,7 @@ end subroutine c_sg_calc_star
 !--------------------------------------------------------------------------
 subroutine c_sg_calc_family(handle, ind, num, itmp, space, maxn) &
     bind(c, name='emsoft_sg_calc_family')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_sg_calc_family
   !! Compute the family of symmetry-equivalent planes/directions.
   !! itmp must be pre-allocated to at least (maxn, 3).
   type(c_ptr), value, INTENT(IN)       :: handle

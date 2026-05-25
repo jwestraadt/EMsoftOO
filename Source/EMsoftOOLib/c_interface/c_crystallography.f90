@@ -50,6 +50,7 @@ contains
 !--------------------------------------------------------------------------
 
 function c_cell_create(latparm) result(handle) bind(c, name='emsoft_cell_create')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_cell_create
   !! Create a Cell_T from lattice parameters [a, b, c, alpha, beta, gamma].
   !! Lengths in nm, angles in degrees. Automatically computes metric tensors.
   real(c_double), INTENT(IN) :: latparm(6)
@@ -65,6 +66,7 @@ end function c_cell_create
 
 !--------------------------------------------------------------------------
 subroutine c_cell_destroy(handle) bind(c, name='emsoft_cell_destroy')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_cell_destroy
   type(c_ptr), value, INTENT(IN) :: handle
   type(Cell_T), pointer          :: obj
 
@@ -78,6 +80,7 @@ end subroutine c_cell_destroy
 !--------------------------------------------------------------------------
 
 subroutine c_cell_get_latparm(handle, latparm) bind(c, name='emsoft_cell_get_latparm')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_cell_get_latparm
   !! Get lattice parameters [a, b, c, alpha, beta, gamma].
   type(c_ptr), value, INTENT(IN) :: handle
   real(c_double), INTENT(OUT)    :: latparm(6)
@@ -90,6 +93,7 @@ end subroutine c_cell_get_latparm
 
 !--------------------------------------------------------------------------
 function c_cell_get_volume(handle) result(vol) bind(c, name='emsoft_cell_get_volume')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_cell_get_volume
   !! Get unit cell volume in nm^3.
   type(c_ptr), value, INTENT(IN) :: handle
   real(c_double)                 :: vol
@@ -105,6 +109,7 @@ end function c_cell_get_volume
 !--------------------------------------------------------------------------
 
 subroutine c_cell_get_dmt(handle, dmt) bind(c, name='emsoft_cell_get_dmt')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_cell_get_dmt
   !! Get direct metric tensor (3x3).
   type(c_ptr), value, INTENT(IN) :: handle
   real(c_double), INTENT(OUT)    :: dmt(3,3)
@@ -117,6 +122,7 @@ end subroutine c_cell_get_dmt
 
 !--------------------------------------------------------------------------
 subroutine c_cell_get_rmt(handle, rmt) bind(c, name='emsoft_cell_get_rmt')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_cell_get_rmt
   !! Get reciprocal metric tensor (3x3).
   type(c_ptr), value, INTENT(IN) :: handle
   real(c_double), INTENT(OUT)    :: rmt(3,3)
@@ -129,6 +135,7 @@ end subroutine c_cell_get_rmt
 
 !--------------------------------------------------------------------------
 subroutine c_cell_get_dsm(handle, dsm) bind(c, name='emsoft_cell_get_dsm')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_cell_get_dsm
   !! Get direct structure matrix (3x3).
   type(c_ptr), value, INTENT(IN) :: handle
   real(c_double), INTENT(OUT)    :: dsm(3,3)
@@ -141,6 +148,7 @@ end subroutine c_cell_get_dsm
 
 !--------------------------------------------------------------------------
 subroutine c_cell_get_rsm(handle, rsm) bind(c, name='emsoft_cell_get_rsm')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_cell_get_rsm
   !! Get reciprocal structure matrix (3x3).
   type(c_ptr), value, INTENT(IN) :: handle
   real(c_double), INTENT(OUT)    :: rsm(3,3)
@@ -157,6 +165,7 @@ end subroutine c_cell_get_rsm
 
 subroutine c_cell_trans_space(handle, t, d, inspace, outspace) &
     bind(c, name='emsoft_cell_trans_space')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_cell_trans_space
   !! Transform a 3-vector between coordinate systems.
   !! Spaces: 'd' (direct), 'r' (reciprocal), 'c' (Cartesian).
   type(c_ptr), value, INTENT(IN)  :: handle
@@ -174,6 +183,7 @@ end subroutine c_cell_trans_space
 !--------------------------------------------------------------------------
 function c_cell_calc_dot(handle, p, q, space) result(cdot) &
     bind(c, name='emsoft_cell_calc_dot')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_cell_calc_dot
   !! Compute dot product of two vectors in the given space.
   type(c_ptr), value, INTENT(IN)  :: handle
   real(c_double), INTENT(IN)      :: p(3), q(3)
@@ -189,6 +199,7 @@ end function c_cell_calc_dot
 !--------------------------------------------------------------------------
 function c_cell_calc_length(handle, p, space) result(length) &
     bind(c, name='emsoft_cell_calc_length')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_cell_calc_length
   !! Compute length of a vector in the given space.
   type(c_ptr), value, INTENT(IN)  :: handle
   real(c_double), INTENT(IN)      :: p(3)
@@ -204,6 +215,7 @@ end function c_cell_calc_length
 !--------------------------------------------------------------------------
 function c_cell_calc_angle(handle, p, q, space) result(angle) &
     bind(c, name='emsoft_cell_calc_angle')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_cell_calc_angle
   !! Compute angle (radians) between two vectors in the given space.
   type(c_ptr), value, INTENT(IN)  :: handle
   real(c_double), INTENT(IN)      :: p(3), q(3)
@@ -218,6 +230,7 @@ end function c_cell_calc_angle
 
 !--------------------------------------------------------------------------
 subroutine c_cell_norm_vec(handle, p, space) bind(c, name='emsoft_cell_norm_vec')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_cell_norm_vec
   !! Normalize a vector in-place in the given space.
   type(c_ptr), value, INTENT(IN)  :: handle
   real(c_double), INTENT(INOUT)   :: p(3)
@@ -232,6 +245,7 @@ end subroutine c_cell_norm_vec
 !--------------------------------------------------------------------------
 subroutine c_cell_calc_cross(handle, p, q, r, inspace, outspace) &
     bind(c, name='emsoft_cell_calc_cross')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_cell_calc_cross
   !! Compute cross product of two vectors.
   type(c_ptr), value, INTENT(IN)  :: handle
   real(c_double), INTENT(IN)      :: p(3), q(3)
@@ -249,6 +263,7 @@ end subroutine c_cell_calc_cross
 !--------------------------------------------------------------------------
 
 subroutine c_cell_set_xtal_system(handle, xs) bind(c, name='emsoft_cell_set_xtal_system')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_cell_set_xtal_system
   !! Set the crystal system number (1=cubic..7=triclinic).
   type(c_ptr), value, INTENT(IN)    :: handle
   integer(c_int), value, INTENT(IN) :: xs
@@ -261,6 +276,7 @@ end subroutine c_cell_set_xtal_system
 
 !--------------------------------------------------------------------------
 subroutine c_cell_set_natomtype(handle, n) bind(c, name='emsoft_cell_set_natomtype')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_cell_set_natomtype
   !! Set the number of atom types in the asymmetric unit.
   type(c_ptr), value, INTENT(IN)    :: handle
   integer(c_int), value, INTENT(IN) :: n
@@ -274,6 +290,7 @@ end subroutine c_cell_set_natomtype
 !--------------------------------------------------------------------------
 subroutine c_cell_setup_atoms(handle, sg_handle, natom, atomtypes, atomdata) &
     bind(c, name='emsoft_cell_setup_atoms')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_cell_setup_atoms
   !! Set up all atoms in the asymmetric unit and compute equivalent positions.
   !! atomtypes(natom): atomic numbers (e.g. 28 for Ni).
   !! atomdata(natom, 5): each row is [x, y, z, occupancy, Debye-Waller].

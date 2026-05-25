@@ -52,6 +52,7 @@ contains
 
 function c_diff_create(voltage_kv, cell_handle) result(handle) &
     bind(c, name='emsoft_diff_create')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_diff_create
   !! Create a Diffraction_T with the given accelerating voltage (keV)
   !! and a Cell_T for wavelength calculation.
   real(c_double), value, INTENT(IN) :: voltage_kv
@@ -69,6 +70,7 @@ end function c_diff_create
 
 !--------------------------------------------------------------------------
 subroutine c_diff_destroy(handle) bind(c, name='emsoft_diff_destroy')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_diff_destroy
   type(c_ptr), value, INTENT(IN) :: handle
   type(Diffraction_T), pointer   :: obj
 
@@ -83,6 +85,7 @@ end subroutine c_diff_destroy
 
 subroutine c_diff_calc_wavelength(handle, cell_handle) &
     bind(c, name='emsoft_diff_calc_wavelength')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_diff_calc_wavelength
   !! Compute the relativistic electron wavelength using the cell's mean
   !! inner potential for refraction correction.
   type(c_ptr), value, INTENT(IN) :: handle
@@ -101,6 +104,7 @@ end subroutine c_diff_calc_wavelength
 !--------------------------------------------------------------------------
 
 function c_diff_get_voltage(handle) result(v) bind(c, name='emsoft_diff_get_voltage')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_diff_get_voltage
   type(c_ptr), value, INTENT(IN) :: handle
   real(c_double)                 :: v
   type(Diffraction_T), pointer   :: obj
@@ -112,6 +116,7 @@ end function c_diff_get_voltage
 
 !--------------------------------------------------------------------------
 function c_diff_get_wavelength(handle) result(v) bind(c, name='emsoft_diff_get_wavelength')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_diff_get_wavelength
   !! Get electron wavelength in nm.
   type(c_ptr), value, INTENT(IN) :: handle
   real(c_double)                 :: v
@@ -124,6 +129,7 @@ end function c_diff_get_wavelength
 
 !--------------------------------------------------------------------------
 function c_diff_get_relcor(handle) result(v) bind(c, name='emsoft_diff_get_relcor')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_diff_get_relcor
   !! Get relativistic correction factor (gamma).
   type(c_ptr), value, INTENT(IN) :: handle
   real(c_double)                 :: v
@@ -136,6 +142,7 @@ end function c_diff_get_relcor
 
 !--------------------------------------------------------------------------
 function c_diff_get_sigma(handle) result(v) bind(c, name='emsoft_diff_get_sigma')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_diff_get_sigma
   !! Get interaction constant (V^-1 nm^-1).
   type(c_ptr), value, INTENT(IN) :: handle
   real(c_double)                 :: v
@@ -148,6 +155,7 @@ end function c_diff_get_sigma
 
 !--------------------------------------------------------------------------
 function c_diff_get_psihat(handle) result(v) bind(c, name='emsoft_diff_get_psihat')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_diff_get_psihat
   !! Get relativistically corrected accelerating potential (V).
   type(c_ptr), value, INTENT(IN) :: handle
   real(c_double)                 :: v
@@ -163,6 +171,7 @@ end function c_diff_get_psihat
 !--------------------------------------------------------------------------
 
 subroutine c_diff_set_method(handle, m1, m2) bind(c, name='emsoft_diff_set_method')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_diff_set_method
   !! Set scattering factor method: 'WK', 'DT', or 'XR'.
   type(c_ptr), value, INTENT(IN) :: handle
   character(c_char), value, INTENT(IN) :: m1, m2
@@ -182,6 +191,7 @@ end subroutine c_diff_set_method
 
 subroutine c_diff_calc_ucg(handle, cell_handle, hkl, xg, xgp, ucg_r, ucg_i, vphase) &
     bind(c, name='emsoft_diff_calc_ucg')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_diff_calc_ucg
   !! Compute structure factor for reflection hkl.
   !! Cell must have atom positions calculated (via calcPositions).
   !! Returns extinction distance, absorption length, Ucg components, and phase.

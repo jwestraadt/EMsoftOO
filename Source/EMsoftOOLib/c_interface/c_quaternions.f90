@@ -49,6 +49,7 @@ contains
 !--------------------------------------------------------------------------
 
 function c_quat_create(qd) result(handle) bind(c, name='emsoft_quat_create')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_quat_create
   !! Create a Quaternion_T from a double-precision 4-vector [w, x, y, z].
   real(c_double), INTENT(IN) :: qd(4)
   type(c_ptr)                :: handle
@@ -62,6 +63,7 @@ end function c_quat_create
 
 !--------------------------------------------------------------------------
 function c_quat_create_identity() result(handle) bind(c, name='emsoft_quat_create_identity')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_quat_create_identity
   !! Create the identity quaternion [1, 0, 0, 0].
   type(c_ptr)                :: handle
   type(Quaternion_T), pointer :: obj
@@ -74,6 +76,7 @@ end function c_quat_create_identity
 
 !--------------------------------------------------------------------------
 subroutine c_quat_destroy(handle) bind(c, name='emsoft_quat_destroy')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_quat_destroy
   !! Destroy a Quaternion_T and free its memory.
   type(c_ptr), value, INTENT(IN) :: handle
   type(Quaternion_T), pointer    :: obj
@@ -88,6 +91,7 @@ end subroutine c_quat_destroy
 !--------------------------------------------------------------------------
 
 subroutine c_quat_get(handle, qd) bind(c, name='emsoft_quat_get')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_quat_get
   !! Get the quaternion components as double precision.
   type(c_ptr), value, INTENT(IN) :: handle
   real(c_double), INTENT(OUT)    :: qd(4)
@@ -100,6 +104,7 @@ end subroutine c_quat_get
 
 !--------------------------------------------------------------------------
 subroutine c_quat_set(handle, qd) bind(c, name='emsoft_quat_set')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_quat_set
   !! Set the quaternion components from double precision.
   type(c_ptr), value, INTENT(IN) :: handle
   real(c_double), INTENT(IN)     :: qd(4)
@@ -115,6 +120,7 @@ end subroutine c_quat_set
 !--------------------------------------------------------------------------
 
 function c_quat_add(h1, h2) result(handle) bind(c, name='emsoft_quat_add')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_quat_add
   !! Add two quaternions: result = h1 + h2.
   type(c_ptr), value, INTENT(IN) :: h1, h2
   type(c_ptr)                    :: handle
@@ -130,6 +136,7 @@ end function c_quat_add
 
 !--------------------------------------------------------------------------
 function c_quat_subtract(h1, h2) result(handle) bind(c, name='emsoft_quat_subtract')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_quat_subtract
   !! Subtract two quaternions: result = h1 - h2.
   type(c_ptr), value, INTENT(IN) :: h1, h2
   type(c_ptr)                    :: handle
@@ -145,6 +152,7 @@ end function c_quat_subtract
 
 !--------------------------------------------------------------------------
 function c_quat_multiply(h1, h2) result(handle) bind(c, name='emsoft_quat_multiply')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_quat_multiply
   !! Multiply two quaternions: result = h1 * h2.
   type(c_ptr), value, INTENT(IN) :: h1, h2
   type(c_ptr)                    :: handle
@@ -160,6 +168,7 @@ end function c_quat_multiply
 
 !--------------------------------------------------------------------------
 function c_quat_divide(h1, h2) result(handle) bind(c, name='emsoft_quat_divide')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_quat_divide
   !! Divide two quaternions: result = h1 / h2.
   type(c_ptr), value, INTENT(IN) :: h1, h2
   type(c_ptr)                    :: handle
@@ -175,6 +184,7 @@ end function c_quat_divide
 
 !--------------------------------------------------------------------------
 function c_quat_scale(h, s) result(handle) bind(c, name='emsoft_quat_scale')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_quat_scale
   !! Scalar multiplication: result = h * s.
   type(c_ptr), value, INTENT(IN) :: h
   real(c_double), value, INTENT(IN) :: s
@@ -193,6 +203,7 @@ end function c_quat_scale
 !--------------------------------------------------------------------------
 
 function c_quat_conjugate(h) result(handle) bind(c, name='emsoft_quat_conjugate')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_quat_conjugate
   !! Return the conjugate of a quaternion.
   type(c_ptr), value, INTENT(IN) :: h
   type(c_ptr)                    :: handle
@@ -207,6 +218,7 @@ end function c_quat_conjugate
 
 !--------------------------------------------------------------------------
 function c_quat_norm(h) result(res) bind(c, name='emsoft_quat_norm')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_quat_norm
   !! Return the norm of a quaternion.
   type(c_ptr), value, INTENT(IN) :: h
   real(c_double)                 :: res
@@ -219,6 +231,7 @@ end function c_quat_norm
 
 !--------------------------------------------------------------------------
 subroutine c_quat_normalize(h) bind(c, name='emsoft_quat_normalize')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_quat_normalize
   !! Normalize a quaternion in-place.
   type(c_ptr), value, INTENT(IN) :: h
   type(Quaternion_T), pointer    :: q
@@ -230,6 +243,7 @@ end subroutine c_quat_normalize
 
 !--------------------------------------------------------------------------
 subroutine c_quat_flip(h) bind(c, name='emsoft_quat_flip')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_quat_flip
   !! Negate all components of a quaternion in-place.
   type(c_ptr), value, INTENT(IN) :: h
   type(Quaternion_T), pointer    :: q
@@ -241,6 +255,7 @@ end subroutine c_quat_flip
 
 !--------------------------------------------------------------------------
 subroutine c_quat_pos(h) bind(c, name='emsoft_quat_pos')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_quat_pos
   !! Make scalar part positive in-place (q or -q convention).
   type(c_ptr), value, INTENT(IN) :: h
   type(Quaternion_T), pointer    :: q
@@ -255,6 +270,7 @@ end subroutine c_quat_pos
 !--------------------------------------------------------------------------
 
 function c_quat_innerproduct(h1, h2) result(res) bind(c, name='emsoft_quat_innerproduct')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_quat_innerproduct
   !! Compute the inner product of two quaternions.
   type(c_ptr), value, INTENT(IN) :: h1, h2
   real(c_double)                 :: res
@@ -268,6 +284,7 @@ end function c_quat_innerproduct
 
 !--------------------------------------------------------------------------
 function c_quat_angle(h1, h2) result(res) bind(c, name='emsoft_quat_angle')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_quat_angle
   !! Compute the angle (in radians) between two unit quaternions.
   type(c_ptr), value, INTENT(IN) :: h1, h2
   real(c_double)                 :: res
@@ -281,6 +298,7 @@ end function c_quat_angle
 
 !--------------------------------------------------------------------------
 function c_quat_equal(h1, h2) result(res) bind(c, name='emsoft_quat_equal')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_quat_equal
   !! Test equality of two quaternions.
   type(c_ptr), value, INTENT(IN) :: h1, h2
   logical(c_bool)                :: res
@@ -297,6 +315,7 @@ end function c_quat_equal
 !--------------------------------------------------------------------------
 
 subroutine c_quat_rotate_vector(h, v, vout) bind(c, name='emsoft_quat_rotate_vector')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_quat_rotate_vector
   !! Rotate a 3-vector by a unit quaternion using the L_p operation: v' = q v q*.
   type(c_ptr), value, INTENT(IN) :: h
   real(c_double), INTENT(IN)     :: v(3)
@@ -310,6 +329,7 @@ end subroutine c_quat_rotate_vector
 
 !--------------------------------------------------------------------------
 subroutine c_quat_rotate_vecarray(h, n, v, vout) bind(c, name='emsoft_quat_rotate_vecarray')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_quat_rotate_vecarray
   !! Rotate an array of n 3-vectors by a unit quaternion.
   type(c_ptr), value, INTENT(IN)    :: h
   integer(c_int), value, INTENT(IN) :: n
@@ -327,6 +347,7 @@ end subroutine c_quat_rotate_vecarray
 !--------------------------------------------------------------------------
 
 function c_quatarray_create(n, qd) result(handle) bind(c, name='emsoft_quatarray_create')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_quatarray_create
   !! Create a QuaternionArray_T from n double-precision quaternions stored as (4,n).
   integer(c_int), value, INTENT(IN) :: n
   real(c_double), INTENT(IN)        :: qd(4,n)
@@ -341,6 +362,7 @@ end function c_quatarray_create
 
 !--------------------------------------------------------------------------
 function c_quatarray_create_empty(n) result(handle) bind(c, name='emsoft_quatarray_create_empty')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_quatarray_create_empty
   !! Create an empty QuaternionArray_T with n slots.
   integer(c_int), value, INTENT(IN) :: n
   type(c_ptr)                        :: handle
@@ -354,6 +376,7 @@ end function c_quatarray_create_empty
 
 !--------------------------------------------------------------------------
 subroutine c_quatarray_destroy(handle) bind(c, name='emsoft_quatarray_destroy')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_quatarray_destroy
   !! Destroy a QuaternionArray_T and free its memory.
   type(c_ptr), value, INTENT(IN)   :: handle
   type(QuaternionArray_T), pointer :: obj
@@ -369,6 +392,7 @@ end subroutine c_quatarray_destroy
 !--------------------------------------------------------------------------
 
 function c_quatarray_size(handle) result(n) bind(c, name='emsoft_quatarray_size')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_quatarray_size
   !! Return the number of quaternions in the array.
   type(c_ptr), value, INTENT(IN)   :: handle
   integer(c_int)                   :: n
@@ -381,6 +405,7 @@ end function c_quatarray_size
 
 !--------------------------------------------------------------------------
 subroutine c_quatarray_get_element(handle, i, qd) bind(c, name='emsoft_quatarray_get_element')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_quatarray_get_element
   !! Get the i-th quaternion (1-based index) as a double-precision 4-vector.
   type(c_ptr), value, INTENT(IN)    :: handle
   integer(c_int), value, INTENT(IN) :: i
@@ -396,6 +421,7 @@ end subroutine c_quatarray_get_element
 
 !--------------------------------------------------------------------------
 subroutine c_quatarray_set_element(handle, i, qd) bind(c, name='emsoft_quatarray_set_element')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_quatarray_set_element
   !! Set the i-th quaternion (1-based index) from a double-precision 4-vector.
   type(c_ptr), value, INTENT(IN)    :: handle
   integer(c_int), value, INTENT(IN) :: i
@@ -414,6 +440,7 @@ end subroutine c_quatarray_set_element
 !--------------------------------------------------------------------------
 
 function c_quatarray_multiply(h1, h2) result(handle) bind(c, name='emsoft_quatarray_multiply')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_quatarray_multiply
   !! Element-wise multiplication of two quaternion arrays.
   type(c_ptr), value, INTENT(IN)   :: h1, h2
   type(c_ptr)                      :: handle
@@ -429,6 +456,7 @@ end function c_quatarray_multiply
 
 !--------------------------------------------------------------------------
 subroutine c_quatarray_normalize(handle) bind(c, name='emsoft_quatarray_normalize')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_quatarray_normalize
   !! Normalize all quaternions in the array in-place.
   type(c_ptr), value, INTENT(IN)   :: handle
   type(QuaternionArray_T), pointer :: obj
@@ -440,6 +468,7 @@ end subroutine c_quatarray_normalize
 
 !--------------------------------------------------------------------------
 subroutine c_quatarray_rotate_vector(handle, v, vout, n) bind(c, name='emsoft_quatarray_rotate_vector')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_quatarray_rotate_vector
   !! Rotate a single vector by each quaternion in the array.
   !! vout is (3,n) where n = number of quaternions.
   type(c_ptr), value, INTENT(IN)    :: handle

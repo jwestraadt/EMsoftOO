@@ -51,6 +51,7 @@ contains
 
 subroutine c_lambert_square_to_sphere(xy, xyz, ierr) &
     bind(c, name='emsoft_lambert_square_to_sphere')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_lambert_square_to_sphere
   !! Map a 2D point on the square [-1,1]^2 to a point on the unit hemisphere.
   real(c_double), INTENT(IN)     :: xy(2)
   real(c_double), INTENT(OUT)    :: xyz(3)
@@ -65,6 +66,7 @@ end subroutine c_lambert_square_to_sphere
 !--------------------------------------------------------------------------
 subroutine c_lambert_sphere_to_square(xyz, xy, ierr) &
     bind(c, name='emsoft_lambert_sphere_to_square')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_lambert_sphere_to_square
   !! Map a point on the unit hemisphere to the square [-1,1]^2.
   real(c_double), INTENT(IN)     :: xyz(3)
   real(c_double), INTENT(OUT)    :: xy(2)
@@ -82,6 +84,7 @@ end subroutine c_lambert_sphere_to_square
 
 subroutine c_lambert_cube_to_ball(cube, ball, ierr) &
     bind(c, name='emsoft_lambert_cube_to_ball')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_lambert_cube_to_ball
   !! Map a 3D point in the cube to a point in the unit ball.
   real(c_double), INTENT(IN)     :: cube(3)
   real(c_double), INTENT(OUT)    :: ball(3)
@@ -96,6 +99,7 @@ end subroutine c_lambert_cube_to_ball
 !--------------------------------------------------------------------------
 subroutine c_lambert_ball_to_cube(ball, cube, ierr) &
     bind(c, name='emsoft_lambert_ball_to_cube')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_lambert_ball_to_cube
   !! Map a 3D point in the unit ball to a point in the cube.
   real(c_double), INTENT(IN)     :: ball(3)
   real(c_double), INTENT(OUT)    :: cube(3)
@@ -113,6 +117,7 @@ end subroutine c_lambert_ball_to_cube
 
 subroutine c_lambert_stereo_forward(xyz, xy, ierr) &
     bind(c, name='emsoft_lambert_stereo_forward')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_lambert_stereo_forward
   !! Forward stereographic projection: 3D unit sphere -> 2D plane.
   real(c_double), INTENT(IN)     :: xyz(3)
   real(c_double), INTENT(OUT)    :: xy(2)
@@ -127,6 +132,7 @@ end subroutine c_lambert_stereo_forward
 !--------------------------------------------------------------------------
 subroutine c_lambert_stereo_inverse(xy, xyz, ierr) &
     bind(c, name='emsoft_lambert_stereo_inverse')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_lambert_stereo_inverse
   !! Inverse stereographic projection: 2D plane -> 3D unit sphere.
   real(c_double), INTENT(IN)     :: xy(2)
   real(c_double), INTENT(OUT)    :: xyz(3)

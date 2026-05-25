@@ -50,6 +50,7 @@ contains
 !--------------------------------------------------------------------------
 
 function c_rot_from_euler(eu) result(handle) bind(c, name='emsoft_rot_from_euler')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_rot_from_euler
   !! Create from Euler angles [phi1, Phi, phi2] in radians.
   real(c_double), INTENT(IN) :: eu(3)
   type(c_ptr)                :: handle
@@ -66,6 +67,7 @@ end function c_rot_from_euler
 
 !--------------------------------------------------------------------------
 function c_rot_from_quaternion(qu) result(handle) bind(c, name='emsoft_rot_from_quaternion')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_rot_from_quaternion
   !! Create from unit quaternion [w, x, y, z].
   real(c_double), INTENT(IN) :: qu(4)
   type(c_ptr)                :: handle
@@ -82,6 +84,7 @@ end function c_rot_from_quaternion
 
 !--------------------------------------------------------------------------
 function c_rot_from_matrix(om) result(handle) bind(c, name='emsoft_rot_from_matrix')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_rot_from_matrix
   !! Create from 3x3 rotation matrix.
   real(c_double), INTENT(IN) :: om(3,3)
   type(c_ptr)                :: handle
@@ -98,6 +101,7 @@ end function c_rot_from_matrix
 
 !--------------------------------------------------------------------------
 function c_rot_from_axisangle(ax) result(handle) bind(c, name='emsoft_rot_from_axisangle')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_rot_from_axisangle
   !! Create from axis-angle pair [n1, n2, n3, angle] (angle in radians).
   real(c_double), INTENT(IN) :: ax(4)
   type(c_ptr)                :: handle
@@ -114,6 +118,7 @@ end function c_rot_from_axisangle
 
 !--------------------------------------------------------------------------
 function c_rot_from_rodrigues(ro) result(handle) bind(c, name='emsoft_rot_from_rodrigues')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_rot_from_rodrigues
   !! Create from Rodrigues vector [n1, n2, n3, tan(angle/2)].
   real(c_double), INTENT(IN) :: ro(4)
   type(c_ptr)                :: handle
@@ -130,6 +135,7 @@ end function c_rot_from_rodrigues
 
 !--------------------------------------------------------------------------
 function c_rot_from_homochoric(ho) result(handle) bind(c, name='emsoft_rot_from_homochoric')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_rot_from_homochoric
   !! Create from homochoric vector [h1, h2, h3].
   real(c_double), INTENT(IN) :: ho(3)
   type(c_ptr)                :: handle
@@ -146,6 +152,7 @@ end function c_rot_from_homochoric
 
 !--------------------------------------------------------------------------
 function c_rot_from_cubochoric(cu) result(handle) bind(c, name='emsoft_rot_from_cubochoric')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_rot_from_cubochoric
   !! Create from cubochoric vector [c1, c2, c3].
   real(c_double), INTENT(IN) :: cu(3)
   type(c_ptr)                :: handle
@@ -162,6 +169,7 @@ end function c_rot_from_cubochoric
 
 !--------------------------------------------------------------------------
 function c_rot_from_stereographic(st) result(handle) bind(c, name='emsoft_rot_from_stereographic')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_rot_from_stereographic
   !! Create from stereographic vector [s1, s2, s3].
   real(c_double), INTENT(IN) :: st(3)
   type(c_ptr)                :: handle
@@ -178,6 +186,7 @@ end function c_rot_from_stereographic
 
 !--------------------------------------------------------------------------
 function c_rot_from_rotvec(rv) result(handle) bind(c, name='emsoft_rot_from_rotvec')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_rot_from_rotvec
   !! Create from rotation vector [v1, v2, v3].
   real(c_double), INTENT(IN) :: rv(3)
   type(c_ptr)                :: handle
@@ -197,6 +206,7 @@ end function c_rot_from_rotvec
 !--------------------------------------------------------------------------
 
 subroutine c_rot_destroy(handle) bind(c, name='emsoft_rot_destroy')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_rot_destroy
   type(c_ptr), value, INTENT(IN)   :: handle
   type(orientation_T), pointer     :: obj
 
@@ -210,6 +220,7 @@ end subroutine c_rot_destroy
 !--------------------------------------------------------------------------
 
 subroutine c_rot_to_euler(handle, eu) bind(c, name='emsoft_rot_to_euler')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_rot_to_euler
   type(c_ptr), value, INTENT(IN) :: handle
   real(c_double), INTENT(OUT)    :: eu(3)
   type(orientation_T), pointer   :: obj
@@ -221,6 +232,7 @@ end subroutine c_rot_to_euler
 
 !--------------------------------------------------------------------------
 subroutine c_rot_to_quaternion(handle, qu) bind(c, name='emsoft_rot_to_quaternion')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_rot_to_quaternion
   type(c_ptr), value, INTENT(IN) :: handle
   real(c_double), INTENT(OUT)    :: qu(4)
   type(orientation_T), pointer   :: obj
@@ -232,6 +244,7 @@ end subroutine c_rot_to_quaternion
 
 !--------------------------------------------------------------------------
 subroutine c_rot_to_matrix(handle, om) bind(c, name='emsoft_rot_to_matrix')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_rot_to_matrix
   type(c_ptr), value, INTENT(IN) :: handle
   real(c_double), INTENT(OUT)    :: om(3,3)
   type(orientation_T), pointer   :: obj
@@ -243,6 +256,7 @@ end subroutine c_rot_to_matrix
 
 !--------------------------------------------------------------------------
 subroutine c_rot_to_axisangle(handle, ax) bind(c, name='emsoft_rot_to_axisangle')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_rot_to_axisangle
   type(c_ptr), value, INTENT(IN) :: handle
   real(c_double), INTENT(OUT)    :: ax(4)
   type(orientation_T), pointer   :: obj
@@ -254,6 +268,7 @@ end subroutine c_rot_to_axisangle
 
 !--------------------------------------------------------------------------
 subroutine c_rot_to_rodrigues(handle, ro) bind(c, name='emsoft_rot_to_rodrigues')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_rot_to_rodrigues
   type(c_ptr), value, INTENT(IN) :: handle
   real(c_double), INTENT(OUT)    :: ro(4)
   type(orientation_T), pointer   :: obj
@@ -265,6 +280,7 @@ end subroutine c_rot_to_rodrigues
 
 !--------------------------------------------------------------------------
 subroutine c_rot_to_homochoric(handle, ho) bind(c, name='emsoft_rot_to_homochoric')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_rot_to_homochoric
   type(c_ptr), value, INTENT(IN) :: handle
   real(c_double), INTENT(OUT)    :: ho(3)
   type(orientation_T), pointer   :: obj
@@ -276,6 +292,7 @@ end subroutine c_rot_to_homochoric
 
 !--------------------------------------------------------------------------
 subroutine c_rot_to_cubochoric(handle, cu) bind(c, name='emsoft_rot_to_cubochoric')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_rot_to_cubochoric
   type(c_ptr), value, INTENT(IN) :: handle
   real(c_double), INTENT(OUT)    :: cu(3)
   type(orientation_T), pointer   :: obj
@@ -287,6 +304,7 @@ end subroutine c_rot_to_cubochoric
 
 !--------------------------------------------------------------------------
 subroutine c_rot_to_stereographic(handle, st) bind(c, name='emsoft_rot_to_stereographic')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_rot_to_stereographic
   type(c_ptr), value, INTENT(IN) :: handle
   real(c_double), INTENT(OUT)    :: st(3)
   type(orientation_T), pointer   :: obj
@@ -298,6 +316,7 @@ end subroutine c_rot_to_stereographic
 
 !--------------------------------------------------------------------------
 subroutine c_rot_to_rotvec(handle, rv) bind(c, name='emsoft_rot_to_rotvec')
+  !DEC$ ATTRIBUTES DLLEXPORT :: c_rot_to_rotvec
   type(c_ptr), value, INTENT(IN) :: handle
   real(c_double), INTENT(OUT)    :: rv(3)
   type(orientation_T), pointer   :: obj
