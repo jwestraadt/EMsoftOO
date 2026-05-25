@@ -6,8 +6,11 @@ License: BSD-3-Clause
 Requires-Python: >=3.9
 Description-Content-Type: text/markdown
 Requires-Dist: numpy>=1.20
+Provides-Extra: hdf5
+Requires-Dist: h5py>=3.0; extra == "hdf5"
 Provides-Extra: test
 Requires-Dist: pytest>=7.0; extra == "test"
+Requires-Dist: h5py>=3.0; extra == "test"
 
 # EMsoft Python Interface
 
