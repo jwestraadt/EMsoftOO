@@ -167,6 +167,29 @@ rotated = qa.rotate([1.0, 0.0, 0.0])  # shape (3, 3)
 
 ---
 
+## Building the Documentation
+
+```powershell
+cd Source\pyEMsoftOO
+
+# Install docs dependencies
+uv pip install -e ".[docs]"
+
+# Build HTML
+uv run sphinx-build -b html docs docs/_build/html
+
+# Open in browser
+start docs\_build\html\index.html
+```
+
+Or using `make.bat` from inside the `docs/` folder:
+
+```powershell
+cd Source\pyEMsoftOO\docs
+uv run make html
+start _build\html\index.html
+```
+
 ## Running Tests
 
 ```powershell

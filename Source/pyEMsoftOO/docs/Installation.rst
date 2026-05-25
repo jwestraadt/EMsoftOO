@@ -1,68 +1,142 @@
 Installation
-====================================
-.. role:: bash(code)
-   :language: bash
+============
 
-The pyEMsoft modules can only be generated after EMsoft has been built:
+.. role:: bat(code)
+   :language: bat
 
-- To compile EMsoft, you need to first build the `Software Developer Kit <https://github.com/EMsoft-org/EMsoftSuperbuild>`_ on your operating system. 
-- Then, follow the instructions in `EMsoft <https://github.com/EMsoft-org/EMsoft>`_ to compile the EMsoft modules and programs. 
-- Next, complete the EMsoft package configuration following the `EMsoft Wiki Package Configuration <https://github.com/EMsoft-org/EMsoft/wiki/Package-Configuration>`_.
-- To test if EMsoft has been configured correctly,run a simple example such as `Crystal Data Entry Example <https://github.com/EMsoft-org/EMsoft/wiki/Crystal-Data-Entry-Example>`_.
-- Create a Ni.xtal crystal file in the XtalFolder folder and this will be later used for unittests.
-- Have Python 3.x installed then pip install numpy (other packages are needed to run examples include: jupyter notebook, pyyaml, scikit-image, h5py, matplotlib). 
-- Git clone the `f90wrap <https://github.com/marcdegraef/f90wrap>`_ from our repository which contains minor changes for pyEMsoft. Install `f90wrap <https://github.com/marcdegraef/f90wrap>`_ Install with the setup.py (:bash:`python setup.py install`) and check if f90wrap and f2py-f90wrap have been added to path. These are the two important executables to generate the wrappers.
-- In the EMsoftBuild, use the auto-generated shell scripts run_pyEMsoft.sh (for pyEMsoft module) to install 
-- In the EMsoftBuild, run_docs.sh can be used to generate a local copy of the documentation.
-- In the Anaconda environment (if f90wrap is install in Anaconda environment), there will be an issue in linking some of the dynamic libraries (see the Debugging section about how to fix these). 
+.. role:: powershell(code)
+   :language: powershell
 
+Prerequisites
+-------------
 
-Dependencies
+- `Intel oneAPI HPC Toolkit <https://www.intel.com/content/www/us/en/developer/tools/oneapi/hpc-toolkit.html>`_
+  with the ``ifx`` Fortran compiler
+- Visual Studio 2022 (C++ Desktop workload)
+- `EMsoftOO SDK <https://github.com/EMsoft-org/EMsoftSuperbuild>`_
+- `uv <https://docs.astral.sh/uv/>`_ Python environment manager
+
+Step 1 — Build the shared library on Windows 11
+------------------------------------------------
+
+Open a plain ``cmd.exe`` (not PowerShell, not a Developer Command Prompt — the
+Intel ``setvars.bat`` call below sets up the full toolchain).
+
+Run the following from the **root of the EMsoftOO repository**:
+
+.. code-block:: bat
+
+    call "C:\Program Files (x86)\Intel\oneAPI\setvars.bat" intel64 vs2022
+
+    set "SDK_ROOT=C:/path/to/EMsoftOO_SDK"
+
+    cmake -S . -B build-ifx-release -G "NMake Makefiles" ^
+      -DBUILD_SHARED_LIBS=ON ^
+      -DCMAKE_BUILD_TYPE=Release ^
+      -DCMAKE_Fortran_COMPILER=ifx ^
+      -DCMAKE_C_FLAGS_DEBUG:STRING="/MDd /Z7 /Ob0 /Od /RTC1" ^
+      -DCMAKE_CXX_FLAGS_DEBUG:STRING="/MDd /Z7 /Ob0 /Od /RTC1" ^
+      -DEMsoftOO_SDK=%SDK_ROOT% ^
+      -DEMsoftOO_ENABLE_TESTING=OFF
+
+    cmake --build build-ifx-release
+
+Replace ``C:/path/to/EMsoftOO_SDK`` with the actual SDK location.
+
+.. note::
+
+   The ``/Z7`` debug-info flags are required on some systems where the default
+   ``/Zi`` causes a ``fatal error C1041`` during CMake compiler checks.
+
+After the build, the library is at::
+
+    build-ifx-release\Bin\EMsoftOO_c.dll
+
+Step 2 — Point Python at the DLL
+---------------------------------
+
+The bindings search for the DLL in this order:
+
+1. ``EMSOFTOO_LIB`` environment variable (full path or directory)
+2. ``EMsoftLibraryLocation`` key in ``~/.config/EMsoft/EMsoftConfig.json``
+3. Directory of the ``emsoft`` package itself
+4. System library search path
+
+If you have run ``EMsoftinit`` and your config contains ``EMsoftLibraryLocation``,
+**no extra step is needed**.
+
+To set the variable manually in PowerShell:
+
+.. code-block:: powershell
+
+    $env:EMSOFTOO_LIB = "C:\path\to\EMsoftOO\build-ifx-release\Bin\EMsoftOO_c.dll"
+
+Step 3 — Install uv
+--------------------
+
+.. code-block:: powershell
+
+    powershell -ExecutionPolicy Bypass -c "irm https://astral.sh/uv/install.ps1 | iex"
+
+Restart your terminal, then verify:
+
+.. code-block:: powershell
+
+    uv --version
+
+Step 4 — Create the Python environment
+----------------------------------------
+
+From the ``Source/pyEMsoftOO`` directory:
+
+.. code-block:: powershell
+
+    cd Source\pyEMsoftOO
+
+    uv venv
+    uv pip install h5py jupyterlab
+    uv pip install -e .
+
+Step 5 — Run JupyterLab
+------------------------
+
+With ``EMSOFTOO_LIB`` set (or auto-resolved via the config file):
+
+.. code-block:: powershell
+
+    uv run jupyter lab
+
+Step 6 — Run the examples notebook
 ------------------------------------
-* Github
-* EMsoft_SKD
-* EMsoft
-* Python 3.x (unittest files and examples provided in Python 3.x)
-* recent version of numpy which includes support for f2py
-* Fortran compiler gfortran 6.3+ or ifort 12+
-* f90wrap
 
-Supported Platforms 
-------------------------------------
-Currently, Windows system is not fully supported because f90wrap has only been tested on Mac and Linux system. 
+In the JupyterLab file browser open **examples.ipynb**.
+See :doc:`../notebooks/examples` for the full rendered notebook.
 
-+--------------------------------+-----------------------------------------+----------------------------------------+
-| Operating System               |        C/C++ Compiler                   |     Fortran Compiler                   |       
-+================================+=========================================+========================================+
-| macOS (10.12)                  | Xcode Native tools (8.3.x)              | GFortran 6.3.0 and above               | 
-+--------------------------------+-----------------------------------------+----------------------------------------+
-| Windows (10)                   | Visual Studio 2015 (CE/Pro)             |      Intel Fortran v17                 |
-+--------------------------------+-----------------------------------------+----------------------------------------+
-| Linux (Ubuntu 16.x, CentOS 7.x)| GCC 4.8 and Above/Clang 3.8 and greater |     GNU Fortran 5.4.1 20160904 or newer|          
-+--------------------------------+-----------------------------------------+----------------------------------------+
+Crystal-structure (``.xtal``) and master-pattern (``.h5``) files are resolved
+automatically from ``EMXtalFolderpathname`` and ``EMdatapathname`` in
+``~/.config/EMsoft/EMsoftConfig.json`` — no path editing required as long as
+``EMsoftinit`` has been run and the data files are in the configured folders.
 
-Debugging
-------------------------------------
-For more technical aspects of the build process, please refer to a journal paper by `Pearu Peterson <http://cens.ioc.ee/~pearu/papers/IJCSE4.4_Paper_8.pdf>`_
+Building the Documentation
+--------------------------
 
-The error information regarding the build is logged in the build_error.log file. However, if incorrect libraries are linked,
-you are not gonna find any clue in the log file unless you import the built pyEMsoft module. 
+.. code-block:: powershell
 
-To check what dynamic libraries are linked to the shared library file (.so), you can use :bash:`otool -L *.so` to check the linked dynamic libraries. 
-Note that the Accelerate.framework is for the lapack library.
+    cd Source\pyEMsoftOO
+    uv pip install -e ".[docs]"
+    uv run sphinx-build -b html docs docs/_build/html
+    start docs\_build\html\index.html
 
-.. code-block:: bash
+Or using ``make.bat`` from inside the ``docs/`` folder:
 
-    _pyEMsoft.cpython-37m-darwin.so:
-    /usr/local/gfortran/lib/libgomp.1.dylib (compatibility version 2.0.0, current version 2.0.0)
-    /usr/local/gfortran/lib/libgfortran.3.dylib (compatibility version 4.0.0, current version 4.0.0)
-    /Applications/Build_SDK/EMsoft_SDK/fftw-3.3.8/lib/libfftw3.3.dylib (compatibility version 9.0.0, current version 9.8.0)
-    /System/Library/Frameworks/Accelerate.framework/Versions/A/Accelerate (compatibility version 1.0.0, current version 4.0.0)
-    /usr/lib/libSystem.B.dylib (compatibility version 1.0.0, current version 1238.60.2)
-    /usr/local/gfortran/lib/libgcc_s.1.dylib (compatibility version 1.0.0, current version 1.0.0)
-    /usr/local/gfortran/lib/libquadmath.0.dylib (compatibility version 1.0.0, current version 1.0.0)
+.. code-block:: powershell
 
-In Anaconda environment, the f90wrap will link against libraries in the ../Anaconda/lib folder which contains outdated version of 
-libgfortran library (does not support ieee_arithmetic) and probably an incomplete libgomp (openMP) library. If you are not certain what's 
-missing in the library (usually import pyEMsoft will tell you), use the :bash:`nm` command to reveal all the contents and compare with the linked contents (also :bash:`nm` command) of
-the shared library (.so). In mac, you can also use :bash:`install_name_tool -change old new` to fix the libraries without needing to rebuild pyEMsoft. 
+    cd Source\pyEMsoftOO\docs
+    uv run make html
+
+Running Tests
+-------------
+
+.. code-block:: powershell
+
+    uv run pytest emsoft/tests/
