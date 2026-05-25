@@ -419,8 +419,22 @@ class QuaternionArray:
         """Element-wise quaternion multiplication."""
         if not isinstance(other, QuaternionArray):
             return NotImplemented
-        h = self._lib.emsoft_quatarray_multiply(self._handle, other._handle)
-        return QuaternionArray(_handle=h)
+        if len(self) != len(other):
+            raise ValueError(
+                f"QuaternionArray sizes must match: {len(self)} != {len(other)}")
+        # Numpy implementation avoids calling the OpenMP-based Fortran path
+        # which crashes under Python 3.12.  Formula matches EMsoftOO convention
+        # [w, x, y, z] with epsijk = +1 (from mod_global.f90).
+        a = self.to_array()
+        b = other.to_array()
+        w1, x1, y1, z1 = a[:, 0], a[:, 1], a[:, 2], a[:, 3]
+        w2, x2, y2, z2 = b[:, 0], b[:, 1], b[:, 2], b[:, 3]
+        result = np.empty_like(a)
+        result[:, 0] = w1*w2 - x1*x2 - y1*y2 - z1*z2
+        result[:, 1] = w1*x2 + x1*w2 + (y1*z2 - z1*y2)
+        result[:, 2] = w1*y2 + y1*w2 + (z1*x2 - x1*z2)
+        result[:, 3] = w1*z2 + z1*w2 + (x1*y2 - y1*x2)
+        return QuaternionArray(result)
 
     def normalize(self):
         """Normalize all quaternions in-place."""

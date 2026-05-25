@@ -83,15 +83,15 @@ class EBSDDetector:
     delta : float
         Detector pixel size in microns.
     thetac : float
-        Detector tilt angle in degrees.
+        Detector camera elevation angle in degrees (typically 10–15°).
     L : float
-        Sample-to-detector distance in mm.
-    omega : float, optional
-        Sample tilt angle in degrees (default 0).
+        Sample-to-detector distance in microns (µm).  Typical range 10 000–20 000 µm.
+    sigma : float, optional
+        Sample tilt angle in degrees (default 70.0 — standard EBSD geometry).
     """
 
     def __init__(self, numsx, numsy, xpc=0.0, ypc=0.0, delta=50.0,
-                 thetac=10.0, L=15000.0, omega=0.0):
+                 thetac=10.0, L=15000.0, sigma=70.0):
         self._lib = _ensure_bindings()
         self.numsx = numsx
         self.numsy = numsy
@@ -105,7 +105,7 @@ class EBSDDetector:
             c_int(numsx), c_int(numsy),
             c_double(xpc), c_double(ypc),
             c_double(delta), c_double(thetac),
-            c_double(omega), c_double(L),
+            c_double(sigma), c_double(L / 1000.0),  # Fortran expects mm; L is in µm
             self.rgx.ctypes.data_as(c_void_p),
             self.rgy.ctypes.data_as(c_void_p),
             self.rgz.ctypes.data_as(c_void_p))
@@ -153,10 +153,11 @@ class EBSDSimulator:
         mLPNH = np.asarray(mLPNH, dtype=np.float64)
         mLPSH = np.asarray(mLPSH, dtype=np.float64)
 
-        # If 3D or 4D (energy bins, phases), sum to get 2D
+        # Collapse leading dims (phases, energy bins) by summing, keeping
+        # the last two spatial axes (2*npx+1, 2*npx+1).
         while mLPNH.ndim > 2:
-            mLPNH = mLPNH.sum(axis=-1)
-            mLPSH = mLPSH.sum(axis=-1)
+            mLPNH = mLPNH.sum(axis=0)
+            mLPSH = mLPSH.sum(axis=0)
 
         if npx is None:
             npx = (mLPNH.shape[0] - 1) // 2
